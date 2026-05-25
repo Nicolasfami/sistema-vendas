@@ -523,13 +523,31 @@ else:
 
             if st.session_state.tipo == "admin":
 
-                total_empresa = (
-                    df[
-                        df["status"] == "Pago"
-                    ]["valor_comissao_empresa"]
-                    .fillna(0)
-                    .sum()
-                )
+                total_empresa = 0
+
+df_pagas = df[df["status"] == "Pago"].copy()
+
+if not df_pagas.empty:
+    for tabela in df_pagas["tabela_banco"].dropna().unique():
+        total_tabela = df_pagas[df_pagas["tabela_banco"] == tabela]["valor"].fillna(0).sum()
+
+        regras = (
+            supabase.table("regras_comissao")
+            .select("*")
+            .eq("produto", tabela)
+            .eq("ativo", True)
+            .order("valor_minimo", desc=True)
+            .execute()
+        )
+
+        percentual = 0
+
+        for regra in regras.data:
+            if total_tabela >= float(regra.get("valor_minimo") or 0):
+                percentual = float(regra.get("percentual_empresa") or 0)
+                break
+
+        total_empresa += total_tabela * (percentual / 100)
 
                 st.metric(
                     "🏦 Comissão empresa",
