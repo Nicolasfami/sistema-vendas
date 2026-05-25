@@ -24,8 +24,8 @@ if "logado" not in st.session_state:
 
 if not st.session_state.logado:
 
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
+    usuario = st.text_input("Usuário").strip().lower()
+senha = st.text_input("Senha", type="password").strip()
 
     if st.button("Entrar"):
 
