@@ -58,7 +58,7 @@ else:
     # ================= REGRAS =================
 
     regras = {
-        "CLT PADRAO OUTROS BANCOS E V8": [
+        "CLT PADRAO OUTROS BANCOS ( v8 abaixo 36x)": [
             (190000, 0.50),
             (130000, 0.35),
             (100000, 0.25),
