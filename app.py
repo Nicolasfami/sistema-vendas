@@ -574,6 +574,17 @@ else:
                     )
 
                 else:
+                                if (
+                    st.session_state.tipo != "admin"
+                    and bool(venda.get("conferido", False)) == True
+                ):
+
+                    st.warning(
+                        "🔒 Esta proposta já foi conferida pelo admin. "
+                        "O vendedor não pode mais editar."
+                    )
+
+                else:
 
                     tabelas = carregar_tabelas()
 
