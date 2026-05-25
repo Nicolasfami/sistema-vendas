@@ -267,7 +267,6 @@ else:
             if st.session_state.tipo == "admin":
 
                 colunas = [
-
                     "id",
                     "data",
                     "vendedor",
@@ -280,13 +279,11 @@ else:
                     "conferido",
                     "alterado_vendedor",
                     "observacao"
-
                 ]
 
             else:
 
                 colunas = [
-
                     "id",
                     "data",
                     "cliente",
@@ -295,7 +292,6 @@ else:
                     "valor",
                     "status",
                     "observacao"
-
                 ]
 
             colunas = [
