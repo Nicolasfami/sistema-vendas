@@ -256,6 +256,57 @@ else:
     # =========================================
 
     elif menu == "📊 Painel":
+                st.subheader("📄 Propostas")
+
+        if df.empty:
+
+            st.info("Nenhuma proposta encontrada.")
+
+        else:
+
+            if st.session_state.tipo == "admin":
+
+                colunas = [
+
+                    "id",
+                    "data",
+                    "vendedor",
+                    "cliente",
+                    "cpf",
+                    "telefone",
+                    "tabela_banco",
+                    "valor",
+                    "status",
+                    "conferido",
+                    "alterado_vendedor",
+                    "observacao"
+
+                ]
+
+            else:
+
+                colunas = [
+
+                    "id",
+                    "data",
+                    "cliente",
+                    "telefone",
+                    "tabela_banco",
+                    "valor",
+                    "status",
+                    "observacao"
+
+                ]
+
+            colunas = [
+                c for c in colunas
+                if c in df.columns
+            ]
+
+            st.dataframe(
+                df[colunas],
+                use_container_width=True
+            )
 
         st.header("📊 Painel de Vendas")
 
