@@ -2,34 +2,101 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client
 from datetime import datetime
+import hashlib
 
-# ================= CONFIG =================
+# =========================
+# CONFIG SUPABASE
+# =========================
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.set_page_config(page_title="CRM TK Soluções", layout="wide")
+# =========================
+# CONFIG PÁGINA
+# =========================
 
-# ================= USUÁRIOS =================
+st.set_page_config(
+    page_title="CRM TK Soluções",
+    layout="wide"
+)
 
-usuarios = {
-    "admin": {
-        "senha": "123",
-        "tipo": "admin"
-    },
-    "bruna": {
-        "senha": "123",
-        "tipo": "vendedor"
-    },
-    "larissa": {
-        "senha": "123",
-        "tipo": "vendedor"
-    }
-}
+# =========================
+# FUNÇÕES
+# =========================
 
-# ================= LOGIN =================
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
+
+
+def login(usuario, senha):
+
+    usuario = usuario.strip().lower()
+    senha_hash = hash_senha(senha.strip())
+
+    response = (
+        supabase
+        .table("usuarios")
+        .select("*")
+        .eq("usuario", usuario)
+        .eq("ativo", True)
+        .execute()
+    )
+
+    if not response.data:
+        return None
+
+    user = response.data[0]
+
+    if user["senha_hash"] == senha_hash:
+        return user
+
+    return None
+
+
+def calcular_comissao(produto, valor):
+
+    percentual = 0
+
+    # =========================
+    # CLT PADRAO OUTROS BANCOS
+    # =========================
+
+    if produto == "CLT PADRAO OUTROS BANCOS":
+
+        if valor >= 190000:
+            percentual = 0.50
+
+        elif valor >= 130000:
+            percentual = 0.35
+
+        elif valor >= 100000:
+            percentual = 0.25
+
+    # =========================
+    # V8 PRESENÇA
+    # =========================
+
+    elif produto == "V8 PRESENÇA":
+
+        if valor >= 180000:
+            percentual = 1.20
+
+        elif valor >= 120000:
+            percentual = 1.00
+
+        elif valor >= 70000:
+            percentual = 0.80
+
+    valor_comissao = valor * (percentual / 100)
+
+    return percentual, valor_comissao
+
+
+# =========================
+# LOGIN
+# =========================
 
 st.title("💰 CRM TK Soluções")
 
@@ -38,172 +105,410 @@ if "logado" not in st.session_state:
 
 if not st.session_state.logado:
 
-    usuario = st.text_input("Usuário").strip().lower()
-    senha = st.text_input("Senha", type="password").strip()
+    usuario = st.text_input("Usuário")
+    senha = st.text_input("Senha", type="password")
 
     if st.button("Entrar"):
 
-        if usuario in usuarios and usuarios[usuario]["senha"] == senha:
+        user = login(usuario, senha)
+
+        if user:
 
             st.session_state.logado = True
-            st.session_state.usuario = usuario
-            st.session_state.tipo = usuarios[usuario]["tipo"]
+            st.session_state.usuario = user["usuario"]
+            st.session_state.nome = user["nome"]
+            st.session_state.tipo = user["tipo"]
 
             st.rerun()
 
         else:
             st.error("Usuário ou senha inválidos")
 
-# ================= SISTEMA =================
+# =========================
+# SISTEMA
+# =========================
 
 else:
 
-    st.sidebar.success(f"Logado como: {st.session_state.usuario}")
+    st.sidebar.success(f"👤 {st.session_state.nome}")
 
     if st.sidebar.button("Sair"):
-        st.session_state.logado = False
+        st.session_state.clear()
         st.rerun()
 
-    st.title("📊 Painel de Vendas")
+    # =========================
+    # MENUS
+    # =========================
 
-    # ================= CADASTRAR VENDA =================
+    if st.session_state.tipo == "admin":
 
-    with st.expander("➕ Nova Venda"):
-
-        vendedor = st.text_input("Vendedor")
-        cliente = st.text_input("Cliente")
-        cpf = st.text_input("CPF")
-        telefone = st.text_input("Telefone")
-
-        produto = st.selectbox(
-            "Produto",
+        menu = st.sidebar.radio(
+            "Menu",
             [
-                "CLT PADRAO OUTROS BANCOS E V8",
-                "V8 PRESENÇA"
+                "📋 Nova Venda",
+                "📊 Painel",
+                "👥 Usuários"
             ]
         )
 
-        valor = st.number_input("Valor vendido", min_value=0.0)
+    else:
 
-        status = st.selectbox(
-            "Status",
+        menu = st.sidebar.radio(
+            "Menu",
             [
-                "Pendente",
-                "Pago",
-                "Cancelado"
+                "📋 Nova Venda",
+                "📊 Painel"
             ]
         )
 
-        observacao = st.text_area("Observação")
+    # =========================
+    # NOVA VENDA
+    # =========================
 
-        percentual = 0
+    if menu == "📋 Nova Venda":
 
-        # ================= COMISSÕES =================
+        st.header("📋 Cadastro de Venda")
 
-        if produto == "CLT PADRAO OUTROS BANCOS E V8":
+        with st.form("form_venda"):
 
-            if valor >= 190000:
-                percentual = 0.50
+            vendedor = st.text_input(
+                "Vendedor",
+                value=st.session_state.usuario
+            )
 
-            elif valor >= 130000:
-                percentual = 0.35
+            cliente = st.text_input("Cliente")
+            cpf = st.text_input("CPF")
+            telefone = st.text_input("Telefone")
 
-            elif valor >= 100000:
-                percentual = 0.25
+            produto = st.selectbox(
+                "Produto",
+                [
+                    "CLT PADRAO OUTROS BANCOS",
+                    "V8 PRESENÇA"
+                ]
+            )
 
-        elif produto == "V8 PRESENÇA":
+            valor = st.number_input(
+                "Valor vendido",
+                min_value=0.0,
+                step=1000.0
+            )
 
-            if valor >= 180000:
-                percentual = 1.20
+            status = st.selectbox(
+                "Status",
+                [
+                    "Pendente",
+                    "Pago",
+                    "Cancelado"
+                ]
+            )
 
-            elif valor >= 120000:
-                percentual = 1.00
+            observacao = st.text_area("Observação")
 
-            elif valor >= 70000:
-                percentual = 0.80
+            salvar = st.form_submit_button("Salvar Venda")
 
-        valor_comissao = valor * (percentual / 100)
+            if salvar:
 
-        st.info(f"Percentual: {percentual}%")
-        st.success(f"Comissão: R$ {valor_comissao:,.2f}")
+                percentual, valor_comissao = calcular_comissao(produto, valor)
 
-        # ================= SALVAR =================
+                dados = {
+                    "data": str(datetime.now()),
+                    "vendedor": vendedor,
+                    "cliente": cliente,
+                    "cpf": cpf,
+                    "telefone": telefone,
+                    "produto": produto,
+                    "valor": valor,
+                    "status": status,
+                    "comissao": percentual,
+                    "valor_comissao": valor_comissao,
+                    "observacao": observacao
+                }
 
-        if st.button("Salvar Venda"):
+                supabase.table("vendas").insert(dados).execute()
 
-            dados = {
-                "data": str(datetime.now()),
-                "vendedor": vendedor,
-                "cliente": cliente,
-                "cpf": cpf,
-                "telefone": telefone,
-                "produto": produto,
-                "valor": valor,
-                "status": status,
-                "percentual_comissao": percentual,
-                "valor_comissao": valor_comissao,
-                "observacao": observacao
-            }
+                st.success("Venda cadastrada com sucesso!")
 
-            supabase.table("vendas").insert(dados).execute()
+                st.info(
+                    f"Comissão: {percentual:.2f}% | "
+                    f"R$ {valor_comissao:,.2f}"
+                )
 
-            st.success("Venda salva com sucesso!")
+    # =========================
+    # PAINEL
+    # =========================
 
-    # ================= LISTAR VENDAS =================
+    elif menu == "📊 Painel":
 
-    st.divider()
+        st.header("📊 Painel de Vendas")
 
-    st.subheader("📋 Vendas cadastradas")
+        response = (
+            supabase
+            .table("vendas")
+            .select("*")
+            .order("id", desc=True)
+            .execute()
+        )
 
-    response = supabase.table("vendas").select("*").execute()
+        dados = response.data
 
-    dados = response.data
+        if len(dados) > 0:
 
-    if len(dados) > 0:
+            df = pd.DataFrame(dados)
 
-        df = pd.DataFrame(dados)
+            # =========================
+            # VENDEDOR VE APENAS AS DELE
+            # =========================
 
-        # ================= VISÃO VENDEDOR =================
+            if st.session_state.tipo != "admin":
 
-        if st.session_state.tipo == "vendedor":
+                df = df[
+                    df["vendedor"].str.lower()
+                    == st.session_state.usuario.lower()
+                ]
 
-            vendedor_logado = st.session_state.usuario
+            total_vendas = df["valor"].fillna(0).sum()
 
-            df = df[df["vendedor"].str.lower() == vendedor_logado]
+            total_comissao = (
+                df["valor_comissao"]
+                .fillna(0)
+                .sum()
+            )
 
-            colunas_vendedor = [
-                "data",
-                "cliente",
-                "telefone",
-                "produto",
-                "valor",
-                "status",
-                "valor_comissao"
-            ]
+            col1, col2, col3 = st.columns(3)
 
-            df = df[colunas_vendedor]
+            col1.metric(
+                "💵 Total vendido",
+                f"R$ {total_vendas:,.2f}"
+            )
 
-        # ================= VISÃO ADMIN =================
+            col2.metric(
+                "📋 Quantidade",
+                len(df)
+            )
+
+            col3.metric(
+                "💰 Comissão",
+                f"R$ {total_comissao:,.2f}"
+            )
+
+            # =========================
+            # ADMIN VE TUDO
+            # =========================
+
+            if st.session_state.tipo == "admin":
+
+                st.dataframe(
+                    df,
+                    use_container_width=True
+                )
+
+            # =========================
+            # VENDEDOR VE LIMITADO
+            # =========================
+
+            else:
+
+                colunas = [
+                    "data",
+                    "cliente",
+                    "telefone",
+                    "produto",
+                    "valor",
+                    "status",
+                    "comissao",
+                    "valor_comissao"
+                ]
+
+                st.dataframe(
+                    df[colunas],
+                    use_container_width=True
+                )
 
         else:
 
-            colunas_admin = [
-                "data",
-                "vendedor",
-                "cliente",
-                "cpf",
-                "telefone",
-                "produto",
-                "valor",
-                "status",
-                "percentual_comissao",
-                "valor_comissao",
-                "observacao"
-            ]
+            st.warning("Nenhuma venda cadastrada.")
 
-            df = df[colunas_admin]
+    # =========================
+    # USUÁRIOS (SÓ ADMIN)
+    # =========================
 
-        st.dataframe(df, use_container_width=True)
+    elif menu == "👥 Usuários":
 
-    else:
-        st.warning("Nenhuma venda cadastrada.")
+        st.header("👥 Usuários")
+
+        # =========================
+        # CADASTRAR
+        # =========================
+
+        with st.form("novo_usuario"):
+
+            nome = st.text_input("Nome")
+            novo_usuario = st.text_input("Usuário")
+            nova_senha = st.text_input(
+                "Senha",
+                type="password"
+            )
+
+            tipo = st.selectbox(
+                "Tipo",
+                [
+                    "vendedor",
+                    "admin"
+                ]
+            )
+
+            criar = st.form_submit_button(
+                "Criar usuário"
+            )
+
+            if criar:
+
+                dados_usuario = {
+                    "nome": nome,
+                    "usuario": novo_usuario.lower(),
+                    "senha_hash": hash_senha(nova_senha),
+                    "tipo": tipo,
+                    "ativo": True
+                }
+
+                try:
+
+                    supabase.table(
+                        "usuarios"
+                    ).insert(
+                        dados_usuario
+                    ).execute()
+
+                    st.success(
+                        "Usuário criado com sucesso!"
+                    )
+
+                    st.rerun()
+
+                except Exception as e:
+
+                    st.error(
+                        f"Erro ao criar usuário: {e}"
+                    )
+
+        st.divider()
+
+        # =========================
+        # LISTA USUÁRIOS
+        # =========================
+
+        usuarios = (
+            supabase
+            .table("usuarios")
+            .select("*")
+            .order("id")
+            .execute()
+        )
+
+        usuarios_df = pd.DataFrame(
+            usuarios.data
+        )
+
+        if not usuarios_df.empty:
+
+            st.subheader("Usuários cadastrados")
+
+            st.dataframe(
+                usuarios_df[
+                    [
+                        "id",
+                        "nome",
+                        "usuario",
+                        "tipo",
+                        "ativo"
+                    ]
+                ],
+                use_container_width=True
+            )
+
+            st.divider()
+
+            # =========================
+            # ALTERAR SENHA
+            # =========================
+
+            st.subheader("Alterar senha")
+
+            user_id = st.selectbox(
+                "Escolha o ID",
+                usuarios_df["id"].tolist()
+            )
+
+            nova_senha_alt = st.text_input(
+                "Nova senha",
+                type="password"
+            )
+
+            if st.button("Alterar senha"):
+
+                if nova_senha_alt:
+
+                    supabase.table(
+                        "usuarios"
+                    ).update(
+                        {
+                            "senha_hash":
+                            hash_senha(
+                                nova_senha_alt
+                            )
+                        }
+                    ).eq(
+                        "id",
+                        user_id
+                    ).execute()
+
+                    st.success(
+                        "Senha alterada!"
+                    )
+
+                    st.rerun()
+
+            # =========================
+            # ATIVAR / DESATIVAR
+            # =========================
+
+            st.subheader(
+                "Ativar / Desativar usuário"
+            )
+
+            user_id_status = st.selectbox(
+                "Usuário",
+                usuarios_df["id"].tolist(),
+                key="status"
+            )
+
+            if st.button(
+                "Alterar status"
+            ):
+
+                usuario_atual = usuarios_df[
+                    usuarios_df["id"]
+                    == user_id_status
+                ].iloc[0]
+
+                novo_status = (
+                    not usuario_atual["ativo"]
+                )
+
+                supabase.table(
+                    "usuarios"
+                ).update(
+                    {
+                        "ativo": novo_status
+                    }
+                ).eq(
+                    "id",
+                    user_id_status
+                ).execute()
+
+                st.success(
+                    "Status atualizado!"
+                )
+
+                st.rerun()
