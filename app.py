@@ -1,23 +1,37 @@
 import streamlit as st
 import pandas as pd
 from supabase import create_client
+from datetime import datetime
+
+# ================= CONFIG =================
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-usuarios = {
-    "admin": {"senha": "123", "tipo": "admin"},
-    "joao": {"senha": "123", "tipo": "vendedor"},
-    "maria": {"senha": "123", "tipo": "vendedor"},
-}
-
 st.set_page_config(page_title="CRM TK Soluções", layout="wide")
 
-st.title("💰 CRM TK Soluções")
+# ================= USUÁRIOS =================
+
+usuarios = {
+    "admin": {
+        "senha": "123",
+        "tipo": "admin"
+    },
+    "bruna": {
+        "senha": "123",
+        "tipo": "vendedor"
+    },
+    "larissa": {
+        "senha": "123",
+        "tipo": "vendedor"
+    }
+}
 
 # ================= LOGIN =================
+
+st.title("💰 CRM TK Soluções")
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -25,7 +39,7 @@ if "logado" not in st.session_state:
 if not st.session_state.logado:
 
     usuario = st.text_input("Usuário").strip().lower()
-senha = st.text_input("Senha", type="password").strip()
+    senha = st.text_input("Senha", type="password").strip()
 
     if st.button("Entrar"):
 
@@ -50,187 +64,146 @@ else:
         st.session_state.logado = False
         st.rerun()
 
-    menu = st.sidebar.radio(
-        "Menu",
-        ["Nova Venda", "Painel"]
-    )
+    st.title("📊 Painel de Vendas")
 
-    # ================= REGRAS =================
+    # ================= CADASTRAR VENDA =================
 
-    regras = {
-        "CLT PADRAO OUTROS BANCOS ( v8 abaixo 36x)": [
-            (190000, 0.50),
-            (130000, 0.35),
-            (100000, 0.25),
-        ],
+    with st.expander("➕ Nova Venda"):
 
-        "V8 - PRESENÇA": [
-            (180000, 1.20),
-            (120000, 1.00),
-            (70000, 0.80),
-        ]
-    }
+        vendedor = st.text_input("Vendedor")
+        cliente = st.text_input("Cliente")
+        cpf = st.text_input("CPF")
+        telefone = st.text_input("Telefone")
 
-    # ================= CALCULO =================
+        produto = st.selectbox(
+            "Produto",
+            [
+                "CLT PADRAO OUTROS BANCOS E V8",
+                "V8 PRESENÇA"
+            ]
+        )
 
-    def calcular_comissao(produto, valor):
+        valor = st.number_input("Valor vendido", min_value=0.0)
+
+        status = st.selectbox(
+            "Status",
+            [
+                "Pendente",
+                "Pago",
+                "Cancelado"
+            ]
+        )
+
+        observacao = st.text_area("Observação")
 
         percentual = 0
 
-        if produto in regras:
+        # ================= COMISSÕES =================
 
-            for minimo, pct in regras[produto]:
+        if produto == "CLT PADRAO OUTROS BANCOS E V8":
 
-                if valor >= minimo:
-                    percentual = pct
-                    break
+            if valor >= 190000:
+                percentual = 0.50
+
+            elif valor >= 130000:
+                percentual = 0.35
+
+            elif valor >= 100000:
+                percentual = 0.25
+
+        elif produto == "V8 PRESENÇA":
+
+            if valor >= 180000:
+                percentual = 1.20
+
+            elif valor >= 120000:
+                percentual = 1.00
+
+            elif valor >= 70000:
+                percentual = 0.80
 
         valor_comissao = valor * (percentual / 100)
 
-        return percentual, valor_comissao
+        st.info(f"Percentual: {percentual}%")
+        st.success(f"Comissão: R$ {valor_comissao:,.2f}")
 
-    # ================= NOVA VENDA =================
+        # ================= SALVAR =================
 
-    if menu == "Nova Venda":
+        if st.button("Salvar Venda"):
 
-        st.header("📋 Nova Venda")
+            dados = {
+                "data": str(datetime.now()),
+                "vendedor": vendedor,
+                "cliente": cliente,
+                "cpf": cpf,
+                "telefone": telefone,
+                "produto": produto,
+                "valor": valor,
+                "status": status,
+                "percentual_comissao": percentual,
+                "valor_comissao": valor_comissao,
+                "observacao": observacao
+            }
 
-        with st.form("form_venda"):
+            supabase.table("vendas").insert(dados).execute()
 
-            cliente = st.text_input("Cliente")
-            cpf = st.text_input("CPF")
-            telefone = st.text_input("Telefone")
+            st.success("Venda salva com sucesso!")
 
-            produto = st.selectbox(
-                "Produto",
-                [
-                    "CLT PADRAO OUTROS BANCOS ( v8 abaixo 36x)",
-                    "V8 - PRESENÇA"
-                ]
-            )
+    # ================= LISTAR VENDAS =================
 
-            valor = st.number_input(
-                "Valor Vendido",
-                min_value=0.0,
-                step=1000.0
-            )
+    st.divider()
 
-            status = st.selectbox(
-                "Status",
-                ["Pendente", "Pago", "Cancelado"]
-            )
+    st.subheader("📋 Vendas cadastradas")
 
-            observacao = st.text_area("Observação")
+    response = supabase.table("vendas").select("*").execute()
 
-            salvar = st.form_submit_button("Salvar Venda")
+    dados = response.data
 
-            if salvar:
+    if len(dados) > 0:
 
-                percentual, valor_comissao = calcular_comissao(
-                    produto,
-                    valor
-                )
+        df = pd.DataFrame(dados)
 
-                venda = {
-                    "vendedor": st.session_state.usuario,
-                    "cliente": cliente,
-                    "cpf": cpf,
-                    "telefone": telefone,
-                    "produto": produto,
-                    "valor": valor,
-                    "status": status,
-                    "percentual_comissao": percentual,
-                    "valor_comissao": valor_comissao,
-                    "observacao": observacao
-                }
+        # ================= VISÃO VENDEDOR =================
 
-                supabase.table("vendas").insert(venda).execute()
+        if st.session_state.tipo == "vendedor":
 
-                st.success("Venda cadastrada!")
+            vendedor_logado = st.session_state.usuario
 
-                st.info(
-                    f"Comissão calculada: "
-                    f"{percentual:.2f}% | "
-                    f"R$ {valor_comissao:,.2f}"
-                )
+            df = df[df["vendedor"].str.lower() == vendedor_logado]
 
-    # ================= PAINEL =================
+            colunas_vendedor = [
+                "data",
+                "cliente",
+                "telefone",
+                "produto",
+                "valor",
+                "status",
+                "valor_comissao"
+            ]
 
-    if menu == "Painel":
+            df = df[colunas_vendedor]
 
-        st.header("📊 Painel de Vendas")
-
-        dados = supabase.table("vendas").select("*").order(
-            "id",
-            desc=True
-        ).execute()
-
-        df = pd.DataFrame(dados.data)
-
-        if df.empty:
-
-            st.warning("Nenhuma venda cadastrada.")
+        # ================= VISÃO ADMIN =================
 
         else:
 
-            if st.session_state.tipo != "admin":
+            colunas_admin = [
+                "data",
+                "vendedor",
+                "cliente",
+                "cpf",
+                "telefone",
+                "produto",
+                "valor",
+                "status",
+                "percentual_comissao",
+                "valor_comissao",
+                "observacao"
+            ]
 
-                df = df[
-                    df["vendedor"] ==
-                    st.session_state.usuario
-                ]
+            df = df[colunas_admin]
 
-            total = df["valor"].sum()
+        st.dataframe(df, use_container_width=True)
 
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric(
-                "💵 Total Vendido",
-                f"R$ {total:,.2f}"
-            )
-
-            col2.metric(
-                "🧾 Quantidade",
-                len(df)
-            )
-
-            col3.metric(
-                "💰 Comissão Total",
-                f"R$ {df['valor_comissao'].sum():,.2f}"
-            )
-
-            st.subheader("📄 Vendas")
-
-            if st.session_state.tipo == "admin":
-
-                st.dataframe(
-                    df[
-                        [
-                            "id",
-                            "vendedor",
-                            "cliente",
-                            "produto",
-                            "valor",
-                            "percentual_comissao",
-                            "valor_comissao",
-                            "status"
-                        ]
-                    ],
-                    use_container_width=True
-                )
-
-            else:
-
-                st.dataframe(
-                    df[
-                        [
-                            "cliente",
-                            "produto",
-                            "valor",
-                            "percentual_comissao",
-                            "valor_comissao",
-                            "status"
-                        ]
-                    ],
-                    use_container_width=True
-                )
+    else:
+        st.warning("Nenhuma venda cadastrada.")
