@@ -104,7 +104,7 @@ else:
             produto = st.selectbox(
                 "Produto",
                 [
-                    "CLT PADRAO OUTROS BANCOS E V8",
+                    "CLT PADRAO OUTROS BANCOS ( v8 abaixo 36x)",
                     "V8 - PRESENÇA"
                 ]
             )
