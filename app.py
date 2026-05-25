@@ -514,70 +514,131 @@ else:
 
     elif menu == "💰 Comissões":
 
-        st.header(
-            "💰 Regras de Comissão"
-        )
+        st.header("💰 Regras de Comissão")
 
-        with st.form(
-            "nova_regra"
-        ):
+        st.subheader("➕ Criar nova regra")
 
-            produto = st.text_input(
-                "Produto/Banco"
-            )
+        with st.form("nova_regra"):
 
-            valor_minimo = st.number_input(
-                "Valor mínimo"
-            )
+            produto = st.text_input("Produto/Banco")
+            valor_minimo = st.number_input("Valor mínimo", min_value=0.0, step=1000.0)
+            percentual_vendedor = st.number_input("% vendedor", min_value=0.0, step=0.01)
+            percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
 
-            percentual_vendedor = st.number_input(
-                "% vendedor"
-            )
-
-            percentual_empresa = st.number_input(
-                "% empresa"
-            )
-
-            salvar = st.form_submit_button(
-                "Salvar regra"
-            )
+            salvar = st.form_submit_button("Salvar regra")
 
             if salvar:
 
-                supabase.table(
-                    "regras_comissao"
-                ).insert(
-                    {
-                        "produto": produto,
-                        "valor_minimo": valor_minimo,
-                        "percentual_vendedor": percentual_vendedor,
-                        "percentual_empresa": percentual_empresa,
-                        "ativo": True
-                    }
-                ).execute()
+                supabase.table("regras_comissao").insert({
+                    "produto": produto.strip().upper(),
+                    "valor_minimo": valor_minimo,
+                    "percentual_vendedor": percentual_vendedor,
+                    "percentual_empresa": percentual_empresa,
+                    "ativo": True
+                }).execute()
 
-                st.success(
-                    "Regra criada!"
-                )
-
+                st.success("Regra criada!")
                 st.rerun()
 
+        st.divider()
+
         regras = (
-            supabase.table(
-                "regras_comissao"
-            )
+            supabase.table("regras_comissao")
             .select("*")
-            .order(
-                "produto"
-            )
+            .order("produto")
+            .order("valor_minimo")
             .execute()
         )
 
-        regras_df = pd.DataFrame(
-            regras.data
-        )
+        regras_df = pd.DataFrame(regras.data)
 
-        st.dataframe(
-            regras_df,
-            use_container_width=True
-        )
+        if regras_df.empty:
+            st.warning("Nenhuma regra cadastrada ainda.")
+        else:
+            st.subheader("📋 Regras cadastradas")
+
+            st.dataframe(regras_df, use_container_width=True)
+
+            st.divider()
+
+            st.subheader("✏️ Editar regra")
+
+            regra_id = st.selectbox(
+                "Escolha o ID da regra",
+                regras_df["id"].tolist()
+            )
+
+            regra_atual = regras_df[regras_df["id"] == regra_id].iloc[0]
+
+            with st.form("editar_regra"):
+
+                produto_edit = st.text_input(
+                    "Produto/Banco",
+                    value=str(regra_atual["produto"])
+                )
+
+                valor_minimo_edit = st.number_input(
+                    "Valor mínimo",
+                    min_value=0.0,
+                    step=1000.0,
+                    value=float(regra_atual["valor_minimo"] or 0)
+                )
+
+                percentual_vendedor_edit = st.number_input(
+                    "% vendedor",
+                    min_value=0.0,
+                    step=0.01,
+                    value=float(regra_atual["percentual_vendedor"] or 0)
+                )
+
+                percentual_empresa_edit = st.number_input(
+                    "% empresa",
+                    min_value=0.0,
+                    step=0.01,
+                    value=float(regra_atual["percentual_empresa"] or 0)
+                )
+
+                ativo_edit = st.checkbox(
+                    "Regra ativa",
+                    value=bool(regra_atual["ativo"])
+                )
+
+                salvar_edicao = st.form_submit_button("Salvar alterações")
+
+                if salvar_edicao:
+
+                    supabase.table("regras_comissao").update({
+                        "produto": produto_edit.strip().upper(),
+                        "valor_minimo": valor_minimo_edit,
+                        "percentual_vendedor": percentual_vendedor_edit,
+                        "percentual_empresa": percentual_empresa_edit,
+                        "ativo": ativo_edit
+                    }).eq("id", regra_id).execute()
+
+                    st.success("Regra atualizada!")
+                    st.rerun()
+
+            st.divider()
+
+            st.subheader("🗑️ Excluir regra")
+
+            regra_id_excluir = st.selectbox(
+                "Escolha o ID para excluir",
+                regras_df["id"].tolist(),
+                key="excluir_regra"
+            )
+
+            confirmar = st.checkbox("Confirmo que quero excluir esta regra")
+
+            if st.button("Excluir regra"):
+
+                if not confirmar:
+                    st.error("Marque a confirmação antes de excluir.")
+                else:
+                    supabase.table("regras_comissao").delete().eq(
+                        "id",
+                        regra_id_excluir
+                    ).execute()
+
+                    st.success("Regra excluída!")
+                    st.rerun()
