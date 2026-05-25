@@ -16,43 +16,27 @@ st.set_page_config(
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY
-)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # =========================================
 # FUNÇÕES
 # =========================================
 
 def hash_senha(senha):
-    return hashlib.sha256(
-        senha.encode()
-    ).hexdigest()
+    return hashlib.sha256(senha.encode()).hexdigest()
 
 
 def dinheiro(valor):
-
     try:
-
-        return (
-            f"R$ {float(valor):,.2f}"
-            .replace(",", "X")
-            .replace(".", ",")
-            .replace("X", ".")
-        )
-
-    except:
+        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
         return "R$ 0,00"
 
 
 def login(usuario, senha):
-
     usuario = usuario.strip().lower()
-
-    senha_hash = hash_senha(
-        senha.strip()
-    )
+    senha_hash = hash_senha(senha.strip())
 
     res = (
         supabase.table("usuarios")
@@ -74,7 +58,6 @@ def login(usuario, senha):
 
 
 def carregar_tabelas():
-
     res = (
         supabase.table("regras_comissao")
         .select("*")
@@ -83,60 +66,80 @@ def carregar_tabelas():
     )
 
     tabelas = sorted(
-        list(
-            set([
-                r["produto"]
-                for r in res.data
-                if r.get("produto")
-            ])
-        )
+        list(set([
+            r["produto"]
+            for r in res.data
+            if r.get("produto")
+        ]))
     )
+
+    if not tabelas:
+        tabelas = ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]
 
     return tabelas
 
 
-def calcular_comissao_empresa(
-    tabela_banco,
-    valor
-):
+def calcular_comissao_montante(df_filtrado):
+    total_empresa = 0
 
-    res = (
+    if df_filtrado.empty:
+        return 0
+
+    df_pagas = df_filtrado[df_filtrado["status"] == "Pago"].copy()
+
+    if df_pagas.empty:
+        return 0
+
+    for tabela in df_pagas["tabela_banco"].dropna().unique():
+        total_tabela = (
+            df_pagas[df_pagas["tabela_banco"] == tabela]["valor"]
+            .fillna(0)
+            .sum()
+        )
+
+        regras = (
+            supabase.table("regras_comissao")
+            .select("*")
+            .eq("produto", tabela)
+            .eq("ativo", True)
+            .order("valor_minimo", desc=True)
+            .execute()
+        )
+
+        percentual = 0
+
+        for regra in regras.data:
+            valor_minimo = float(regra.get("valor_minimo") or 0)
+
+            if total_tabela >= valor_minimo:
+                percentual = float(regra.get("percentual_empresa") or 0)
+                break
+
+        total_empresa += total_tabela * (percentual / 100)
+
+    return total_empresa
+
+
+def calcular_comissao_empresa_venda(tabela_banco, valor):
+    regras = (
         supabase.table("regras_comissao")
         .select("*")
         .eq("produto", tabela_banco)
         .eq("ativo", True)
-        .order(
-            "valor_minimo",
-            desc=True
-        )
+        .order("valor_minimo", desc=True)
         .execute()
     )
 
-    percentual_empresa = 0
+    percentual = 0
 
-    for regra in res.data:
-
-        valor_minimo = float(
-            regra.get("valor_minimo") or 0
-        )
+    for regra in regras.data:
+        valor_minimo = float(regra.get("valor_minimo") or 0)
 
         if valor >= valor_minimo:
-
-            percentual_empresa = float(
-                regra.get("percentual_empresa") or 0
-            )
-
+            percentual = float(regra.get("percentual_empresa") or 0)
             break
 
-    valor_empresa = (
-        valor *
-        (percentual_empresa / 100)
-    )
-
-    return (
-        percentual_empresa,
-        valor_empresa
-    )
+    return percentual, valor * (percentual / 100)
 
 
 # =========================================
@@ -149,101 +152,54 @@ if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-
-    usuario = st.text_input(
-        "Usuário"
-    )
-
-    senha = st.text_input(
-        "Senha",
-        type="password"
-    )
+    usuario = st.text_input("Usuário")
+    senha = st.text_input("Senha", type="password")
 
     if st.button("Entrar"):
-
-        user = login(
-            usuario,
-            senha
-        )
+        user = login(usuario, senha)
 
         if user:
-
             st.session_state.logado = True
             st.session_state.user_id = user["id"]
             st.session_state.usuario = user["usuario"]
             st.session_state.nome = user["nome"]
             st.session_state.tipo = user["tipo"]
-
             st.rerun()
-
         else:
-
-            st.error(
-                "Usuário ou senha inválidos"
-            )
+            st.error("Usuário ou senha inválidos")
 
 else:
-
-    st.sidebar.success(
-        f"👤 {st.session_state.nome}"
-    )
+    st.sidebar.success(f"👤 {st.session_state.nome}")
 
     if st.sidebar.button("Sair"):
-
         st.session_state.clear()
         st.rerun()
 
-    # =========================================
-    # MENU
-    # =========================================
-
     if st.session_state.tipo == "admin":
-
         menu = st.sidebar.radio(
             "Menu",
-            [
-                "📋 Nova Venda",
-                "📊 Painel",
-                "👥 Usuários",
-                "💰 Comissões"
-            ]
+            ["📋 Nova Venda", "📊 Painel", "👥 Usuários", "💰 Comissões"]
         )
-
     else:
-
         menu = st.sidebar.radio(
             "Menu",
-            [
-                "📋 Nova Venda",
-                "📊 Painel"
-            ]
+            ["📋 Nova Venda", "📊 Painel"]
         )
-
-    # =========================================
+            # =========================================
     # NOVA VENDA
     # =========================================
 
     if menu == "📋 Nova Venda":
 
-        st.header(
-            "📋 Cadastro de Venda"
-        )
+        st.header("📋 Cadastro de Venda")
 
         tabelas = carregar_tabelas()
 
         with st.form("form_venda"):
 
-            cliente = st.text_input(
-                "Cliente"
-            )
-
-            cpf = st.text_input(
-                "CPF"
-            )
-
-            telefone = st.text_input(
-                "Telefone"
-            )
+            cliente = st.text_input("Cliente")
+            cpf = st.text_input("CPF")
+            telefone = st.text_input("Telefone")
 
             tabela_banco = st.selectbox(
                 "Tabela/Banco",
@@ -258,93 +214,44 @@ else:
 
             status = st.selectbox(
                 "Status",
-                [
-                    "Pendente",
-                    "Pago",
-                    "Cancelado"
-                ]
+                ["Pendente", "Pago", "Cancelado"]
             )
 
-            observacao = st.text_area(
-                "Observação"
-            )
+            observacao = st.text_area("Observação")
 
-            salvar = st.form_submit_button(
-                "Salvar venda"
-            )
+            salvar = st.form_submit_button("Salvar venda")
 
             if salvar:
 
-                perc_empresa, valor_empresa = (
-                    calcular_comissao_empresa(
-                        tabela_banco,
-                        valor
-                    )
+                perc_empresa, valor_empresa = calcular_comissao_empresa_venda(
+                    tabela_banco,
+                    valor
                 )
 
                 dados = {
-
                     "data": str(datetime.now()),
-
-                    "vendedor_id":
-                    st.session_state.user_id,
-
-                    "vendedor":
-                    st.session_state.usuario,
-
-                    "cliente":
-                    cliente,
-
-                    "cpf":
-                    cpf,
-
-                    "telefone":
-                    telefone,
-
-                    "produto":
-                    tabela_banco,
-
-                    "tabela_banco":
-                    tabela_banco,
-
-                    "valor":
-                    valor,
-
-                    "status":
-                    status,
-
-                    "percentual_comissao":
-                    0,
-
-                    "valor_comissao":
-                    0,
-
-                    "comissao_empresa":
-                    perc_empresa,
-
-                    "valor_comissao_empresa":
-                    valor_empresa,
-
-                    "conferido":
-                    False,
-
-                    "alterado_vendedor":
-                    False,
-
-                    "observacao":
-                    observacao
+                    "vendedor_id": st.session_state.user_id,
+                    "vendedor": st.session_state.usuario,
+                    "cliente": cliente,
+                    "cpf": cpf,
+                    "telefone": telefone,
+                    "produto": tabela_banco,
+                    "tabela_banco": tabela_banco,
+                    "valor": valor,
+                    "status": status,
+                    "percentual_comissao": 0,
+                    "valor_comissao": 0,
+                    "comissao_empresa": perc_empresa,
+                    "valor_comissao_empresa": valor_empresa,
+                    "conferido": False,
+                    "alterado_vendedor": False,
+                    "observacao": observacao
                 }
 
-                supabase.table(
-                    "vendas"
-                ).insert(
-                    dados
-                ).execute()
+                supabase.table("vendas").insert(dados).execute()
+                st.success("Venda cadastrada!")
 
-                st.success(
-                    "Venda cadastrada!"
-                )
-                    # =========================================
+    # =========================================
     # PAINEL
     # =========================================
 
@@ -362,16 +269,10 @@ else:
         df = pd.DataFrame(vendas.data)
 
         if df.empty:
-
             st.warning("Nenhuma venda cadastrada.")
 
         else:
-
-            df["data"] = pd.to_datetime(
-                df["data"],
-                errors="coerce"
-            )
-
+            df["data"] = pd.to_datetime(df["data"], errors="coerce")
             df["mes_num"] = df["data"].dt.month
             df["ano"] = df["data"].dt.year
 
@@ -401,30 +302,18 @@ else:
             )
 
             anos = sorted(
-                df["ano"]
-                .dropna()
-                .unique()
-                .astype(int)
-                .tolist(),
+                df["ano"].dropna().unique().astype(int).tolist(),
                 reverse=True
             )
 
             if not anos:
                 anos = [datetime.now().year]
 
-            ano_filtro = col_f2.selectbox(
-                "Ano",
-                anos
-            )
+            ano_filtro = col_f2.selectbox("Ano", anos)
 
             status_filtro = col_f3.selectbox(
                 "Status",
-                [
-                    "Todos",
-                    "Pago",
-                    "Pendente",
-                    "Cancelado"
-                ]
+                ["Todos", "Pago", "Pendente", "Cancelado"]
             )
 
             tabelas = carregar_tabelas()
@@ -445,182 +334,22 @@ else:
                 (df["ano"] == ano_filtro)
             ]
 
-            # VENDEDOR VÊ SOMENTE AS VENDAS DELE PELO ID
             if st.session_state.tipo != "admin":
 
                 if "vendedor_id" in df.columns:
-
                     df = df[
-                        df["vendedor_id"]
-                        ==
-                        st.session_state.user_id
+                        df["vendedor_id"] == st.session_state.user_id
                     ]
-
                 else:
-
                     df = df[
-                        df["vendedor"]
-                        ==
-                        st.session_state.usuario
+                        df["vendedor"] == st.session_state.usuario
                     ]
 
             if status_filtro != "Todos":
-
-                df = df[
-                    df["status"] == status_filtro
-                ]
+                df = df[df["status"] == status_filtro]
 
             if tabela_filtro != "Todas":
-
-                df = df[
-                    df["tabela_banco"] == tabela_filtro
-                ]
-
-            if st.session_state.tipo == "admin":
-
-                vendedores = sorted(
-                    df["vendedor"]
-                    .dropna()
-                    .unique()
-                    .tolist()
-                )
-
-                vendedor_filtro = st.selectbox(
-                    "Vendedor",
-                    ["Todos"] + vendedores
-                )
-
-                if vendedor_filtro != "Todos":
-
-                    df = df[
-                        df["vendedor"] == vendedor_filtro
-                    ]
-
-            total_vendido = (
-                df["valor"]
-                .fillna(0)
-                .sum()
-            )
-
-            qtd = len(df)
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric(
-                "💵 Total vendido",
-                dinheiro(total_vendido)
-            )
-
-            col2.metric(
-                "📋 Quantidade",
-                qtd
-            )
-
-            col3.metric(
-                "🗓️ Mês",
-                mes_nome
-            )
-
-            if st.session_state.tipo == "admin":
-
-                total_empresa = 0
-
-df_pagas = df[df["status"] == "Pago"].copy()
-
-if not df_pagas.empty:
-    for tabela in df_pagas["tabela_banco"].dropna().unique():
-        total_tabela = df_pagas[df_pagas["tabela_banco"] == tabela]["valor"].fillna(0).sum()
-
-        regras = (
-            supabase.table("regras_comissao")
-            .select("*")
-            .eq("produto", tabela)
-            .eq("ativo", True)
-            .order("valor_minimo", desc=True)
-            .execute()
-        )
-
-        percentual = 0
-
-        for regra in regras.data:
-            if total_tabela >= float(regra.get("valor_minimo") or 0):
-                percentual = float(regra.get("percentual_empresa") or 0)
-                break
-
-        total_empresa += total_tabela * (percentual / 100)
-
-                st.metric(
-                    "🏦 Comissão empresa",
-                    dinheiro(total_empresa)
-                )
-
-                if "alterado_vendedor" in df.columns:
-
-                    alteradas = df[
-                        df["alterado_vendedor"] == True
-                    ]
-
-                    if not alteradas.empty:
-
-                        st.warning(
-                            f"⚠️ Existem {len(alteradas)} proposta(s) "
-                            f"alterada(s) pelo vendedor aguardando conferência."
-                        )
-
-            st.subheader("📄 Propostas")
-
-            if df.empty:
-
-                st.info(
-                    "Nenhuma proposta encontrada."
-                )
-
-            else:
-
-                if st.session_state.tipo == "admin":
-
-                    colunas = [
-                        "id",
-                        "data",
-                        "vendedor",
-                        "cliente",
-                        "cpf",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "comissao_empresa",
-                        "valor_comissao_empresa",
-                        "conferido",
-                        "alterado_vendedor",
-                        "observacao",
-                        "observacao_admin",
-                        "observacao_alteracao"
-                    ]
-
-                else:
-
-                    colunas = [
-                        "id",
-                        "data",
-                        "cliente",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "observacao"
-                    ]
-
-                colunas = [
-                    c for c in colunas
-                    if c in df.columns
-                ]
-
-                st.dataframe(
-                    df[colunas],
-                    use_container_width=True
-                )
+                df = df[df["tabela_banco"] == tabela_filtro]
                             # =========================================
             # EXCLUIR PROPOSTAS (ADMIN)
             # =========================================
@@ -645,10 +374,7 @@ if not df_pagas.empty:
                             .eq("id", int(venda_id)) \
                             .execute()
 
-                    st.success(
-                        "Propostas excluídas!"
-                    )
-
+                    st.success("Propostas excluídas!")
                     st.rerun()
 
             # =========================================
@@ -659,11 +385,9 @@ if not df_pagas.empty:
 
             st.subheader("✏️ Editar proposta")
 
-            ids = df["id"].tolist()
-
             proposta_id = st.selectbox(
                 "Escolha a proposta",
-                ids
+                df["id"].tolist()
             )
 
             proposta = df[
@@ -674,60 +398,35 @@ if not df_pagas.empty:
 
                 cliente_edit = st.text_input(
                     "Cliente",
-                    value=str(
-                        proposta.get(
-                            "cliente",
-                            ""
-                        )
-                    )
+                    value=str(proposta.get("cliente", ""))
                 )
 
                 telefone_edit = st.text_input(
                     "Telefone",
-                    value=str(
-                        proposta.get(
-                            "telefone",
-                            ""
-                        )
-                    )
+                    value=str(proposta.get("telefone", ""))
                 )
 
                 valor_edit = st.number_input(
                     "Valor",
-                    value=float(
-                        proposta.get(
-                            "valor",
-                            0
-                        ) or 0
-                    )
+                    value=float(proposta.get("valor", 0) or 0)
                 )
 
                 status_edit = st.selectbox(
                     "Status",
-                    [
-                        "Pendente",
-                        "Pago",
-                        "Cancelado"
-                    ],
+                    ["Pendente", "Pago", "Cancelado"],
                     index=[
                         "Pendente",
                         "Pago",
                         "Cancelado"
                     ].index(
-                        proposta.get(
-                            "status",
-                            "Pendente"
-                        )
+                        proposta.get("status", "Pendente")
                     )
                 )
 
                 observacao_edit = st.text_area(
                     "Observação",
                     value=str(
-                        proposta.get(
-                            "observacao",
-                            ""
-                        ) or ""
+                        proposta.get("observacao", "") or ""
                     )
                 )
 
@@ -736,10 +435,7 @@ if not df_pagas.empty:
                     conferido_edit = st.checkbox(
                         "✅ Conferido",
                         value=bool(
-                            proposta.get(
-                                "conferido",
-                                False
-                            )
+                            proposta.get("conferido", False)
                         )
                     )
 
@@ -758,30 +454,6 @@ if not df_pagas.empty:
                 )
 
                 if salvar_edit:
-
-                    valor_empresa = proposta.get(
-                        "valor_comissao_empresa",
-                        0
-                    )
-
-                    perc_empresa = proposta.get(
-                        "comissao_empresa",
-                        0
-                    )
-
-                    tabela = proposta.get(
-                        "tabela_banco",
-                        ""
-                    )
-
-                    if status_edit == "Pago":
-
-                        perc_empresa, valor_empresa = (
-                            calcular_comissao_empresa(
-                                tabela,
-                                valor_edit
-                            )
-                        )
 
                     dados_update = {
 
@@ -815,14 +487,6 @@ if not df_pagas.empty:
                             "observacao_admin"
                         ] = observacao_admin
 
-                        dados_update[
-                            "comissao_empresa"
-                        ] = perc_empresa
-
-                        dados_update[
-                            "valor_comissao_empresa"
-                        ] = valor_empresa
-
                     else:
 
                         dados_update[
@@ -831,9 +495,7 @@ if not df_pagas.empty:
 
                         dados_update[
                             "data_alteracao_vendedor"
-                        ] = str(
-                            datetime.now()
-                        )
+                        ] = str(datetime.now())
 
                     supabase.table(
                         "vendas"
@@ -861,7 +523,9 @@ if not df_pagas.empty:
         with st.form("novo_usuario"):
 
             nome = st.text_input("Nome")
+
             usuario = st.text_input("Usuário")
+
             senha = st.text_input(
                 "Senha",
                 type="password"
@@ -881,7 +545,9 @@ if not df_pagas.empty:
 
             if criar:
 
-                dados = {
+                supabase.table(
+                    "usuarios"
+                ).insert({
 
                     "nome":
                     nome,
@@ -897,13 +563,8 @@ if not df_pagas.empty:
 
                     "ativo":
                     True
-                }
 
-                supabase.table(
-                    "usuarios"
-                ).insert(
-                    dados
-                ).execute()
+                }).execute()
 
                 st.success(
                     "Usuário criado!"
@@ -923,10 +584,6 @@ if not df_pagas.empty:
 
         if not df_users.empty:
 
-            st.subheader(
-                "Usuários cadastrados"
-            )
-
             st.dataframe(
                 df_users[
                     [
@@ -939,7 +596,8 @@ if not df_pagas.empty:
                 ],
                 use_container_width=True
             )
-                # =========================================
+
+    # =========================================
     # COMISSÕES
     # =========================================
 
@@ -954,15 +612,11 @@ if not df_pagas.empty:
             )
 
             valor_minimo = st.number_input(
-                "Valor mínimo",
-                min_value=0.0,
-                step=1000.0
+                "Valor mínimo"
             )
 
             percentual_empresa = st.number_input(
-                "% comissão empresa",
-                min_value=0.0,
-                step=0.01
+                "% empresa"
             )
 
             salvar = st.form_submit_button(
@@ -971,7 +625,9 @@ if not df_pagas.empty:
 
             if salvar:
 
-                dados = {
+                supabase.table(
+                    "regras_comissao"
+                ).insert({
 
                     "produto":
                     produto.upper(),
@@ -979,21 +635,16 @@ if not df_pagas.empty:
                     "valor_minimo":
                     valor_minimo,
 
-                    "percentual_vendedor":
-                    0,
-
                     "percentual_empresa":
                     percentual_empresa,
 
+                    "percentual_vendedor":
+                    0,
+
                     "ativo":
                     True
-                }
 
-                supabase.table(
-                    "regras_comissao"
-                ).insert(
-                    dados
-                ).execute()
+                }).execute()
 
                 st.success(
                     "Regra criada!"
@@ -1002,16 +653,8 @@ if not df_pagas.empty:
                 st.rerun()
 
         regras = (
-            supabase.table(
-                "regras_comissao"
-            )
+            supabase.table("regras_comissao")
             .select("*")
-            .order(
-                "produto"
-            )
-            .order(
-                "valor_minimo"
-            )
             .execute()
         )
 
@@ -1021,135 +664,8 @@ if not df_pagas.empty:
 
         if not df_regras.empty:
 
-            st.subheader(
-                "📋 Regras cadastradas"
-            )
-
             st.dataframe(
                 df_regras,
                 use_container_width=True
             )
-
-            st.divider()
-
-            st.subheader(
-                "✏️ Editar regra"
-            )
-
-            regra_id = st.selectbox(
-                "Escolha a regra",
-                df_regras["id"].tolist()
-            )
-
-            regra = df_regras[
-                df_regras["id"] == regra_id
-            ].iloc[0]
-
-            with st.form("editar_regra"):
-
-                produto_edit = st.text_input(
-                    "Tabela/Banco",
-                    value=str(
-                        regra.get(
-                            "produto",
-                            ""
-                        )
-                    )
-                )
-
-                valor_minimo_edit = st.number_input(
-                    "Valor mínimo",
-                    min_value=0.0,
-                    step=1000.0,
-                    value=float(
-                        regra.get(
-                            "valor_minimo",
-                            0
-                        ) or 0
-                    )
-                )
-
-                percentual_empresa_edit = st.number_input(
-                    "% comissão empresa",
-                    min_value=0.0,
-                    step=0.01,
-                    value=float(
-                        regra.get(
-                            "percentual_empresa",
-                            0
-                        ) or 0
-                    )
-                )
-
-                ativo_edit = st.checkbox(
-                    "Ativo",
-                    value=bool(
-                        regra.get(
-                            "ativo",
-                            True
-                        )
-                    )
-                )
-
-                salvar_edit = st.form_submit_button(
-                    "Salvar alterações"
-                )
-
-                if salvar_edit:
-
-                    supabase.table(
-                        "regras_comissao"
-                    ).update({
-
-                        "produto":
-                        produto_edit.upper(),
-
-                        "valor_minimo":
-                        valor_minimo_edit,
-
-                        "percentual_empresa":
-                        percentual_empresa_edit,
-
-                        "ativo":
-                        ativo_edit
-
-                    }).eq(
-                        "id",
-                        int(regra_id)
-                    ).execute()
-
-                    st.success(
-                        "Regra atualizada!"
-                    )
-
-                    st.rerun()
-
-            st.divider()
-
-            st.subheader(
-                "🗑️ Excluir regra"
-            )
-
-            regra_excluir = st.multiselect(
-                "Selecione regras para excluir",
-                df_regras["id"].tolist()
-            )
-
-            if st.button(
-                "Excluir regras"
-            ):
-
-                for rid in regra_excluir:
-
-                    supabase.table(
-                        "regras_comissao"
-                    ).delete().eq(
-                        "id",
-                        int(rid)
-                    ).execute()
-
-                st.success(
-                    "Regras excluídas!"
-                )
-
-                st.rerun()
+            
