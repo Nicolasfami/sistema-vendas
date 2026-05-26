@@ -1084,26 +1084,34 @@ def menu_lateral_v8():
 
     logo_path = achar_logo()
 
-    try:
-        if logo_path:
-            st.sidebar.markdown('<div class="sidebar-logo-v8">', unsafe_allow_html=True)
-            st.sidebar.image(str(logo_path), width=190)
-            st.sidebar.markdown('</div>', unsafe_allow_html=True)
-        else:
-            raise Exception("Logo inválido")
-    except Exception:
-        st.sidebar.markdown(
-            """
-            <div class="sidebar-logo-v8">
-                <div class="sidebar-logo-icon-v8">O</div>
-                <div>
-                    <div class="sidebar-logo-title">OPERAX</div>
-                    <div class="sidebar-logo-sub">SALES</div>
-                </div>
+    if logo_path:
+        try:
+            st.sidebar.markdown("""
+            <div style="display:flex;flex-direction:column;align-items:center;padding:16px 8px 20px;gap:8px;">
+            """, unsafe_allow_html=True)
+            st.sidebar.image(str(logo_path), width=180)
+            st.sidebar.markdown("""
+            <div style="height:1px;width:80%;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.40),transparent);margin:4px auto 0;"></div>
             </div>
-            """,
-            unsafe_allow_html=True
-        )
+            """, unsafe_allow_html=True)
+        except Exception:
+            st.sidebar.markdown("""
+            <div style="display:flex;flex-direction:column;align-items:center;padding:18px 8px 20px;gap:6px;">
+                <div class="sidebar-logo-icon-v8" style="width:64px;height:64px;font-size:32px;">🌀</div>
+                <div style="font-family:'Orbitron',sans-serif;font-size:17px;font-weight:800;color:#fff;letter-spacing:0.14em;text-shadow:0 0 18px rgba(56,189,248,0.65);">OPERAX</div>
+                <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;color:#38bdf8;letter-spacing:0.50em;text-shadow:0 0 10px rgba(56,189,248,0.50);">SALES</div>
+                <div style="height:1px;width:80%;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.40),transparent);margin-top:6px;"></div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.sidebar.markdown("""
+        <div style="display:flex;flex-direction:column;align-items:center;padding:18px 8px 20px;gap:6px;">
+            <div class="sidebar-logo-icon-v8" style="width:64px;height:64px;font-size:32px;">🌀</div>
+            <div style="font-family:'Orbitron',sans-serif;font-size:17px;font-weight:800;color:#fff;letter-spacing:0.14em;text-shadow:0 0 18px rgba(56,189,248,0.65);">OPERAX</div>
+            <div style="font-family:'Rajdhani',sans-serif;font-size:11px;font-weight:600;color:#38bdf8;letter-spacing:0.50em;text-shadow:0 0 10px rgba(56,189,248,0.50);">SALES</div>
+            <div style="height:1px;width:80%;background:linear-gradient(90deg,transparent,rgba(56,189,248,0.40),transparent);margin-top:6px;"></div>
+        </div>
+        """, unsafe_allow_html=True)
 
     st.sidebar.markdown(
         f"""
