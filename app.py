@@ -11,7 +11,7 @@ from pathlib import Path
 # CONFIGURAÇÕES
 # =========================
 
-st.set_page_config(page_title="CRM TK Soluções", layout="wide")
+st.set_page_config(page_title="OPERAX SALES", layout="wide")
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
@@ -24,7 +24,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
     html, body, [class*="css"] {
         font-family: 'Inter', sans-serif;
@@ -32,112 +32,209 @@ st.markdown("""
 
     .stApp {
         background:
-            radial-gradient(circle at top left, rgba(34, 197, 94, 0.13), transparent 28%),
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 30%),
-            linear-gradient(135deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
+            radial-gradient(circle at top left, rgba(14, 165, 233, 0.13), transparent 25%),
+            radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.10), transparent 30%),
+            linear-gradient(135deg, #f8fbff 0%, #eef6ff 46%, #ffffff 100%) !important;
     }
 
     .block-container {
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-        max-width: 1180px;
+        padding-top: 2rem !important;
+        padding-bottom: 3rem !important;
+        max-width: 1180px !important;
     }
 
     [data-testid="stSidebar"] {
         background:
-            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,245,249,0.96) 100%);
-        border-right: 1px solid rgba(15,23,42,0.06);
-        min-width: 220px;
-        max-width: 220px;
-        backdrop-filter: blur(10px);
+            radial-gradient(circle at top left, rgba(14,165,233,0.35), transparent 30%),
+            linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
+        border-right: 1px solid rgba(56,189,248,0.38) !important;
+        min-width: 245px !important;
+        max-width: 245px !important;
+        box-shadow: 18px 0 45px rgba(14,165,233,0.22) !important;
     }
 
     section[data-testid="stSidebar"] > div {
-        padding-left: 4px;
-        padding-right: 4px;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
+        padding-top: 18px !important;
     }
 
     [data-testid="stSidebar"] * {
-        color: #111827 !important;
+        color: #ffffff !important;
     }
 
     [data-testid="stSidebar"] .stButton button {
-        background: rgba(255,255,255,0.08);
         color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.18);
-        border-radius: 14px;
+        background: transparent !important;
+        border: 0 !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        font-weight: 760 !important;
+        padding: 0.65rem 0.75rem !important;
+        transition: all .18s ease-in-out;
     }
 
-    [data-testid="stSidebar"] .stRadio label {
+    [data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(56,189,248,0.14) !important;
+        transform: translateX(2px);
+    }
+
+    .sidebar-logo-v8 {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 4px 22px 4px;
+        color: white;
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: .02em;
+    }
+
+    .sidebar-logo-v8 img {
+        width: 185px;
+        height: auto;
+        filter: drop-shadow(0 0 18px rgba(56,189,248,0.60));
+    }
+
+    .sidebar-logo-title {
+        line-height: 1.05;
+        font-weight: 950;
+        letter-spacing: .08em;
+    }
+
+    .sidebar-logo-sub {
+        font-size: 13px;
+        color: #38bdf8 !important;
+        letter-spacing: .28em;
+        margin-top: 4px;
+    }
+
+    .sidebar-logo-icon-v8 {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        background:
+            radial-gradient(circle at 50% 50%, #020617 0%, #020617 32%, #0ea5e9 44%, #2563eb 70%, #38bdf8 100%);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:25px;
+        font-weight:900;
+        color:#ffffff;
+        box-shadow:
+            0 0 34px rgba(56,189,248,0.58),
+            inset 0 0 0 1px rgba(255,255,255,0.22);
+    }
+
+    .sidebar-user-v8 {
+        background: rgba(255,255,255,0.075);
+        border: 1px solid rgba(56,189,248,0.30);
+        border-radius: 18px;
+        padding: 15px 14px;
+        margin: 8px 0 20px 0;
+        color: white !important;
+        font-weight: 900;
+        box-shadow: 0 16px 34px rgba(14,165,233,0.18);
+    }
+
+    .menu-label-v8 {
+        color: rgba(56,189,248,0.94) !important;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin: 18px 0 8px 6px;
+    }
+
+    .menu-ativo-v8 {
+        background:
+            linear-gradient(90deg, rgba(37,99,235,0.96), rgba(14,165,233,0.96));
+        color: #ffffff !important;
+        border-radius: 16px;
+        padding: 13px 14px;
+        margin: 7px 0;
+        font-weight: 900;
+        box-shadow:
+            0 0 26px rgba(56,189,248,0.52),
+            inset 0 0 0 1px rgba(255,255,255,0.22);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        overflow: hidden;
+    }
+
+    .menu-ativo-v8 span {
+        color:#ffffff !important;
         font-size: 16px;
-        font-weight: 600;
-        color: #111827 !important;
+        background: transparent !important;
     }
 
-    [data-testid="stSidebar"] [role="radiogroup"] label {
-        background: rgba(255,255,255,0.72);
-        border: 1px solid rgba(15,23,42,0.06);
-        border-radius: 14px;
-        padding: 7px 8px;
-        margin: 5px 0;
-        box-shadow: 0 8px 20px rgba(15,23,42,0.04);
+    .menu-ativo-v8 svg,
+    .menu-svg-v8 svg {
+        width: 21px;
+        height: 21px;
+        stroke-width: 2.25;
+        flex-shrink: 0;
+        stroke: #ffffff;
+        background: transparent !important;
     }
 
-    [data-testid="stSidebar"] [role="radiogroup"] label:hover {
-        background: rgba(220,252,231,0.88);
-        border-color: rgba(34,197,94,0.20);
+    .menu-svg-v8 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        color: #7dd3fc !important;
+        opacity: 0.95;
     }
 
+    .menu-ativo-v8 div,
+    .menu-ativo-v8 code,
+    .menu-ativo-v8 pre,
+    .menu-ativo-v8 p {
+        background: transparent !important;
+        color: #ffffff !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
 
     h1, h2, h3 {
-        color: #111827;
+        color: #0f172a;
         letter-spacing: -0.04em;
     }
 
     .crm-hero {
         background:
-            linear-gradient(135deg, rgba(255,255,255,0.86), rgba(240,253,250,0.72)),
-            linear-gradient(135deg, rgba(34,197,94,0.10), rgba(59,130,246,0.10));
-        border: 1px solid rgba(15, 23, 42, 0.08);
+            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(239,246,255,0.86));
+        border: 1px solid rgba(14,165,233,0.12);
         border-radius: 28px;
         padding: 24px 28px;
         margin-bottom: 28px;
-        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.11);
+        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.10);
         backdrop-filter: blur(14px);
-    }
-
-    .crm-header {
-        display: flex;
-        align-items: center;
-        gap: 22px;
-    }
-
-    .crm-logo-fallback {
-        width: 104px;
-        height: 104px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #0f766e, #22c55e, #38bdf8);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 48px;
-        box-shadow: 0 20px 45px rgba(34, 197, 94, 0.30);
     }
 
     .crm-title {
         font-size: 48px;
         line-height: 1.02;
-        font-weight: 900;
+        font-weight: 950;
         color: #0f172a;
         margin: 0;
+        letter-spacing: -0.05em;
+    }
+
+    .crm-title span {
+        color: #0ea5e9;
+        letter-spacing: .05em;
     }
 
     .crm-subtitle {
         margin: 10px 0 0 0;
-        color: #64748b;
+        color: #475569;
         font-size: 16px;
-        font-weight: 500;
+        font-weight: 550;
     }
 
     .crm-pill {
@@ -145,18 +242,19 @@ st.markdown("""
         align-items: center;
         gap: 8px;
         margin-top: 12px;
-        padding: 8px 12px;
+        padding: 9px 14px;
         border-radius: 999px;
-        background: rgba(15,118,110,0.10);
-        color: #0f766e;
-        border: 1px solid rgba(15,118,110,0.16);
-        font-weight: 700;
+        background: linear-gradient(90deg, #2563eb, #0ea5e9);
+        color: #ffffff;
+        border: 1px solid rgba(14,165,233,0.22);
+        font-weight: 800;
         font-size: 13px;
+        box-shadow: 0 12px 28px rgba(14,165,233,0.24);
     }
 
     .crm-card {
-        background: rgba(255, 255, 255, 0.86);
-        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(255, 255, 255, 0.90);
+        border: 1px solid rgba(14,165,233,0.12);
         border-radius: 24px;
         padding: 24px;
         box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
@@ -166,8 +264,8 @@ st.markdown("""
 
     div[data-testid="stMetric"] {
         background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,250,0.72));
-        border: 1px solid rgba(15, 23, 42, 0.08);
+            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.78));
+        border: 1px solid rgba(14,165,233,0.13);
         border-radius: 20px;
         padding: 18px 20px;
         box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
@@ -178,30 +276,36 @@ st.markdown("""
     div[data-testid="stTextArea"] textarea,
     div[data-baseweb="select"] {
         border-radius: 15px !important;
-        border: 1px solid rgba(15, 23, 42, 0.08) !important;
-        background: rgba(255,255,255,0.86) !important;
+        border: 1px solid rgba(14,165,233,0.18) !important;
+        background: rgba(255,255,255,0.94) !important;
         box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus {
+        border-color: rgba(14,165,233,0.68) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.14) !important;
     }
 
     .stButton button {
         border-radius: 14px;
         padding: 0.62rem 1.1rem;
-        font-weight: 800;
-        border: 1px solid rgba(15, 118, 110, 0.2);
-        background: linear-gradient(135deg, #0f766e, #22c55e);
+        font-weight: 850;
+        border: 1px solid rgba(14,165,233,0.24);
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
         color: white;
-        box-shadow: 0 12px 26px rgba(34, 197, 94, 0.24);
+        box-shadow: 0 12px 26px rgba(14,165,233,0.24);
     }
 
     .stButton button:hover {
         transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(34, 197, 94, 0.32);
+        box-shadow: 0 16px 34px rgba(14,165,233,0.32);
     }
 
     .stDataFrame {
         border-radius: 18px;
         overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(14,165,233,0.13);
         box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
     }
 
@@ -209,215 +313,34 @@ st.markdown("""
         border-color: rgba(15, 23, 42, 0.08);
     }
 
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
-
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
-    }
-
-    section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        padding-top: 18px !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
+    header {
         background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
     }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
-    }
-
-    .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
-        color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
-        font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-    }
-
-    .menu-svg-v8 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 42px;
-        color: #ffffff;
-        opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
-        background: transparent !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        box-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
-    }
-
 </style>
 """, unsafe_allow_html=True)
 
 
 def mostrar_cabecalho():
-    logo_path = Path("logo.png")
+    logo_path = Path("logo_operax.png")
 
     st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([1.25, 7])
+    col_logo, col_titulo = st.columns([1.35, 7])
 
     with col_logo:
-        if logo_path.exists():
-            st.image(str(logo_path), width=155)
-        else:
-            st.markdown('<div class="crm-logo-fallback">💰</div>', unsafe_allow_html=True)
+        try:
+            if logo_path.exists() and logo_path.stat().st_size > 100:
+                st.image(str(logo_path), width=180)
+            else:
+                st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
+        except Exception:
+            st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
 
     with col_titulo:
         st.markdown(
             """
             <div>
-                <h1 class="crm-title">CRM TK Soluções</h1>
-                <p class="crm-subtitle">Sistema de vendas, propostas, conferência operacional e controle financeiro</p>
+                <h1 class="crm-title">OPERAX <span>SALES</span></h1>
+                <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
                 <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
             </div>
             """,
@@ -819,19 +742,6 @@ def mostrar_chat_popup():
                 100% { opacity: 1; transform: scale(1); }
             }
 
-            .chat-alerta {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: #dcfce7;
-                border: 1px solid #86efac;
-                color: #166534;
-                padding: 8px 12px;
-                border-radius: 999px;
-                font-weight: 800;
-                box-shadow: 0 12px 28px rgba(34,197,94,0.22);
-            }
-
             .bolinha-verde {
                 width: 11px;
                 height: 11px;
@@ -839,195 +749,7 @@ def mostrar_chat_popup():
                 border-radius: 999px;
                 animation: piscarChat 1s infinite;
             }
-        
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
-
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
-    }
-
-    section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        padding-top: 18px !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
-    }
-
-    .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
-        color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
-        font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-    }
-
-    .menu-svg-v8 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 42px;
-        color: #ffffff;
-        opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
-        background: transparent !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        box-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
-    }
-
-</style>
+        </style>
         """, unsafe_allow_html=True)
 
     col_spacer, col_chat = st.columns([8, 1.8])
@@ -1194,15 +916,28 @@ def menu_lateral_v8():
             ("📊 Painel", "painel", "Operação"),
         ]
 
-    st.sidebar.markdown(
-        """
-        <div class="sidebar-logo-v8">
-            <div class="sidebar-logo-icon-v8">TK</div>
-            <div>CRM TK</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    logo_path = Path("logo_operax.png")
+
+    try:
+        if logo_path.exists() and logo_path.stat().st_size > 100:
+            st.sidebar.markdown('<div class="sidebar-logo-v8">', unsafe_allow_html=True)
+            st.sidebar.image(str(logo_path), width=185)
+            st.sidebar.markdown('</div>', unsafe_allow_html=True)
+        else:
+            raise Exception("Logo não encontrado ou inválido")
+    except Exception:
+        st.sidebar.markdown(
+            """
+            <div class="sidebar-logo-v8">
+                <div class="sidebar-logo-icon-v8">O</div>
+                <div>
+                    <div class="sidebar-logo-title">OPERAX</div>
+                    <div class="sidebar-logo-sub">SALES</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     st.sidebar.markdown(
         f"""
