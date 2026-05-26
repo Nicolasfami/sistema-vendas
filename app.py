@@ -1303,6 +1303,15 @@ else:
 
     mostrar_chat_popup()
 
+    # Esconde toolbar para vendedor, mantém para admin
+    if st.session_state.tipo != "admin":
+        st.markdown("""<style>
+        header[data-testid="stHeader"] { display: none !important; }
+        [data-testid="stToolbar"] { display: none !important; }
+        #MainMenu { display: none !important; }
+        footer { display: none !important; }
+        </style>""", unsafe_allow_html=True)
+
     if "mostrar_comissao_empresa" not in st.session_state:
         st.session_state.mostrar_comissao_empresa = True
 
