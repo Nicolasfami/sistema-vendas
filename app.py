@@ -31,10 +31,7 @@ html, body, [class*="css"] {
 
 /* FUNDO DARK GERAL */
 .stApp {
-    background:
-        radial-gradient(ellipse at 15% 20%, rgba(14,165,233,0.10) 0%, transparent 40%),
-        radial-gradient(ellipse at 85% 80%, rgba(37,99,235,0.08) 0%, transparent 35%),
-        linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important;
+    background: #f0f6ff !important;
 }
 
 .block-container {
@@ -207,12 +204,12 @@ section[data-testid="stSidebar"] > div {
 
 /* HEADER PRINCIPAL DARK */
 .crm-hero {
-    background: linear-gradient(135deg, rgba(3,18,45,0.96), rgba(4,22,55,0.92));
-    border: 1px solid rgba(56,189,248,0.20);
+    background: linear-gradient(135deg, #ffffff, #eff6ff);
+    border: 1.5px solid rgba(14,165,233,0.40);
     border-radius: 22px;
     padding: 22px 28px;
     margin-bottom: 26px;
-    box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 20px 60px rgba(0,0,0,0.5);
+    box-shadow: 0 0 22px rgba(14,165,233,0.14), 0 8px 32px rgba(0,0,0,0.06);
     position: relative;
     overflow: hidden;
 }
@@ -222,7 +219,7 @@ section[data-testid="stSidebar"] > div {
     position: absolute;
     top: -60px; right: -60px;
     width: 220px; height: 220px;
-    background: radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
     pointer-events: none;
 }
 
@@ -238,23 +235,20 @@ section[data-testid="stSidebar"] > div {
     font-size: 42px;
     line-height: 1.02;
     font-weight: 900;
-    color: #ffffff !important;
+    color: #0f172a !important;
     margin: 0;
     letter-spacing: -0.02em;
-    text-shadow: 0 0 40px rgba(56,189,248,0.40);
 }
 
 .crm-title span {
-    color: #38bdf8 !important;
-    text-shadow: 0 0 28px rgba(56,189,248,0.70);
+    color: #0ea5e9 !important;
 }
 
 .crm-subtitle {
     margin: 8px 0 0 0;
-    color: #7dd3fc !important;
+    color: #475569 !important;
     font-size: 15px;
     font-weight: 400;
-    opacity: 0.85;
 }
 
 .crm-pill {
@@ -264,11 +258,12 @@ section[data-testid="stSidebar"] > div {
     margin-top: 12px;
     padding: 8px 14px;
     border-radius: 999px;
-    background: rgba(14,165,233,0.12);
-    color: #7dd3fc !important;
-    border: 1px solid rgba(56,189,248,0.28);
+    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+    color: #ffffff !important;
+    border: 1px solid rgba(14,165,233,0.22);
     font-weight: 700;
     font-size: 13px;
+    box-shadow: 0 0 16px rgba(14,165,233,0.30);
 }
 
 /* LOGIN CARD DARK - igual à foto */
@@ -324,37 +319,38 @@ section[data-testid="stSidebar"] > div {
     opacity: 0.80;
 }
 
-/* INPUTS DARK */
+/* INPUTS CLAROS COM BORDA NEON */
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input,
 div[data-testid="stTextArea"] textarea {
-    background: rgba(2,12,30,0.90) !important;
-    border: 1px solid rgba(56,189,248,0.22) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(56,189,248,0.45) !important;
     border-radius: 12px !important;
-    color: #e2f4ff !important;
+    color: #0f172a !important;
+    box-shadow: 0 0 0 0px rgba(14,165,233,0.10);
 }
 
 div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus {
-    border-color: rgba(56,189,248,0.55) !important;
-    box-shadow: 0 0 0 3px rgba(14,165,233,0.15) !important;
+    border-color: #0ea5e9 !important;
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.18) !important;
 }
 
 div[data-testid="stTextInput"] input::placeholder,
 div[data-testid="stTextArea"] textarea::placeholder {
-    color: rgba(125,211,252,0.30) !important;
+    color: #94a3b8 !important;
 }
 
-/* SELECT DARK */
+/* SELECT CLARO COM BORDA NEON */
 div[data-baseweb="select"] {
-    background: rgba(2,12,30,0.90) !important;
-    border: 1px solid rgba(56,189,248,0.22) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(56,189,248,0.45) !important;
     border-radius: 12px !important;
 }
 
 div[data-baseweb="select"] * {
-    background: rgba(2,12,30,0.95) !important;
-    color: #e2f4ff !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
 }
 
 /* LABELS */
@@ -363,41 +359,41 @@ div[data-baseweb="select"] * {
 [data-testid="stTextArea"] label,
 [data-testid="stSelectbox"] label,
 .stCheckbox label {
-    color: #7dd3fc !important;
+    color: #0ea5e9 !important;
     font-weight: 700 !important;
     font-size: 12px !important;
     letter-spacing: 0.08em !important;
     text-transform: uppercase !important;
 }
 
-/* BOTOES */
+/* BOTOES AZUL NEON */
 .stButton button {
     background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
-    border: 1px solid rgba(56,189,248,0.35) !important;
+    border: 1px solid rgba(56,189,248,0.50) !important;
     border-radius: 12px !important;
     color: #ffffff !important;
     font-weight: 700 !important;
-    box-shadow: 0 8px 24px rgba(14,165,233,0.28) !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.35), 0 8px 24px rgba(14,165,233,0.20) !important;
     transition: all 0.2s !important;
 }
 
 .stButton button:hover {
     background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
-    box-shadow: 0 12px 32px rgba(56,189,248,0.45) !important;
+    box-shadow: 0 0 28px rgba(56,189,248,0.55), 0 12px 32px rgba(14,165,233,0.30) !important;
     transform: translateY(-1px) !important;
 }
 
-/* METRICAS DARK */
+/* METRICAS CLARAS COM BORDA NEON */
 div[data-testid="stMetric"] {
-    background: rgba(3,18,45,0.90) !important;
-    border: 1px solid rgba(56,189,248,0.18) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(14,165,233,0.45) !important;
     border-radius: 16px !important;
     padding: 18px 20px !important;
-    box-shadow: 0 0 0 1px rgba(56,189,248,0.06), 0 12px 32px rgba(0,0,0,0.4) !important;
+    box-shadow: 0 0 14px rgba(14,165,233,0.12), 0 4px 16px rgba(0,0,0,0.06) !important;
 }
 
 div[data-testid="stMetric"] label {
-    color: #7dd3fc !important;
+    color: #0ea5e9 !important;
     font-size: 11px !important;
     font-weight: 700 !important;
     letter-spacing: 0.08em !important;
@@ -405,74 +401,76 @@ div[data-testid="stMetric"] label {
 }
 
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-    color: #ffffff !important;
+    color: #0f172a !important;
     font-weight: 800 !important;
     font-size: 24px !important;
 }
 
-/* DATAFRAME DARK */
+/* DATAFRAME CLARO COM BORDA NEON */
 .stDataFrame {
     border-radius: 14px !important;
     overflow: hidden !important;
-    border: 1px solid rgba(56,189,248,0.15) !important;
+    border: 1.5px solid rgba(14,165,233,0.35) !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.10) !important;
 }
 
 /* HEADERS */
 h1, h2, h3 {
-    color: #e2f4ff !important;
+    color: #0f172a !important;
     letter-spacing: -0.02em;
 }
 
 /* ALERTS */
 .stSuccess > div {
-    background: rgba(34,197,94,0.12) !important;
-    border: 1px solid rgba(34,197,94,0.35) !important;
+    background: #f0fdf4 !important;
+    border: 1.5px solid #86efac !important;
     border-radius: 12px !important;
-    color: #86efac !important;
+    color: #166534 !important;
 }
 
 .stError > div {
-    background: rgba(239,68,68,0.12) !important;
-    border: 1px solid rgba(239,68,68,0.35) !important;
+    background: #fef2f2 !important;
+    border: 1.5px solid #fca5a5 !important;
     border-radius: 12px !important;
-    color: #fca5a5 !important;
+    color: #991b1b !important;
 }
 
 .stWarning > div {
-    background: rgba(234,179,8,0.10) !important;
-    border: 1px solid rgba(234,179,8,0.30) !important;
+    background: #fffbeb !important;
+    border: 1.5px solid #fde68a !important;
     border-radius: 12px !important;
-    color: #fde68a !important;
+    color: #92400e !important;
 }
 
 .stInfo > div {
-    background: rgba(14,165,233,0.10) !important;
-    border: 1px solid rgba(14,165,233,0.28) !important;
+    background: #eff6ff !important;
+    border: 1.5px solid rgba(14,165,233,0.50) !important;
     border-radius: 12px !important;
-    color: #7dd3fc !important;
+    color: #1d4ed8 !important;
 }
 
 /* FORM */
 div[data-testid="stForm"] {
-    background: rgba(3,18,45,0.50) !important;
-    border: 1px solid rgba(56,189,248,0.12) !important;
+    background: #ffffff !important;
+    border: 1.5px solid rgba(14,165,233,0.30) !important;
     border-radius: 16px !important;
     padding: 20px !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.08) !important;
 }
 
 /* DIVIDER */
-hr { border-color: rgba(56,189,248,0.15) !important; }
+hr { border-color: rgba(14,165,233,0.25) !important; }
 
 /* SUBHEADER */
 .stApp h2 {
-    color: #bae6fd !important;
-    border-bottom: 1px solid rgba(56,189,248,0.15);
+    color: #0f172a !important;
+    border-bottom: 2px solid rgba(14,165,233,0.35);
     padding-bottom: 8px;
 }
 
 /* TEXTO GERAL */
-.stApp p, .stApp span, .stApp div { color: #cbd5e1; }
-.stCaption, small { color: #7dd3fc !important; opacity: 0.8; }
+.stApp p, .stApp span, .stApp div { color: #1e293b; }
+.stCaption, small { color: #0ea5e9 !important; opacity: 0.9; }
 
 header { background: transparent !important; }
 
@@ -1359,7 +1357,7 @@ else:
 
                 for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
                     if campo in st.session_state:
-                        st.session_state[campo] = ""
+                        del st.session_state[campo]
 
                 st.rerun()
 
