@@ -386,27 +386,28 @@ div[data-baseweb="select"] * {
     transform: translateY(-1px) !important;
 }
 
-/* METRICAS CLARAS COM BORDA NEON */
+/* METRICAS COM BORDA NEON */
 div[data-testid="stMetric"] {
-    background: #ffffff !important;
+    background: rgba(3,18,45,0.85) !important;
     border: 1.5px solid rgba(14,165,233,0.45) !important;
     border-radius: 16px !important;
     padding: 18px 20px !important;
-    box-shadow: 0 0 14px rgba(14,165,233,0.12), 0 4px 16px rgba(0,0,0,0.06) !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.15), 0 4px 20px rgba(0,0,0,0.30) !important;
 }
 
 div[data-testid="stMetric"] label {
-    color: #0ea5e9 !important;
+    color: #38bdf8 !important;
     font-size: 11px !important;
     font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.10em !important;
     text-transform: uppercase !important;
 }
 
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-    color: #0f172a !important;
+    color: #ffffff !important;
     font-weight: 800 !important;
     font-size: 24px !important;
+    text-shadow: 0 0 12px rgba(56,189,248,0.25) !important;
 }
 
 /* DATAFRAME CLARO COM BORDA NEON */
@@ -1568,11 +1569,12 @@ else:
             total_vendido = df["valor"].fillna(0).sum()
             qtd = len(df)
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             col1.metric("💵 Total vendido", dinheiro(total_vendido))
-            col2.metric("📋 Quantidade", qtd)
+            col2.metric("📋 Contratos", qtd)
             col3.metric("🗓️ Mês", mes_nome)
+            col4.metric("📅 Dia", str(dia_filtro) if dia_filtro != "Todos" else "Todos")
 
             if st.session_state.tipo == "admin":
                 total_empresa = calcular_comissao_montante(df)
