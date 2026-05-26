@@ -770,7 +770,7 @@ def destacar_linhas_pendentes(row, tipo_usuario):
         status = str(row.get("status", "")).strip().lower()
         data_venda = row.get("data", None)
 
-        if status != "pendente":
+        if status not in ["pendente", "aguardando pagamento", "aguardando assinatura"]:
             return [""] * len(row)
 
         agora = pd.Timestamp.now()
@@ -780,6 +780,12 @@ def destacar_linhas_pendentes(row, tipo_usuario):
             horas_pendente = (agora - data_venda).total_seconds() / 3600
         else:
             horas_pendente = 0
+
+        if status == "aguardando pagamento":
+            return ["background-color: #dbeafe"] * len(row)
+
+        if status == "aguardando assinatura":
+            return ["background-color: #ede9fe"] * len(row)
 
         if tipo_usuario == "admin" and horas_pendente >= 1:
             return ["background-color: #ffb3b3"] * len(row)
@@ -1411,7 +1417,7 @@ else:
             else:
                 st.error("Valor inválido. Exemplo correto: R$ 1.758,71")
 
-        status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
+        status = st.selectbox("Status", ["Pendente", "Aguardando Pagamento", "Aguardando Assinatura", "Pago", "Cancelado"])
 
         observacao = st.text_area("Observação", key=f"nova_observacao_{fc}")
 
@@ -1527,7 +1533,7 @@ else:
 
             status_filtro = col_f4.selectbox(
                 "Status",
-                ["Todos", "Pago", "Pendente", "Cancelado"]
+                ["Todos", "Pendente", "Aguardando Pagamento", "Aguardando Assinatura", "Pago", "Cancelado"]
             )
 
             tabelas = carregar_tabelas()
@@ -1788,7 +1794,7 @@ else:
                         if valor_edit_texto:
                             st.caption(f"Valor identificado: {dinheiro(valor_edit)}")
 
-                        status_lista = ["Pendente", "Pago", "Cancelado"]
+                        status_lista = ["Pendente", "Aguardando Pagamento", "Aguardando Assinatura", "Pago", "Cancelado"]
                         status_atual = str(proposta.get("status", "Pendente") or "Pendente")
                         status_index = status_lista.index(status_atual) if status_atual in status_lista else 0
 
