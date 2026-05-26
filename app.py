@@ -232,24 +232,28 @@ section[data-testid="stSidebar"] > div {
 }
 
 .crm-title {
-    font-size: 40px;
+    font-size: 36px;
     line-height: 1.02;
     font-family: 'Orbitron', sans-serif !important;
-    font-weight: 800;
-    color: #0f172a !important;
+    font-weight: 900;
+    color: #ffffff !important;
     margin: 0;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
+    text-shadow: 0 0 22px rgba(56,189,248,0.55) !important;
 }
 
 .crm-title span {
-    color: #0ea5e9 !important;
+    color: #38bdf8 !important;
+    text-shadow: 0 0 18px rgba(56,189,248,0.85) !important;
 }
 
 .crm-subtitle {
     margin: 8px 0 0 0;
-    color: #475569 !important;
-    font-size: 15px;
-    font-weight: 400;
+    color: #ffffff !important;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0.85;
+    
 }
 
 .crm-pill {
@@ -464,14 +468,16 @@ hr { border-color: rgba(14,165,233,0.25) !important; }
 
 /* SUBHEADER */
 .stApp h2 {
-    color: #0f172a !important;
-    border-bottom: 2px solid rgba(14,165,233,0.35);
+    font-family: 'Orbitron', sans-serif !important;
+    color: #ffffff !important;
+    border-bottom: 2px solid rgba(14,165,233,0.45);
     padding-bottom: 8px;
+    
 }
 
 /* TEXTO GERAL */
-.stApp p, .stApp span, .stApp div { color: #1e293b; }
-.stCaption, small { color: #0ea5e9 !important; opacity: 0.9; }
+.stApp p, .stApp span, .stApp div { color: #0f172a; }
+.stCaption, small { color: #0369a1 !important; opacity: 1; }
 
 header { background: transparent !important; }
 
@@ -1320,7 +1326,7 @@ else:
             <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
-            <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Cadastro de Venda</span>
+            <span style="font-size:20px;font-weight:900;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Cadastro de Venda</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1457,7 +1463,7 @@ else:
             <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
             </div>
-            <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Painel de Vendas</span>
+            <span style="font-size:20px;font-weight:900;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Painel de Vendas</span>
         </div>
         """, unsafe_allow_html=True)
         df = preparar_dataframe_vendas()
@@ -1483,7 +1489,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 12px 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:0.01em;">Filtros</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Filtros</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1590,7 +1596,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 12px 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:0.01em;">Propostas</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Propostas</span>
         </div>
         """, unsafe_allow_html=True)
             st.caption("🟨 Pendente | 🟥 Pendente há mais de 1 hora no painel do admin")
@@ -1658,7 +1664,7 @@ else:
                     st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 12px 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:0.01em;">Ações rápidas</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Ações rápidas</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1713,7 +1719,7 @@ else:
                 st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 12px 0;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;letter-spacing:0.01em;">Editar proposta</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Editar proposta</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1856,13 +1862,13 @@ else:
             <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
-            <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Usuários</span>
+            <span style="font-size:20px;font-weight:900;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Usuários</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Criar usuário</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Criar usuário</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1897,7 +1903,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 0 2-2h2a2 2 0 0 0 2 2"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Usuários cadastrados</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Usuários cadastrados</span>
         </div>
         """, unsafe_allow_html=True)
             st.dataframe(df_users[["id", "nome", "usuario", "tipo", "ativo"]], use_container_width=True)
@@ -1906,7 +1912,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Editar usuário</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Editar usuário</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1935,7 +1941,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Alterar senha</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Alterar senha</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1956,7 +1962,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Ativar / Desativar</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Ativar / Desativar</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1975,7 +1981,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Excluir usuário</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Excluir usuário</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -1997,13 +2003,13 @@ else:
             <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H15"/></svg>
             </div>
-            <span style="font-size:22px;font-weight:800;color:#0f172a;letter-spacing:-0.02em;">Regras de Comissão</span>
+            <span style="font-size:20px;font-weight:900;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Regras de Comissão</span>
         </div>
         """, unsafe_allow_html=True)
         st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Criar nova regra</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Criar nova regra</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2045,7 +2051,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Regras cadastradas</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Regras cadastradas</span>
         </div>
         """, unsafe_allow_html=True)
             st.dataframe(df_regras, use_container_width=True)
@@ -2054,7 +2060,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Editar regra</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Editar regra</span>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2095,7 +2101,7 @@ else:
             st.markdown("""
         <div style="display:flex;align-items:center;gap:9px;margin:16px 0 10px 0;">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6l-1 14H6L5 6"/></svg>
-            <span style="font-size:15px;font-weight:700;color:#0f172a;">Excluir regra</span>
+            <span style="font-size:14px;font-weight:700;color:#ffffff;font-family:Orbitron,sans-serif;letter-spacing:0.03em;">Excluir regra</span>
         </div>
         """, unsafe_allow_html=True)
 
