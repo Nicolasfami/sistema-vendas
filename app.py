@@ -588,16 +588,84 @@ def enviar_mensagem_chat(usuario_id, destinatario_id, nome, tipo, mensagem):
     }).execute()
 
 
+
+def contar_mensagens_nao_lidas():
+    try:
+        if "chat_lido_em" not in st.session_state:
+            st.session_state.chat_lido_em = str(datetime.now())
+
+        res = (
+            supabase.table("chat_interno")
+            .select("*")
+            .eq("destinatario_id", st.session_state.user_id)
+            .execute()
+        )
+
+        mensagens = res.data or []
+        ultima_leitura = pd.to_datetime(st.session_state.chat_lido_em, errors="coerce")
+
+        total = 0
+
+        for msg in mensagens:
+            data_msg = pd.to_datetime(msg.get("criado_em"), errors="coerce")
+
+            if pd.notna(data_msg) and pd.notna(ultima_leitura):
+                if data_msg > ultima_leitura:
+                    total += 1
+
+        return total
+
+    except Exception:
+        return 0
+
+
 def mostrar_chat_popup():
-    col_spacer, col_chat = st.columns([8, 1.6])
+    nao_lidas = contar_mensagens_nao_lidas()
+
+    if nao_lidas > 0:
+        st.markdown("""
+        <style>
+            @keyframes piscarChat {
+                0% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.35; transform: scale(1.18); }
+                100% { opacity: 1; transform: scale(1); }
+            }
+
+            .chat-alerta {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                background: #dcfce7;
+                border: 1px solid #86efac;
+                color: #166534;
+                padding: 8px 12px;
+                border-radius: 999px;
+                font-weight: 800;
+                box-shadow: 0 12px 28px rgba(34,197,94,0.22);
+            }
+
+            .bolinha-verde {
+                width: 11px;
+                height: 11px;
+                background: #22c55e;
+                border-radius: 999px;
+                animation: piscarChat 1s infinite;
+            }
+        </style>
+        """, unsafe_allow_html=True)
+
+    col_spacer, col_chat = st.columns([8, 1.8])
 
     with col_chat:
+        label_chat = f"🟢 💬 Chat ({nao_lidas})" if nao_lidas > 0 else "💬 Chat"
+
         try:
-            chat_context = st.popover("💬 Chat", use_container_width=True)
+            chat_context = st.popover(label_chat, use_container_width=True)
         except Exception:
-            chat_context = st.expander("💬 Chat", expanded=False)
+            chat_context = st.expander(label_chat, expanded=False)
 
     with chat_context:
+        st.session_state.chat_lido_em = str(datetime.now())
         st.markdown("### Chat interno")
 
         usuarios_chat = carregar_usuarios_chat()
@@ -727,6 +795,9 @@ else:
 
     mostrar_chat_popup()
 
+    if "mostrar_comissao_empresa" not in st.session_state:
+        st.session_state.mostrar_comissao_empresa = True
+
     if st.session_state.tipo == "admin":
         menu = st.sidebar.radio(
             "Menu",
@@ -738,19 +809,27 @@ else:
             ["📋 Nova Venda", "📊 Painel"]
         )
 
+    if "venda_sucesso_msg" not in st.session_state:
+        st.session_state.venda_sucesso_msg = ""
+
     # =========================
     # NOVA VENDA
     # =========================
 
     if menu == "📋 Nova Venda":
         st.header("📋 Cadastro de Venda")
+
+        if st.session_state.venda_sucesso_msg:
+            st.success(st.session_state.venda_sucesso_msg)
+            st.session_state.venda_sucesso_msg = ""
         tabelas = carregar_tabelas()
 
-        cliente = st.text_input("Cliente")
+        cliente = st.text_input("Cliente", key="novo_cliente")
 
         cpf_digitado = st.text_input(
             "CPF",
-            placeholder="Ex: 999.999.999-99"
+            placeholder="Ex: 999.999.999-99",
+            key="novo_cpf"
         )
         cpf = limpar_documento(cpf_digitado)
 
@@ -766,7 +845,8 @@ else:
 
         telefone_digitado = st.text_input(
             "Telefone",
-            placeholder="Ex: (11) 99976-7867"
+            placeholder="Ex: (11) 99976-7867",
+            key="novo_telefone"
         )
         telefone = limpar_documento(telefone_digitado)
 
@@ -784,7 +864,8 @@ else:
 
         valor_digitado = st.text_input(
             "Valor vendido",
-            placeholder="Ex: R$ 1.758,71"
+            placeholder="Ex: R$ 1.758,71",
+            key="novo_valor"
         )
         valor = converter_valor_brasileiro(valor_digitado)
 
@@ -796,7 +877,7 @@ else:
 
         status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
 
-        observacao = st.text_area("Observação")
+        observacao = st.text_area("Observação", key="nova_observacao")
 
         if st.button("Salvar venda"):
             cpf_ok = validar_cpf(cpf)
@@ -834,7 +915,13 @@ else:
                 }
 
                 supabase.table("vendas").insert(dados).execute()
-                st.success("Venda cadastrada!")
+
+                st.session_state.venda_sucesso_msg = "Proposta cadastrada com sucesso!"
+
+                for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
+                    if campo in st.session_state:
+                        st.session_state[campo] = ""
+
                 st.rerun()
 
     # =========================
@@ -942,7 +1029,20 @@ else:
             if st.session_state.tipo == "admin":
                 total_empresa = calcular_comissao_montante(df)
 
-                st.metric("🏦 Comissão empresa", dinheiro(total_empresa))
+                col_comissao_label, col_comissao_btn = st.columns([4, 1])
+
+                with col_comissao_btn:
+                    if st.button("👁️" if st.session_state.mostrar_comissao_empresa else "🙈", key="btn_ocultar_comissao"):
+                        st.session_state.mostrar_comissao_empresa = not st.session_state.mostrar_comissao_empresa
+                        st.rerun()
+
+                valor_comissao_tela = (
+                    dinheiro(total_empresa)
+                    if st.session_state.mostrar_comissao_empresa
+                    else "R$ •••••"
+                )
+
+                st.metric("🏦 Comissão empresa", valor_comissao_tela)
 
                 alteradas = df[df["alterado_vendedor"] == True]
 
