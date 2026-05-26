@@ -5,6 +5,11 @@ from supabase import create_client
 from datetime import datetime
 import hashlib
 
+try:
+    from streamlit_autorefresh import st_autorefresh
+except Exception:
+    st_autorefresh = None
+
 # =========================
 # CONFIGURAÇÕES
 # =========================
@@ -287,6 +292,23 @@ else:
 
     elif menu == "📊 Painel":
         st.header("📊 Painel de Vendas")
+
+        col_refresh_1, col_refresh_2 = st.columns([1, 4])
+
+        with col_refresh_1:
+            if st.button("🔄 Atualizar agora"):
+                st.rerun()
+
+        with col_refresh_2:
+            st.caption("O painel atualiza automaticamente sem precisar apertar F5.")
+
+        if st_autorefresh is not None:
+            intervalo = 10000 if st.session_state.tipo == "admin" else 15000
+            st_autorefresh(
+                interval=intervalo,
+                limit=None,
+                key=f"auto_refresh_{st.session_state.tipo}"
+            )
 
         df = preparar_dataframe_vendas()
 
