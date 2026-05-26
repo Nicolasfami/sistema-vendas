@@ -1,1796 +1,1343 @@
+import { useState, useEffect, useCallback, useRef } from "react";
 
-import streamlit as st
-import pandas as pd
-from supabase import create_client
-from datetime import datetime
-import hashlib
-import re
-from pathlib import Path
+// ===================== SUPABASE CONFIG =====================
+const SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co";
+const SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt";
 
-# =========================
-# CONFIGURAÇÕES
-# =========================
+async function sb(path, options = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: options.prefer || "return=representation",
+      ...options.headers,
+    },
+    ...options,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
 
-st.set_page_config(page_title="OPERAX SALES", layout="wide")
+async function hashSenha(senha) {
+  const buf = new TextEncoder().encode(String(senha));
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
-SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
-SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
+function limparDoc(v) {
+  return String(v || "").replace(/\D/g, "");
+}
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+function dinheiro(v) {
+  try {
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(
+      parseFloat(v) || 0
+    );
+  } catch {
+    return "R$ 0,00";
+  }
+}
 
-# =========================
-# DESIGN FUTURISTA / LOGO
-# =========================
+function validarCPF(cpf) {
+  const c = limparDoc(cpf);
+  if (c.length !== 11) return false;
+  if (c === c[0].repeat(11)) return false;
+  let soma = Array.from({ length: 9 }, (_, i) => parseInt(c[i]) * (10 - i)).reduce((a, b) => a + b, 0);
+  let d1 = (soma * 10) % 11;
+  if (d1 === 10) d1 = 0;
+  soma = Array.from({ length: 10 }, (_, i) => parseInt(c[i]) * (11 - i)).reduce((a, b) => a + b, 0);
+  let d2 = (soma * 10) % 11;
+  if (d2 === 10) d2 = 0;
+  return d1 === parseInt(c[9]) && d2 === parseInt(c[10]);
+}
 
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+function validarCNPJ(cnpj) {
+  const c = limparDoc(cnpj);
+  if (c.length !== 14) return false;
+  if (c === c[0].repeat(14)) return false;
+  return true;
+}
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+function validarTelefone(tel) {
+  const t = limparDoc(tel);
+  if (![10, 11].includes(t.length)) return false;
+  if (t.slice(0, 2) === "00") return false;
+  if (t.length === 11 && t[2] !== "9") return false;
+  return true;
+}
+
+// ===================== STYLES =====================
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700;800&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #03091a;
+  --bg2: #060e24;
+  --bg3: #071228;
+  --sidebar: linear-gradient(180deg, #070f22 0%, #060d1f 50%, #050b1a 100%);
+  --card: rgba(8,18,45,0.85);
+  --border: rgba(30,120,255,0.18);
+  --border2: rgba(30,120,255,0.32);
+  --blue: #1e78ff;
+  --blue2: #38a3ff;
+  --blue3: #0affef;
+  --text: #e8f0ff;
+  --text2: #8baad4;
+  --text3: #4a6fa5;
+  --success: #00e5a0;
+  --warn: #ffa820;
+  --danger: #ff4560;
+  --font: 'Exo 2', sans-serif;
+  --font2: 'Rajdhani', sans-serif;
+  --glow: 0 0 24px rgba(30,120,255,0.22);
+  --glow2: 0 0 40px rgba(30,120,255,0.30);
+  --radius: 12px;
+  --radius2: 18px;
+}
+
+body, #root { min-height: 100vh; background: var(--bg); font-family: var(--font); color: var(--text); }
+
+/* ---- LAYOUT ---- */
+.layout { display: flex; min-height: 100vh; }
+
+/* ---- SIDEBAR ---- */
+.sidebar {
+  width: 240px; min-width: 240px; background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+  position: relative; overflow: hidden;
+}
+.sidebar::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(30,120,255,0.10) 0%, transparent 65%);
+  pointer-events: none;
+}
+.sidebar-logo {
+  padding: 22px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: linear-gradient(135deg, #0a2a6e, #1e78ff);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; box-shadow: 0 0 16px rgba(30,120,255,0.4);
+  flex-shrink: 0;
+}
+.logo-text { font-family: var(--font2); font-size: 18px; font-weight: 700; color: #fff; letter-spacing: 0.05em; line-height: 1.1; }
+.logo-sub { font-size: 11px; font-weight: 500; color: var(--blue2); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.sidebar-user {
+  margin: 14px 12px; padding: 12px 14px;
+  background: rgba(30,120,255,0.08); border: 1px solid var(--border);
+  border-radius: var(--radius); display: flex; align-items: center; gap: 10px;
+}
+.user-avatar {
+  width: 34px; height: 34px; border-radius: 50%;
+  background: linear-gradient(135deg, #1e78ff, #38a3ff);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.user-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.user-role { font-size: 11px; color: var(--blue2); text-transform: uppercase; letter-spacing: 0.07em; }
+.user-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); box-shadow: 0 0 6px var(--success); margin-left: auto; }
+
+.menu-section { padding: 10px 12px 4px; font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.menu-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; margin: 2px 8px; border-radius: 10px;
+  cursor: pointer; transition: all 0.18s; color: var(--text2);
+  font-size: 14px; font-weight: 500; border: 1px solid transparent;
+}
+.menu-item:hover { background: rgba(30,120,255,0.10); color: var(--text); border-color: var(--border); }
+.menu-item.active {
+  background: rgba(30,120,255,0.16); color: var(--blue2);
+  border-color: var(--border2); box-shadow: var(--glow);
+  font-weight: 600;
+}
+.menu-item svg { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.sidebar-logout {
+  margin-top: auto; padding: 14px 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---- MAIN ---- */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+.topbar {
+  padding: 0 28px; height: 64px; display: flex; align-items: center;
+  background: rgba(3,9,26,0.92); border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(12px); gap: 16px;
+}
+.topbar-logo { display: flex; align-items: center; gap: 14px; }
+.topbar-logo img { height: 46px; }
+.topbar-title { font-family: var(--font2); font-size: 26px; font-weight: 700; letter-spacing: 0.06em; color: #fff; }
+.topbar-title span { color: var(--blue2); }
+.topbar-sub { font-size: 12px; color: var(--text3); margin-top: 2px; }
+
+.topbar-pills { display: flex; gap: 2px; margin-left: auto; }
+.topbar-pill {
+  display: flex; align-items: center; gap: 6px; padding: 7px 14px;
+  border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text2);
+  border: 1px solid var(--border); cursor: pointer; transition: all 0.15s;
+}
+.topbar-pill:hover { background: rgba(30,120,255,0.10); color: var(--text); }
+.topbar-pill svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.topbar-chat {
+  display: flex; align-items: center; gap: 8px; padding: 8px 18px;
+  background: rgba(30,120,255,0.15); border: 1px solid var(--border2);
+  border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--blue2);
+  cursor: pointer; margin-left: 12px; transition: all 0.15s; position: relative;
+}
+.topbar-chat:hover { background: rgba(30,120,255,0.25); box-shadow: var(--glow); }
+.chat-badge {
+  position: absolute; top: -6px; right: -6px; background: var(--blue);
+  color: #fff; font-size: 10px; font-weight: 700; width: 18px; height: 18px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 8px var(--blue);
+}
+
+.content { flex: 1; overflow-y: auto; padding: 28px; background: var(--bg); }
+.content::-webkit-scrollbar { width: 6px; }
+.content::-webkit-scrollbar-track { background: var(--bg2); }
+.content::-webkit-scrollbar-thumb { background: rgba(30,120,255,0.3); border-radius: 3px; }
+
+/* ---- CARDS ---- */
+.card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius2); padding: 24px; margin-bottom: 20px;
+  backdrop-filter: blur(10px);
+}
+.card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 22px; }
+.card-icon {
+  width: 42px; height: 42px; border-radius: 10px;
+  background: rgba(30,120,255,0.15); border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+}
+.card-icon svg { width: 22px; height: 22px; stroke: var(--blue2); fill: none; stroke-width: 2; }
+.card-title { font-family: var(--font2); font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: 0.02em; }
+
+/* ---- METRICS ---- */
+.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 22px; }
+.metric {
+  background: rgba(8,18,45,0.9); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px;
+  position: relative; overflow: hidden;
+}
+.metric::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, var(--blue), var(--blue3));
+}
+.metric-label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+.metric-value { font-family: var(--font2); font-size: 22px; font-weight: 700; color: var(--text); line-height: 1; }
+.metric-value.success { color: var(--success); }
+.metric-value.warn { color: var(--warn); }
+.metric-value.danger { color: var(--danger); }
+
+/* ---- FORM ---- */
+.form-group { margin-bottom: 18px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-label {
+  display: block; font-size: 13px; font-weight: 600; color: var(--text2);
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 11px 14px;
+  background: rgba(3,9,26,0.8); border: 1px solid var(--border);
+  border-radius: 10px; color: var(--text); font-family: var(--font); font-size: 14px;
+  transition: all 0.18s; outline: none; appearance: none;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--blue); box-shadow: 0 0 0 3px rgba(30,120,255,0.15);
+}
+.form-input::placeholder { color: var(--text3); }
+.form-select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238baad4' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px; }
+.form-select option { background: #060e24; color: var(--text); }
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-error { font-size: 12px; color: var(--danger); margin-top: 4px; }
+
+.prefix-input { display: flex; align-items: center; }
+.prefix { padding: 11px 12px; background: rgba(30,120,255,0.08); border: 1px solid var(--border); border-right: none; border-radius: 10px 0 0 10px; font-size: 14px; font-weight: 600; color: var(--text2); white-space: nowrap; }
+.prefix-input .form-input { border-radius: 0 10px 10px 0; }
+
+/* ---- BUTTONS ---- */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 10px; font-family: var(--font);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.18s;
+  border: 1px solid transparent; white-space: nowrap;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #1248c8, #1e78ff);
+  color: #fff; border-color: rgba(30,120,255,0.4);
+  box-shadow: 0 6px 20px rgba(30,120,255,0.25);
+}
+.btn-primary:hover { box-shadow: 0 8px 28px rgba(30,120,255,0.4); transform: translateY(-1px); }
+.btn-secondary { background: rgba(30,120,255,0.10); color: var(--blue2); border-color: var(--border2); }
+.btn-secondary:hover { background: rgba(30,120,255,0.20); }
+.btn-danger { background: rgba(255,69,96,0.12); color: var(--danger); border-color: rgba(255,69,96,0.3); }
+.btn-danger:hover { background: rgba(255,69,96,0.22); }
+.btn-success { background: rgba(0,229,160,0.12); color: var(--success); border-color: rgba(0,229,160,0.3); }
+.btn-success:hover { background: rgba(0,229,160,0.22); }
+.btn svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ---- TABLE ---- */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: rgba(30,120,255,0.08); color: var(--text3); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 10px 14px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+td { padding: 11px 14px; border-bottom: 1px solid rgba(30,120,255,0.06); color: var(--text2); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(30,120,255,0.04); }
+.td-primary { color: var(--text); font-weight: 500; }
+
+/* ---- BADGES ---- */
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.badge-pago { background: rgba(0,229,160,0.12); color: var(--success); border: 1px solid rgba(0,229,160,0.25); }
+.badge-pendente { background: rgba(255,168,32,0.12); color: var(--warn); border: 1px solid rgba(255,168,32,0.25); }
+.badge-cancelado { background: rgba(255,69,96,0.12); color: var(--danger); border: 1px solid rgba(255,69,96,0.25); }
+.badge-aguardando { background: rgba(30,120,255,0.12); color: var(--blue2); border: 1px solid rgba(30,120,255,0.25); }
+.badge-admin { background: rgba(56,163,255,0.12); color: var(--blue2); border: 1px solid rgba(30,120,255,0.25); }
+.badge-vendedor { background: rgba(0,229,160,0.10); color: var(--success); border: 1px solid rgba(0,229,160,0.25); }
+
+/* ---- LOGIN ---- */
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(ellipse at 50% 0%, rgba(30,120,255,0.15) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 100%, rgba(10,255,239,0.07) 0%, transparent 50%),
+    var(--bg);
+}
+.login-card {
+  background: rgba(6,14,36,0.95); border: 1px solid var(--border2);
+  border-radius: 24px; padding: 40px; width: 400px; max-width: 95vw;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5), var(--glow2);
+}
+.login-logo { text-align: center; margin-bottom: 32px; }
+.login-logo-icon {
+  width: 72px; height: 72px; border-radius: 20px; margin: 0 auto 14px;
+  background: linear-gradient(135deg, #071848, #1e78ff);
+  display: flex; align-items: center; justify-content: center; font-size: 36px;
+  box-shadow: 0 0 32px rgba(30,120,255,0.5);
+}
+.login-brand { font-family: var(--font2); font-size: 32px; font-weight: 700; color: #fff; letter-spacing: 0.06em; }
+.login-brand span { color: var(--blue2); }
+.login-tagline { font-size: 13px; color: var(--text3); margin-top: 4px; }
+
+/* ---- ALERTS ---- */
+.alert { padding: 12px 16px; border-radius: 10px; font-size: 13px; font-weight: 500; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+.alert-success { background: rgba(0,229,160,0.10); border: 1px solid rgba(0,229,160,0.3); color: var(--success); }
+.alert-error { background: rgba(255,69,96,0.10); border: 1px solid rgba(255,69,96,0.3); color: var(--danger); }
+.alert-info { background: rgba(30,120,255,0.10); border: 1px solid var(--border2); color: var(--blue2); }
+.alert svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+
+/* ---- DIVIDER ---- */
+.divider { border: none; border-top: 1px solid var(--border); margin: 22px 0; }
+
+/* ---- CHAT ---- */
+.chat-panel { display: flex; flex-direction: column; height: calc(100vh - 64px); }
+.chat-list { width: 240px; border-right: 1px solid var(--border); overflow-y: auto; padding: 12px; }
+.chat-user-item { padding: 10px 12px; border-radius: 10px; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.chat-user-item:hover { background: rgba(30,120,255,0.10); }
+.chat-user-item.active { background: rgba(30,120,255,0.15); border: 1px solid var(--border2); }
+.chat-main { flex: 1; display: flex; flex-direction: column; }
+.chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-thumb { background: rgba(30,120,255,0.3); border-radius: 2px; }
+.chat-msg { max-width: 68%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; }
+.chat-msg.mine { background: rgba(30,120,255,0.18); border: 1px solid var(--border2); color: var(--text); align-self: flex-end; border-bottom-right-radius: 4px; }
+.chat-msg.theirs { background: rgba(8,18,45,0.9); border: 1px solid var(--border); color: var(--text2); align-self: flex-start; border-bottom-left-radius: 4px; }
+.chat-msg-name { font-size: 11px; font-weight: 700; color: var(--blue2); margin-bottom: 3px; }
+.chat-input-row { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; }
+
+/* ---- LOADING ---- */
+.spinner { width: 36px; height: 36px; border: 3px solid rgba(30,120,255,0.2); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 40px auto; display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.page-loading { display: flex; align-items: center; justify-content: center; height: 200px; }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text3); }
+.empty-state svg { width: 48px; height: 48px; stroke: var(--text3); fill: none; stroke-width: 1.5; margin: 0 auto 16px; display: block; }
+
+/* ---- CHECKBOX ---- */
+.form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.form-check input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
+.form-check span { font-size: 14px; color: var(--text2); }
+
+/* ---- FILTER ROW ---- */
+.filter-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-bottom: 16px; }
+.filter-row .form-group { margin-bottom: 0; flex: 1; min-width: 130px; }
+
+/* ---- SECTION TITLE ---- */
+.section-title { font-family: var(--font2); font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.section-title::before { content: ''; display: block; width: 3px; height: 18px; background: var(--blue); border-radius: 2px; }
+
+/* ---- PAGINA PAINEL ---- */
+.painel-date { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+
+/* ---- MODAL ---- */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+}
+.modal-box {
+  background: #060e24; border: 1px solid var(--border2); border-radius: 20px;
+  padding: 28px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6), var(--glow2);
+}
+.modal-box::-webkit-scrollbar { width: 5px; }
+.modal-box::-webkit-scrollbar-thumb { background: rgba(30,120,255,0.3); border-radius: 3px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.modal-close { background: rgba(255,69,96,0.10); border: 1px solid rgba(255,69,96,0.25); border-radius: 8px; color: var(--danger); padding: 6px 10px; cursor: pointer; font-size: 18px; line-height: 1; transition: all 0.15s; }
+.modal-close:hover { background: rgba(255,69,96,0.22); }
+`;
+
+// ===================== ICONS =====================
+const Icons = {
+  sale: <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>,
+  panel: <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  users: <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  commission: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h4.5a1.5 1.5 0 0 1 0 3h-3a1.5 1.5 0 0 0 0 3H15"/></svg>,
+  logout: <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  chat: <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  bolt: <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>,
+  refresh: <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+  person: <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  send: <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>,
+  check: <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>,
+  x: <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+  edit: <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+  trash: <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>,
+  plus: <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  key: <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
+  warn: <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  info: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+  bank: <svg viewBox="0 0 24 24"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg>,
+};
+
+// ===================== ALERT COMPONENT =====================
+function Alert({ type = "info", children }) {
+  const map = { success: "alert-success", error: "alert-error", info: "alert-info" };
+  const icon = type === "success" ? Icons.check : type === "error" ? Icons.x : Icons.info;
+  return <div className={`alert ${map[type]}`}>{icon}{children}</div>;
+}
+
+// ===================== LOGIN =====================
+function Login({ onLogin }) {
+  const [usuario, setUsuario] = useState("");
+  const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [erro, setErro] = useState("");
+
+  async function handleLogin() {
+    if (!usuario || !senha) { setErro("Preencha usuário e senha."); return; }
+    setLoading(true); setErro("");
+    try {
+      const usuarioLimpo = usuario.trim().toLowerCase();
+      const data = await sb(
+        `usuarios?select=*&usuario=eq.${encodeURIComponent(usuarioLimpo)}&ativo=eq.true`
+      );
+      if (!data.length) {
+        setErro("Usuário não encontrado ou inativo."); setLoading(false); return;
+      }
+      const u = data[0];
+      // testa com trim e sem trim, igual ao Python (str(senha).encode())
+      const hash1 = await hashSenha(senha.trim());
+      const hash2 = await hashSenha(senha);
+      if (u.senha_hash !== hash1 && u.senha_hash !== hash2) {
+        setErro("Senha incorreta."); setLoading(false); return;
+      }
+      onLogin(u);
+    } catch (e) {
+      setErro("Erro ao conectar: " + e.message); setLoading(false);
     }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top left, rgba(14, 165, 233, 0.13), transparent 25%),
-            radial-gradient(circle at bottom right, rgba(37, 99, 235, 0.10), transparent 30%),
-            linear-gradient(135deg, #f8fbff 0%, #eef6ff 46%, #ffffff 100%) !important;
-    }
-
-    .block-container {
-        padding-top: 2rem !important;
-        padding-bottom: 3rem !important;
-        max-width: 1180px !important;
-    }
-
-    [data-testid="stSidebar"] {
-        background:
-            radial-gradient(circle at top left, rgba(14,165,233,0.35), transparent 30%),
-            linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
-        border-right: 1px solid rgba(56,189,248,0.38) !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(14,165,233,0.22) !important;
-    }
-
-    section[data-testid="stSidebar"] > div {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        padding-top: 18px !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
-        background: transparent !important;
-        border: 0 !important;
-        border-radius: 14px !important;
-        box-shadow: none !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        font-weight: 760 !important;
-        padding: 0.65rem 0.75rem !important;
-        transition: all .18s ease-in-out;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(56,189,248,0.14) !important;
-        transform: translateX(2px);
-    }
-
-    .sidebar-logo-v8 {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 4px 22px 4px;
-        color: white;
-        font-size: 22px;
-        font-weight: 900;
-        letter-spacing: .02em;
-    }
-
-    .sidebar-logo-v8 img {
-        width: 185px;
-        height: auto;
-        filter: drop-shadow(0 0 18px rgba(56,189,248,0.60));
-    }
-
-    .sidebar-logo-title {
-        line-height: 1.05;
-        font-weight: 950;
-        letter-spacing: .08em;
-    }
-
-    .sidebar-logo-sub {
-        font-size: 13px;
-        color: #38bdf8 !important;
-        letter-spacing: .28em;
-        margin-top: 4px;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width: 52px;
-        height: 52px;
-        border-radius: 18px;
-        background:
-            radial-gradient(circle at 50% 50%, #020617 0%, #020617 32%, #0ea5e9 44%, #2563eb 70%, #38bdf8 100%);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:25px;
-        font-weight:900;
-        color:#ffffff;
-        box-shadow:
-            0 0 34px rgba(56,189,248,0.58),
-            inset 0 0 0 1px rgba(255,255,255,0.22);
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.075);
-        border: 1px solid rgba(56,189,248,0.30);
-        border-radius: 18px;
-        padding: 15px 14px;
-        margin: 8px 0 20px 0;
-        color: white !important;
-        font-weight: 900;
-        box-shadow: 0 16px 34px rgba(14,165,233,0.18);
-    }
-
-    .menu-label-v8 {
-        color: rgba(56,189,248,0.94) !important;
-        font-size: 12px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .menu-ativo-v8 {
-        background:
-            linear-gradient(90deg, rgba(37,99,235,0.96), rgba(14,165,233,0.96));
-        color: #ffffff !important;
-        border-radius: 16px;
-        padding: 13px 14px;
-        margin: 7px 0;
-        font-weight: 900;
-        box-shadow:
-            0 0 26px rgba(56,189,248,0.52),
-            inset 0 0 0 1px rgba(255,255,255,0.22);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        overflow: hidden;
-    }
-
-    .menu-ativo-v8 span {
-        color:#ffffff !important;
-        font-size: 16px;
-        background: transparent !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-        stroke: #ffffff;
-        background: transparent !important;
-    }
-
-    .menu-svg-v8 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 42px;
-        color: #7dd3fc !important;
-        opacity: 0.95;
-    }
-
-    .menu-ativo-v8 div,
-    .menu-ativo-v8 code,
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 p {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        box-shadow: none !important;
-    }
-
-    h1, h2, h3 {
-        color: #0f172a;
-        letter-spacing: -0.04em;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(239,246,255,0.86));
-        border: 1px solid rgba(14,165,233,0.12);
-        border-radius: 28px;
-        padding: 24px 28px;
-        margin-bottom: 28px;
-        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.10);
-        backdrop-filter: blur(14px);
-    }
-
-    .crm-title {
-        font-size: 48px;
-        line-height: 1.02;
-        font-weight: 950;
-        color: #0f172a;
-        margin: 0;
-        letter-spacing: -0.05em;
-    }
-
-    .crm-title span {
-        color: #0ea5e9;
-        letter-spacing: .05em;
-    }
-
-    .crm-subtitle {
-        margin: 10px 0 0 0;
-        color: #475569;
-        font-size: 16px;
-        font-weight: 550;
-    }
-
-    .crm-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 9px 14px;
-        border-radius: 999px;
-        background: linear-gradient(90deg, #2563eb, #0ea5e9);
-        color: #ffffff;
-        border: 1px solid rgba(14,165,233,0.22);
-        font-weight: 800;
-        font-size: 13px;
-        box-shadow: 0 12px 28px rgba(14,165,233,0.24);
-    }
-
-    .crm-card {
-        background: rgba(255, 255, 255, 0.90);
-        border: 1px solid rgba(14,165,233,0.12);
-        border-radius: 24px;
-        padding: 24px;
-        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(14px);
-        margin-bottom: 22px;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.78));
-        border: 1px solid rgba(14,165,233,0.13);
-        border-radius: 20px;
-        padding: 18px 20px;
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 15px !important;
-        border: 1px solid rgba(14,165,233,0.18) !important;
-        background: rgba(255,255,255,0.94) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-    }
-
-    div[data-testid="stTextInput"] input:focus,
-    div[data-testid="stTextArea"] textarea:focus {
-        border-color: rgba(14,165,233,0.68) !important;
-        box-shadow: 0 0 0 3px rgba(14,165,233,0.14) !important;
-    }
-
-    .stButton button {
-        border-radius: 14px;
-        padding: 0.62rem 1.1rem;
-        font-weight: 850;
-        border: 1px solid rgba(14,165,233,0.24);
-        background: linear-gradient(135deg, #2563eb, #0ea5e9);
-        color: white;
-        box-shadow: 0 12px 26px rgba(14,165,233,0.24);
-    }
-
-    .stButton button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(14,165,233,0.32);
-    }
-
-    .stDataFrame {
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(14,165,233,0.13);
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
-    }
-
-    hr {
-        border-color: rgba(15, 23, 42, 0.08);
-    }
-
-    header {
-        background: transparent !important;
-    }
-
-    /* ===== PATCH FINAL: LOGO OPERAX + CORREÇÃO DO QUADRADO BRANCO ===== */
-
-    .sidebar-logo-v8 img {
-        width: 190px !important;
-        max-width: 190px !important;
-        height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(56,189,248,0.55)) !important;
-    }
-
-    .crm-hero img {
-        width: 260px !important;
-        max-width: 260px !important;
-        height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(14,165,233,0.18)) !important;
-    }
-
-    /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
-    .menu-ativo-v8 {
-        min-height: 58px !important;
-        overflow: hidden !important;
-        white-space: nowrap !important;
-        background: linear-gradient(135deg,#2563eb,#0ea5e9) !important;
-        border: 1px solid rgba(56,189,248,.75) !important;
-    }
-
-    /* remove apenas conteúdo quebrado */
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 code {
-        display:none !important;
-    }
-
-    .menu-ativo-v8 * {
-        box-shadow:none !important;
-    }
-
-    .menu-ativo-v8 .menu-icon-safe {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-width: 24px !important;
-        font-size: 20px !important;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 .menu-text-safe {
-        display: inline-flex !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: 900 !important;
-    }
-
-</style>
-""", unsafe_allow_html=True)
-
-
-def mostrar_cabecalho():
-    logo_path = Path("logo_operax.png")
-
-    st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([2.35, 5.8])
-
-    with col_logo:
-        try:
-            if logo_path.exists() and logo_path.stat().st_size > 100:
-                st.image(str(logo_path), width=260)
-            else:
-                st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
-        except Exception:
-            st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
-
-    with col_titulo:
-        st.markdown(
-            """
-            <div>
-                <h1 class="crm-title">OPERAX <span>SALES</span></h1>
-                <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
-                <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-# =========================
-# FUNÇÕES
-# =========================
-
-def hash_senha(senha):
-    return hashlib.sha256(str(senha).encode()).hexdigest()
-
-
-def dinheiro(valor):
-    try:
-        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return "R$ 0,00"
-
-
-def limpar_documento(valor):
-    return re.sub(r"\D", "", str(valor or ""))
-
-def validar_cpf(cpf):
-    cpf_limpo = limpar_documento(cpf)
-
-    if len(cpf_limpo) != 11:
-        return False
-
-    if cpf_limpo == cpf_limpo[0] * 11:
-        return False
-
-    soma = sum(int(cpf_limpo[i]) * (10 - i) for i in range(9))
-    digito1 = (soma * 10) % 11
-    if digito1 == 10:
-        digito1 = 0
-
-    soma = sum(int(cpf_limpo[i]) * (11 - i) for i in range(10))
-    digito2 = (soma * 10) % 11
-    if digito2 == 10:
-        digito2 = 0
-
-    return digito1 == int(cpf_limpo[9]) and digito2 == int(cpf_limpo[10])
-
-
-def validar_telefone(telefone):
-    telefone_limpo = limpar_documento(telefone)
-
-    if len(telefone_limpo) not in [10, 11]:
-        return False
-
-    ddd = telefone_limpo[:2]
-    numero = telefone_limpo[2:]
-
-    if ddd == "00":
-        return False
-
-    if len(telefone_limpo) == 11 and not numero.startswith("9"):
-        return False
-
-    return True
-
-
-def converter_valor_brasileiro(valor):
-    texto = str(valor or "").strip()
-
-    if not texto:
-        return 0.0
-
-    texto = texto.replace("R$", "").replace(" ", "")
-
-    # Se vier no formato brasileiro: 1.758,71
-    if "," in texto:
-        texto = texto.replace(".", "").replace(",", ".")
-    else:
-        # Se vier como 1758.71, mantém o ponto decimal
-        texto = texto
-
-    try:
-        return float(texto)
-    except Exception:
-        return 0.0
-
-
-def formatar_valor_para_tela(valor):
-    numero = converter_valor_brasileiro(valor)
-    if numero == 0:
-        return ""
-    return f"{numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def login(usuario, senha):
-    usuario = str(usuario).strip().lower()
-    senha_hash = hash_senha(str(senha).strip())
-
-    res = (
-        supabase.table("usuarios")
-        .select("*")
-        .eq("usuario", usuario)
-        .eq("ativo", True)
-        .execute()
-    )
-
-    if not res.data:
-        return None
-
-    user = res.data[0]
-
-    if user.get("senha_hash") == senha_hash:
-        return user
-
-    return None
-
-
-def carregar_tabelas():
-    res = (
-        supabase.table("regras_comissao")
-        .select("*")
-        .eq("ativo", True)
-        .execute()
-    )
-
-    tabelas = sorted(list(set([
-        r.get("produto")
-        for r in res.data
-        if r.get("produto")
-    ])))
-
-    if not tabelas:
-        tabelas = ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]
-
-    return tabelas
-
-
-def calcular_comissao_montante(df_filtrado):
-    total_empresa = 0
-
-    if df_filtrado.empty:
-        return 0
-
-    if "status" not in df_filtrado.columns or "tabela_banco" not in df_filtrado.columns:
-        return 0
-
-    df_pagas = df_filtrado[df_filtrado["status"] == "Pago"].copy()
-
-    if df_pagas.empty:
-        return 0
-
-    for tabela in df_pagas["tabela_banco"].dropna().unique():
-        total_tabela = (
-            df_pagas[df_pagas["tabela_banco"] == tabela]["valor"]
-            .fillna(0)
-            .sum()
-        )
-
-        regras = (
-            supabase.table("regras_comissao")
-            .select("*")
-            .eq("produto", tabela)
-            .eq("ativo", True)
-            .order("valor_minimo", desc=True)
-            .execute()
-        )
-
-        percentual = 0
-
-        for regra in regras.data:
-            valor_minimo = float(regra.get("valor_minimo") or 0)
-
-            if float(total_tabela) >= valor_minimo:
-                percentual = float(regra.get("percentual_empresa") or 0)
-                break
-
-        total_empresa += float(total_tabela) * (percentual / 100)
-
-    return total_empresa
-
-
-def calcular_percentual_empresa_venda(tabela_banco, valor):
-    regras = (
-        supabase.table("regras_comissao")
-        .select("*")
-        .eq("produto", tabela_banco)
-        .eq("ativo", True)
-        .order("valor_minimo", desc=True)
-        .execute()
-    )
-
-    percentual = 0
-
-    for regra in regras.data:
-        valor_minimo = float(regra.get("valor_minimo") or 0)
-
-        if float(valor) >= valor_minimo:
-            percentual = float(regra.get("percentual_empresa") or 0)
-            break
-
-    return percentual
-
-
-def preparar_dataframe_vendas():
-    vendas = (
-        supabase.table("vendas")
-        .select("*")
-        .order("id", desc=True)
-        .execute()
-    )
-
-    df = pd.DataFrame(vendas.data)
-
-    if df.empty:
-        return df
-
-    if "data" not in df.columns:
-        df["data"] = None
-
-    if "vendedor_id" not in df.columns:
-        df["vendedor_id"] = None
-
-    if "tabela_banco" not in df.columns:
-        if "produto" in df.columns:
-            df["tabela_banco"] = df["produto"]
-        else:
-            df["tabela_banco"] = ""
-
-    if "valor" not in df.columns:
-        df["valor"] = 0
-
-    if "status" not in df.columns:
-        df["status"] = "Pendente"
-
-    if "conferido" not in df.columns:
-        df["conferido"] = False
-
-    if "alterado_vendedor" not in df.columns:
-        df["alterado_vendedor"] = False
-
-    df["data"] = pd.to_datetime(df["data"], errors="coerce")
-    df["mes_num"] = df["data"].dt.month
-    df["ano"] = df["data"].dt.year
-
-    return df
-
-
-def destacar_linhas_pendentes(row, tipo_usuario):
-    """
-    Destaca propostas pendentes:
-    - Pendente recente: amarelo
-    - Pendente com mais de 1 hora: vermelho somente para admin
-    """
-    try:
-        status = str(row.get("status", "")).strip().lower()
-        data_venda = row.get("data", None)
-
-        if status != "pendente":
-            return [""] * len(row)
-
-        agora = pd.Timestamp.now()
-
-        if pd.notna(data_venda):
-            data_venda = pd.to_datetime(data_venda, errors="coerce")
-            horas_pendente = (agora - data_venda).total_seconds() / 3600
-        else:
-            horas_pendente = 0
-
-        if tipo_usuario == "admin" and horas_pendente >= 1:
-            return ["background-color: #ffb3b3"] * len(row)
-
-        return ["background-color: #fff3b0"] * len(row)
-
-    except Exception:
-        return [""] * len(row)
-
-
-
-
-def carregar_usuarios_chat():
-    try:
-        res = (
-            supabase.table("usuarios")
-            .select("id,nome,usuario,tipo,ativo")
-            .eq("ativo", True)
-            .order("nome")
-            .execute()
-        )
-
-        usuarios = res.data or []
-
-        return [
-            u for u in usuarios
-            if int(u.get("id")) != int(st.session_state.user_id)
-        ]
-
-    except Exception:
-        return []
-
-
-def carregar_mensagens_chat(destinatario_id, limite=80):
-    try:
-        meu_id = int(st.session_state.user_id)
-        outro_id = int(destinatario_id)
-
-        res = (
-            supabase.table("chat_interno")
-            .select("*")
-            .order("criado_em", desc=True)
-            .limit(300)
-            .execute()
-        )
-
-        todas = res.data or []
-
-        mensagens = []
-
-        for msg in todas:
-            origem = msg.get("usuario_id")
-            destino = msg.get("destinatario_id")
-
-            try:
-                origem = int(origem) if origem is not None else None
-                destino = int(destino) if destino is not None else None
-            except Exception:
-                origem = None
-                destino = None
-
-            # Mensagens privadas entre eu e o usuário escolhido.
-            if (
-                (origem == meu_id and destino == outro_id)
-                or
-                (origem == outro_id and destino == meu_id)
-            ):
-                mensagens.append(msg)
-
-        mensagens = mensagens[-limite:]
-        mensagens.reverse()
-
-        return mensagens
-
-    except Exception:
-        return []
-
-
-def enviar_mensagem_chat(usuario_id, destinatario_id, nome, tipo, mensagem):
-    supabase.table("chat_interno").insert({
-        "usuario_id": usuario_id,
-        "destinatario_id": destinatario_id,
-        "nome": nome,
-        "tipo": tipo,
-        "mensagem": mensagem,
-        "criado_em": str(datetime.now())
-    }).execute()
-
-
-
-def contar_mensagens_nao_lidas():
-    try:
-        if "chat_lido_em" not in st.session_state:
-            st.session_state.chat_lido_em = str(datetime.now())
-
-        res = (
-            supabase.table("chat_interno")
-            .select("*")
-            .eq("destinatario_id", st.session_state.user_id)
-            .execute()
-        )
-
-        mensagens = res.data or []
-        ultima_leitura = pd.to_datetime(st.session_state.chat_lido_em, errors="coerce")
-
-        total = 0
-
-        for msg in mensagens:
-            data_msg = pd.to_datetime(msg.get("criado_em"), errors="coerce")
-
-            if pd.notna(data_msg) and pd.notna(ultima_leitura):
-                if data_msg > ultima_leitura:
-                    total += 1
-
-        return total
-
-    except Exception:
-        return 0
-
-
-def mostrar_chat_popup():
-    nao_lidas = contar_mensagens_nao_lidas()
-
-    if nao_lidas > 0:
-        st.markdown("""
-        <style>
-            @keyframes piscarChat {
-                0% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.35; transform: scale(1.18); }
-                100% { opacity: 1; transform: scale(1); }
-            }
-
-            .bolinha-verde {
-                width: 11px;
-                height: 11px;
-                background: #22c55e;
-                border-radius: 999px;
-                animation: piscarChat 1s infinite;
-            }
-        
-    /* ===== PATCH FINAL: LOGO OPERAX + CORREÇÃO DO QUADRADO BRANCO ===== */
-
-    .sidebar-logo-v8 img {
-        width: 190px !important;
-        max-width: 190px !important;
-        height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(56,189,248,0.55)) !important;
-    }
-
-    .crm-hero img {
-        width: 260px !important;
-        max-width: 260px !important;
-        height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(14,165,233,0.18)) !important;
-    }
-
-    /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
-    .menu-ativo-v8 {
-        min-height: 58px !important;
-        overflow: hidden !important;
-        white-space: nowrap !important;
-        background: linear-gradient(135deg,#2563eb,#0ea5e9) !important;
-        border: 1px solid rgba(56,189,248,.75) !important;
-    }
-
-    /* remove apenas conteúdo quebrado */
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 code {
-        display:none !important;
-    }
-
-    .menu-ativo-v8 * {
-        box-shadow:none !important;
-    }
-
-    .menu-ativo-v8 .menu-icon-safe {
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-width: 24px !important;
-        font-size: 20px !important;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 .menu-text-safe {
-        display: inline-flex !important;
-        color: #ffffff !important;
-        font-size: 16px !important;
-        font-weight: 900 !important;
-    }
-
-</style>
-        """, unsafe_allow_html=True)
-
-    col_spacer, col_chat = st.columns([8, 1.8])
-
-    with col_chat:
-        label_chat = f"🟢 💬 Chat ({nao_lidas})" if nao_lidas > 0 else "💬 Chat"
-
-        try:
-            chat_context = st.popover(label_chat, use_container_width=True)
-        except Exception:
-            chat_context = st.expander(label_chat, expanded=False)
-
-    with chat_context:
-        st.session_state.chat_lido_em = str(datetime.now())
-        st.markdown("### Chat interno")
-
-        usuarios_chat = carregar_usuarios_chat()
-
-        if not usuarios_chat:
-            st.info("Nenhum outro usuário ativo encontrado.")
-            return
-
-        opcoes = {
-            f"{u.get('nome', u.get('usuario'))} ({u.get('tipo', '')})": u
-            for u in usuarios_chat
-        }
-
-        escolhido_label = st.selectbox(
-            "Enviar mensagem para",
-            list(opcoes.keys())
-        )
-
-        usuario_destino = opcoes[escolhido_label]
-        destinatario_id = int(usuario_destino["id"])
-
-        mensagens = carregar_mensagens_chat(destinatario_id, 80)
-
-        chat_area = st.container(height=360)
-
-        with chat_area:
-            if not mensagens:
-                st.info("Nenhuma mensagem nessa conversa ainda.")
-            else:
-                for msg in mensagens:
-                    nome_msg = msg.get("nome", "Usuário")
-                    texto_msg = msg.get("mensagem", "")
-                    data_msg = str(msg.get("criado_em", ""))[:16]
-
-                    if int(msg.get("usuario_id")) == int(st.session_state.user_id):
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background:linear-gradient(135deg,#dcfce7,#bbf7d0);
-                                border:1px solid #86efac;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px 0 8px auto;
-                                max-width:88%;
-                                text-align:right;
-                                box-shadow:0 8px 20px rgba(34,197,94,0.10);
-                            ">
-                                <div style="font-size:12px;color:#166534;font-weight:700;">Você • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background:#ffffff;
-                                border:1px solid #e5e7eb;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px auto 8px 0;
-                                max-width:88%;
-                                box-shadow:0 8px 20px rgba(15,23,42,0.06);
-                            ">
-                                <div style="font-size:12px;color:#64748b;font-weight:700;">{nome_msg} • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-        with st.form("form_chat_popup", clear_on_submit=True):
-            mensagem = st.text_input(
-                "Mensagem",
-                placeholder=f"Digite uma mensagem para {usuario_destino.get('nome', 'usuário')}..."
-            )
-
-            enviar = st.form_submit_button("Enviar")
-
-            if enviar:
-                if not mensagem.strip():
-                    st.error("Digite uma mensagem antes de enviar.")
-                else:
-                    enviar_mensagem_chat(
-                        st.session_state.user_id,
-                        destinatario_id,
-                        st.session_state.nome,
-                        st.session_state.tipo,
-                        mensagem.strip()
-                    )
-                    st.rerun()
-
-
-
-def icone_svg(nome):
-    icones = {
-        "nova": "📋",
-        "painel": "📊",
-        "usuarios": "👥",
-        "comissoes": "💰",
-    }
-    return icones.get(nome, "•")
-
-
-def menu_lateral_v8():
-    if "menu_atual" not in st.session_state:
-        st.session_state.menu_atual = "📋 Nova Venda"
-
-    if st.session_state.tipo == "admin":
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-            ("👥 Usuários", "usuarios", "Gestão"),
-            ("💰 Comissões", "comissoes", "Gestão"),
-        ]
-    else:
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-        ]
-
-    logo_path = Path("logo_operax.png")
-
-    try:
-        if logo_path.exists() and logo_path.stat().st_size > 100:
-            st.sidebar.markdown('<div class="sidebar-logo-v8">', unsafe_allow_html=True)
-            st.sidebar.image(str(logo_path), width=190)
-            st.sidebar.markdown('</div>', unsafe_allow_html=True)
-        else:
-            raise Exception("Logo inválido")
-    except Exception:
-        st.sidebar.markdown(
-            """
-            <div class="sidebar-logo-v8">
-                <div class="sidebar-logo-icon-v8">O</div>
-                <div>
-                    <div class="sidebar-logo-title">OPERAX</div>
-                    <div class="sidebar-logo-sub">SALES</div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.sidebar.markdown(
-        f"""
-        <div class="sidebar-user-v8">
-            {st.session_state.nome}
+  }
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="login-logo">
+          <div className="login-logo-icon">🌀</div>
+          <div className="login-brand">OPERAX <span>SALES</span></div>
+          <div className="login-tagline">Sistema inteligente de vendas e operações financeiras</div>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+        {erro && <Alert type="error">{erro}</Alert>}
+        <div className="form-group">
+          <label className="form-label">Usuário</label>
+          <input className="form-input" placeholder="Seu login" value={usuario}
+            onChange={e => setUsuario(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()} />
+        </div>
+        <div className="form-group">
+          <label className="form-label">Senha</label>
+          <input className="form-input" type="password" placeholder="Sua senha" value={senha}
+            onChange={e => setSenha(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()} />
+        </div>
+        <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
+          onClick={handleLogin} disabled={loading}>
+          {loading ? "Entrando..." : "Entrar"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
-    grupo_atual = None
+// ===================== NOVA VENDA =====================
+function NovaVenda({ user }) {
+  const [tabelas, setTabelas] = useState([]);
+  const [cliente, setCliente] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [tabela, setTabela] = useState("");
+  const [valorStr, setValorStr] = useState("");
+  const [obs, setObs] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [erros, setErros] = useState({});
 
-    for nome, icone_nome, grupo in opcoes:
-        nome_limpo = (
-            nome.replace("📋 ", "")
-            .replace("📊 ", "")
-            .replace("👥 ", "")
-            .replace("💰 ", "")
-        )
+  useEffect(() => {
+    sb("regras_comissao?select=produto&ativo=eq.true").then(d => {
+      const unique = [...new Set(d.map(r => r.produto).filter(Boolean))].sort();
+      setTabelas(unique.length ? unique : ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]);
+      if (unique.length) setTabela(unique[0]);
+    }).catch(() => {
+      setTabelas(["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]);
+    });
+  }, []);
 
-        if grupo != grupo_atual:
-            st.sidebar.markdown(
-                f'<div class="menu-label-v8">{grupo}</div>',
-                unsafe_allow_html=True
-            )
-            grupo_atual = grupo
+  function validar() {
+    const e = {};
+    if (!cliente.trim()) e.cliente = "Informe o nome do cliente.";
+    const doc = limparDoc(cpf);
+    if (doc.length === 11 && !validarCPF(cpf)) e.cpf = "CPF inválido.";
+    if (doc.length === 14 && !validarCNPJ(cpf)) e.cpf = "CNPJ inválido.";
+    if (cpf && doc.length !== 11 && doc.length !== 14) e.cpf = "CPF/CNPJ com dígitos incorretos.";
+    if (telefone && !validarTelefone(telefone)) e.telefone = "Telefone inválido.";
+    if (!tabela) e.tabela = "Selecione uma tabela.";
+    const val = parseFloat(String(valorStr).replace(/\./g, "").replace(",", ".").replace("R$", "").trim());
+    if (!val || isNaN(val) || val <= 0) e.valor = "Informe um valor válido.";
+    return e;
+  }
 
-        icone = icone_svg(icone_nome)
+  async function getPercentual(tab, valor) {
+    try {
+      const regras = await sb(
+        `regras_comissao?produto=eq.${encodeURIComponent(tab)}&ativo=eq.true&order=valor_minimo.desc`
+      );
+      for (const r of regras) {
+        if (parseFloat(valor) >= parseFloat(r.valor_minimo || 0)) {
+          return parseFloat(r.percentual_empresa || 0);
+        }
+      }
+    } catch {}
+    return 0;
+  }
 
-        if st.session_state.menu_atual == nome:
-            st.sidebar.markdown(
-                f"""
-                <div class="menu-ativo-v8">
-                    <span class="menu-icon-safe">{icone}</span>
-                    <span class="menu-text-safe">{nome_limpo}</span>
+  async function salvar() {
+    const e = validar();
+    setErros(e);
+    if (Object.keys(e).length) return;
+    setLoading(true); setMsg(null);
+    try {
+      const valor = parseFloat(String(valorStr).replace(/\./g, "").replace(",", ".").replace("R$", "").trim());
+      const perc = await getPercentual(tabela, valor);
+      const valor_empresa = valor * (perc / 100);
+      await sb("vendas", {
+        method: "POST",
+        prefer: "return=minimal",
+        body: JSON.stringify({
+          cliente: cliente.trim(),
+          cpf: limparDoc(cpf),
+          telefone: limparDoc(telefone),
+          produto: tabela,
+          tabela_banco: tabela,
+          valor,
+          status: "Pendente",
+          observacao: obs.trim(),
+          vendedor_id: user.id,
+          vendedor_nome: user.nome,
+          data: new Date().toISOString(),
+          comissao_empresa: perc,
+          valor_comissao_empresa: valor_empresa,
+          conferido: false,
+          alterado_vendedor: false,
+        }),
+      });
+      setMsg({ type: "success", text: "Venda cadastrada com sucesso!" });
+      setCliente(""); setCpf(""); setTelefone(""); setValorStr(""); setObs("");
+    } catch (err) {
+      setMsg({ type: "error", text: "Erro ao salvar venda." });
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div>
+      {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+      <div className="card">
+        <div className="card-header">
+          <div className="card-icon">{Icons.sale}</div>
+          <div className="card-title">Cadastro de Venda</div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Cliente</label>
+          <input className="form-input" placeholder="Digite o nome do cliente..." value={cliente} onChange={e => setCliente(e.target.value)} />
+          {erros.cliente && <div className="form-error">{erros.cliente}</div>}
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">CPF / CNPJ</label>
+            <input className="form-input" placeholder="Ex: 999.999.999-99" value={cpf} onChange={e => setCpf(e.target.value)} />
+            {erros.cpf && <div className="form-error">{erros.cpf}</div>}
+          </div>
+          <div className="form-group">
+            <label className="form-label">Telefone</label>
+            <input className="form-input" placeholder="Ex: (11) 99976-7867" value={telefone} onChange={e => setTelefone(e.target.value)} />
+            {erros.telefone && <div className="form-error">{erros.telefone}</div>}
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Tabela / Banco</label>
+          <select className="form-select" value={tabela} onChange={e => setTabela(e.target.value)}>
+            {tabelas.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          {erros.tabela && <div className="form-error">{erros.tabela}</div>}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Valor Vendido</label>
+          <div className="prefix-input">
+            <span className="prefix">R$</span>
+            <input className="form-input" placeholder="0,00" value={valorStr} onChange={e => setValorStr(e.target.value)} />
+          </div>
+          {erros.valor && <div className="form-error">{erros.valor}</div>}
+        </div>
+
+        <div className="form-group">
+          <label className="form-label">Observação</label>
+          <textarea className="form-textarea" placeholder="Observações adicionais..." value={obs} onChange={e => setObs(e.target.value)} />
+        </div>
+
+        <button className="btn btn-primary" onClick={salvar} disabled={loading}>
+          {Icons.plus}{loading ? "Salvando..." : "Registrar Venda"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== PAINEL =====================
+function Painel({ user }) {
+  const [vendas, setVendas] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [mesSel, setMesSel] = useState(new Date().getMonth() + 1);
+  const [anoSel, setAnoSel] = useState(new Date().getFullYear());
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [tabelas, setTabelas] = useState([]);
+  const [msg, setMsg] = useState(null);
+
+  async function carregar() {
+    setLoading(true);
+    try {
+      let url = "vendas?select=*&order=id.desc";
+      if (user.tipo !== "admin") url += `&vendedor_id=eq.${user.id}`;
+      const data = await sb(url);
+      setVendas(data);
+    } catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  useEffect(() => {
+    sb("regras_comissao?select=produto&ativo=eq.true").then(d => {
+      const u = [...new Set(d.map(r => r.produto).filter(Boolean))].sort();
+      setTabelas(u.length ? u : ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]);
+    }).catch(() => setTabelas(["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]));
+  }, []);
+
+  const meses = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+  const vendasFiltradas = vendas.filter(v => {
+    const d = new Date(v.data);
+    return d.getMonth() + 1 === mesSel && d.getFullYear() === anoSel;
+  });
+
+  const totalVendas = vendasFiltradas.reduce((s, v) => s + parseFloat(v.valor || 0), 0);
+  const totalPago = vendasFiltradas.filter(v => v.status === "Pago").reduce((s, v) => s + parseFloat(v.valor || 0), 0);
+  const totalPendente = vendasFiltradas.filter(v => v.status === "Pendente").reduce((s, v) => s + parseFloat(v.valor || 0), 0);
+  const comissaoEmpresa = vendasFiltradas.reduce((s, v) => s + parseFloat(v.valor_comissao_empresa || 0), 0);
+
+  function statusBadge(s) {
+    const m = { "Pago": "badge-pago", "Pendente": "badge-pendente", "Cancelado": "badge-cancelado", "Aguardando": "badge-aguardando" };
+    return <span className={`badge ${m[s] || "badge-aguardando"}`}>{s}</span>;
+  }
+
+  function abrirEdit(v) {
+    setEditId(v.id);
+    setEditData({ ...v, tabela_banco: v.tabela_banco || v.produto || "" });
+  }
+
+  async function salvarEdit() {
+    try {
+      const valor = parseFloat(String(editData.valor || 0).replace(/\./g, "").replace(",", ".").replace("R$", "").trim());
+      let update = {
+        cliente: editData.cliente, cpf: limparDoc(editData.cpf),
+        telefone: limparDoc(editData.telefone), produto: editData.tabela_banco,
+        tabela_banco: editData.tabela_banco, valor,
+        status: editData.status, observacao: editData.observacao,
+      };
+      if (user.tipo === "admin") {
+        update.conferido = editData.conferido;
+        update.alterado_vendedor = false;
+        update.observacao_admin = editData.observacao_admin;
+      } else {
+        update.alterado_vendedor = true;
+        update.data_alteracao_vendedor = new Date().toISOString();
+        update.conferido = false;
+      }
+      await sb(`vendas?id=eq.${editId}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify(update) });
+      setMsg({ type: "success", text: "Proposta atualizada!" });
+      setEditId(null);
+      carregar();
+    } catch {
+      setMsg({ type: "error", text: "Erro ao atualizar." });
+    }
+  }
+
+  return (
+    <div>
+      {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+
+      <div className="metrics">
+        <div className="metric">
+          <div className="metric-label">Total Vendas</div>
+          <div className="metric-value">{dinheiro(totalVendas)}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Pago</div>
+          <div className="metric-value success">{dinheiro(totalPago)}</div>
+        </div>
+        <div className="metric">
+          <div className="metric-label">Pendente</div>
+          <div className="metric-value warn">{dinheiro(totalPendente)}</div>
+        </div>
+        {user.tipo === "admin" && (
+          <div className="metric">
+            <div className="metric-label">Comissão Empresa</div>
+            <div className="metric-value" style={{ color: "var(--blue2)" }}>{dinheiro(comissaoEmpresa)}</div>
+          </div>
+        )}
+        <div className="metric">
+          <div className="metric-label">Qtd Vendas</div>
+          <div className="metric-value">{vendasFiltradas.length}</div>
+        </div>
+      </div>
+
+      <div className="painel-date">
+        <select className="form-select" style={{ width: 140 }} value={mesSel} onChange={e => setMesSel(parseInt(e.target.value))}>
+          {meses.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+        </select>
+        <select className="form-select" style={{ width: 100 }} value={anoSel} onChange={e => setAnoSel(parseInt(e.target.value))}>
+          {[2024, 2025, 2026].map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <button className="btn btn-secondary" onClick={carregar}>{Icons.refresh} Atualizar</button>
+      </div>
+
+      {loading ? <div className="page-loading"><div className="spinner" /></div> : (
+        <div className="card">
+          {vendasFiltradas.length === 0 ? (
+            <div className="empty-state">{Icons.sale}<p>Nenhuma venda encontrada neste período.</p></div>
+          ) : (
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Cliente</th><th>CPF/CNPJ</th><th>Tabela/Banco</th>
+                    <th>Valor</th><th>Status</th><th>Data</th>
+                    {user.tipo === "admin" && <th>Vendedor</th>}
+                    {user.tipo === "admin" && <th>Conf.</th>}
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendasFiltradas.map(v => {
+                    const isPendOld = v.status === "Pendente" && new Date() - new Date(v.data) > 3600000;
+                    return (
+                      <tr key={v.id} style={isPendOld && user.tipo === "admin" ? { background: "rgba(255,69,96,0.06)" } : v.status === "Pendente" ? { background: "rgba(255,168,32,0.04)" } : {}}>
+                        <td className="td-primary">#{v.id}</td>
+                        <td className="td-primary">{v.cliente}</td>
+                        <td>{v.cpf || "—"}</td>
+                        <td>{v.tabela_banco || v.produto || "—"}</td>
+                        <td className="td-primary">{dinheiro(v.valor)}</td>
+                        <td>{statusBadge(v.status)}</td>
+                        <td>{v.data ? new Date(v.data).toLocaleDateString("pt-BR") : "—"}</td>
+                        {user.tipo === "admin" && <td>{v.vendedor_nome || "—"}</td>}
+                        {user.tipo === "admin" && <td>{v.conferido ? <span className="badge badge-pago">✓</span> : <span className="badge badge-pendente">—</span>}</td>}
+                        <td>
+                          <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => abrirEdit(v)}>
+                            {Icons.edit}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {editId && (
+        <div className="modal-overlay" onClick={() => setEditId(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="card-title">Editar Proposta #{editId}</div>
+              <button className="modal-close" onClick={() => setEditId(null)}>×</button>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Cliente</label>
+              <input className="form-input" value={editData.cliente || ""} onChange={e => setEditData(p => ({ ...p, cliente: e.target.value }))} />
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">CPF / CNPJ</label>
+                <input className="form-input" value={editData.cpf || ""} onChange={e => setEditData(p => ({ ...p, cpf: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Telefone</label>
+                <input className="form-input" value={editData.telefone || ""} onChange={e => setEditData(p => ({ ...p, telefone: e.target.value }))} />
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tabela / Banco</label>
+              <select className="form-select" value={editData.tabela_banco || ""} onChange={e => setEditData(p => ({ ...p, tabela_banco: e.target.value }))}>
+                {tabelas.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Valor</label>
+                <input className="form-input" value={editData.valor || ""} onChange={e => setEditData(p => ({ ...p, valor: e.target.value }))} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Status</label>
+                <select className="form-select" value={editData.status || "Pendente"} onChange={e => setEditData(p => ({ ...p, status: e.target.value }))}>
+                  {["Pendente", "Aguardando", "Pago", "Cancelado"].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Observação</label>
+              <textarea className="form-textarea" value={editData.observacao || ""} onChange={e => setEditData(p => ({ ...p, observacao: e.target.value }))} />
+            </div>
+            {user.tipo === "admin" && (
+              <>
+                <div className="form-group">
+                  <label className="form-label">Obs. Admin</label>
+                  <textarea className="form-textarea" value={editData.observacao_admin || ""} onChange={e => setEditData(p => ({ ...p, observacao_admin: e.target.value }))} />
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            if st.sidebar.button(
-                f"{icone}   {nome_limpo}",
-                key=f"menu_{nome}",
-                use_container_width=True
-            ):
-                st.session_state.menu_atual = nome
-                st.rerun()
-
-    st.sidebar.markdown("---")
-
-    if st.sidebar.button("Sair  ↪", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
-    return st.session_state.menu_atual
-
-
-# =========================
-# LOGIN
-# =========================
-
-mostrar_cabecalho()
-
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-
-if not st.session_state.logado:
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
-
-    if st.button("Entrar"):
-        user = login(usuario, senha)
-
-        if user:
-            st.session_state.logado = True
-            st.session_state.user_id = user["id"]
-            st.session_state.usuario = user["usuario"]
-            st.session_state.nome = user["nome"]
-            st.session_state.tipo = user["tipo"]
-            st.rerun()
-        else:
-            st.error("Usuário ou senha inválidos")
-
-else:
-    menu = menu_lateral_v8()
-
-    mostrar_chat_popup()
-
-    if "mostrar_comissao_empresa" not in st.session_state:
-        st.session_state.mostrar_comissao_empresa = True
-
-    if "venda_sucesso_msg" not in st.session_state:
-        st.session_state.venda_sucesso_msg = ""
-
-    # =========================
-    # NOVA VENDA
-    # =========================
-
-    if menu == "📋 Nova Venda":
-        st.header("📋 Cadastro de Venda")
-
-        if st.session_state.venda_sucesso_msg:
-            st.success(st.session_state.venda_sucesso_msg)
-            st.session_state.venda_sucesso_msg = ""
-        tabelas = carregar_tabelas()
-
-        cliente = st.text_input("Cliente", key="novo_cliente")
-
-        cpf_digitado = st.text_input(
-            "CPF",
-            placeholder="Ex: 999.999.999-99",
-            key="novo_cpf"
-        )
-        cpf = limpar_documento(cpf_digitado)
-
-        if cpf_digitado:
-            if len(cpf) < 11:
-                st.error(f"CPF incompleto: faltam {11 - len(cpf)} número(s).")
-            elif len(cpf) > 11:
-                st.error(f"CPF com números a mais: remova {len(cpf) - 11} número(s).")
-            elif validar_cpf(cpf):
-                st.success(f"CPF válido: {cpf}")
-            else:
-                st.error("CPF inválido. Confira os números digitados.")
-
-        telefone_digitado = st.text_input(
-            "Telefone",
-            placeholder="Ex: (11) 99976-7867",
-            key="novo_telefone"
-        )
-        telefone = limpar_documento(telefone_digitado)
-
-        if telefone_digitado:
-            if len(telefone) < 10:
-                st.error("Telefone incompleto. Informe DDD + número.")
-            elif len(telefone) > 11:
-                st.error(f"Telefone com números a mais: remova {len(telefone) - 11} número(s).")
-            elif validar_telefone(telefone):
-                st.success(f"Telefone válido: {telefone}")
-            else:
-                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
-
-        tabela_banco = st.selectbox("Tabela/Banco", tabelas)
-
-        valor_digitado = st.text_input(
-            "Valor vendido",
-            placeholder="Ex: R$ 1.758,71",
-            key="novo_valor"
-        )
-        valor = converter_valor_brasileiro(valor_digitado)
-
-        if valor_digitado:
-            if valor > 0:
-                st.success(f"Valor válido: {dinheiro(valor)}")
-            else:
-                st.error("Valor inválido. Exemplo correto: R$ 1.758,71")
-
-        status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
-
-        observacao = st.text_area("Observação", key="nova_observacao")
-
-        if st.button("Salvar venda"):
-            cpf_ok = validar_cpf(cpf)
-            telefone_ok = validar_telefone(telefone)
-            valor_ok = valor > 0
-
-            if not cpf_ok:
-                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
-            elif not telefone_ok:
-                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
-            elif not valor_ok:
-                st.error("Corrija o valor antes de salvar.")
-            else:
-                perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
-                valor_empresa = float(valor) * (perc_empresa / 100)
-
-                dados = {
-                    "data": str(datetime.now()),
-                    "vendedor_id": st.session_state.user_id,
-                    "vendedor": st.session_state.usuario,
-                    "cliente": cliente,
-                    "cpf": cpf,
-                    "telefone": telefone,
-                    "produto": tabela_banco,
-                    "tabela_banco": tabela_banco,
-                    "valor": valor,
-                    "status": status,
-                    "percentual_comissao": 0,
-                    "valor_comissao": 0,
-                    "comissao_empresa": perc_empresa,
-                    "valor_comissao_empresa": valor_empresa,
-                    "conferido": False,
-                    "alterado_vendedor": False,
-                    "observacao": observacao
-                }
-
-                supabase.table("vendas").insert(dados).execute()
-
-                st.session_state.venda_sucesso_msg = "Proposta cadastrada com sucesso!"
-
-                for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
-                    if campo in st.session_state:
-                        st.session_state[campo] = ""
-
-                st.rerun()
-
-    # =========================
-    # PAINEL
-    # =========================
-
-    elif menu == "📊 Painel":
-        st.header("📊 Painel de Vendas")
-        df = preparar_dataframe_vendas()
-
-        if df.empty:
-            st.warning("Nenhuma venda cadastrada.")
-        else:
-            meses = {
-                1: "Janeiro",
-                2: "Fevereiro",
-                3: "Março",
-                4: "Abril",
-                5: "Maio",
-                6: "Junho",
-                7: "Julho",
-                8: "Agosto",
-                9: "Setembro",
-                10: "Outubro",
-                11: "Novembro",
-                12: "Dezembro"
-            }
-
-            st.subheader("🔎 Filtros")
-
-            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-
-            mes_nome = col_f1.selectbox(
-                "Mês",
-                list(meses.values()),
-                index=datetime.now().month - 1
-            )
-
-            anos = sorted(
-                df["ano"].dropna().unique().astype(int).tolist(),
-                reverse=True
-            )
-
-            if not anos:
-                anos = [datetime.now().year]
-
-            ano_filtro = col_f2.selectbox("Ano", anos)
-
-            dias = ["Todos"] + list(range(1, 32))
-
-            dia_filtro = col_f3.selectbox(
-                "Dia",
-                dias
-            )
-
-            status_filtro = col_f4.selectbox(
-                "Status",
-                ["Todos", "Pago", "Pendente", "Cancelado"]
-            )
-
-            tabelas = carregar_tabelas()
-
-            tabela_filtro = st.selectbox(
-                "Tabela/Banco",
-                ["Todas"] + tabelas
-            )
-
-            mes_num = [k for k, v in meses.items() if v == mes_nome][0]
-
-            df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
-
-            if dia_filtro != "Todos":
-                df = df[df["data"].dt.day == int(dia_filtro)]
-
-            # VENDEDOR VÊ SOMENTE AS PRÓPRIAS VENDAS PELO ID
-            if st.session_state.tipo != "admin":
-                df = df[df["vendedor_id"] == st.session_state.user_id]
-
-            if status_filtro != "Todos":
-                df = df[df["status"] == status_filtro]
-
-            if tabela_filtro != "Todas":
-                df = df[df["tabela_banco"] == tabela_filtro]
-
-            if st.session_state.tipo == "admin":
-                vendedores = sorted(df["vendedor"].dropna().unique().tolist())
-
-                vendedor_filtro = st.selectbox(
-                    "Vendedor",
-                    ["Todos"] + vendedores
-                )
-
-                if vendedor_filtro != "Todos":
-                    df = df[df["vendedor"] == vendedor_filtro]
-
-            total_vendido = df["valor"].fillna(0).sum()
-            qtd = len(df)
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric("💵 Total vendido", dinheiro(total_vendido))
-            col2.metric("📋 Quantidade", qtd)
-            col3.metric("🗓️ Mês", mes_nome)
-
-            if st.session_state.tipo == "admin":
-                total_empresa = calcular_comissao_montante(df)
-
-                col_comissao_label, col_comissao_btn = st.columns([4, 1])
-
-                with col_comissao_btn:
-                    if st.button("👁️" if st.session_state.mostrar_comissao_empresa else "🙈", key="btn_ocultar_comissao"):
-                        st.session_state.mostrar_comissao_empresa = not st.session_state.mostrar_comissao_empresa
-                        st.rerun()
-
-                valor_comissao_tela = (
-                    dinheiro(total_empresa)
-                    if st.session_state.mostrar_comissao_empresa
-                    else "R$ •••••"
-                )
-
-                st.metric("🏦 Comissão empresa", valor_comissao_tela)
-
-                alteradas = df[df["alterado_vendedor"] == True]
-
-                if not alteradas.empty:
-                    st.warning(
-                        f"⚠️ Existem {len(alteradas)} proposta(s) alterada(s) pelo vendedor aguardando conferência."
-                    )
-
-            st.divider()
-            st.subheader("📄 Propostas")
-            st.caption("🟨 Pendente | 🟥 Pendente há mais de 1 hora no painel do admin")
-
-            if df.empty:
-                st.info("Nenhuma proposta encontrada.")
-            else:
-                if st.session_state.tipo == "admin":
-                    colunas = [
-                        "id",
-                        "data",
-                        "vendedor",
-                        "cliente",
-                        "cpf",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "alterado_vendedor",
-                        "observacao",
-                        "observacao_admin",
-                        "observacao_alteracao"
-                    ]
-                else:
-                    colunas = [
-                        "id",
-                        "data",
-                        "cliente",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "observacao"
-                    ]
-
-                colunas = [c for c in colunas if c in df.columns]
-
-                df_visao = df[colunas].copy()
-
-                if "valor" in df_visao.columns:
-                    df_visao["valor"] = df_visao["valor"].apply(dinheiro)
-
-                if "valor_comissao_empresa" in df_visao.columns:
-                    df_visao["valor_comissao_empresa"] = (
-                        df_visao["valor_comissao_empresa"].apply(dinheiro)
-                    )
-
-                st.dataframe(
-                    df_visao.style.apply(
-                        destacar_linhas_pendentes,
-                        tipo_usuario=st.session_state.tipo,
-                        axis=1
-                    ),
-                    use_container_width=True
-                )
-
-                # =========================
-                # AÇÕES RÁPIDAS ADMIN
-                # =========================
-
-                if st.session_state.tipo == "admin":
-                    st.divider()
-                    st.subheader("⚙️ Ações rápidas")
-
-                    acoes_df = df[["id", "cliente", "valor", "status", "conferido", "alterado_vendedor"]].copy()
-                    acoes_df["excluir"] = False
-
-                    editado = st.data_editor(
-                        acoes_df,
-                        use_container_width=True,
-                        disabled=["id", "cliente", "valor", "status", "alterado_vendedor"],
-                        hide_index=True
-                    )
-
-                    col_a, col_b = st.columns(2)
-
-                    with col_a:
-                        if st.button("✅ Salvar conferências"):
-                            for _, row in editado.iterrows():
-                                update = {"conferido": bool(row["conferido"])}
-
-                                if bool(row["conferido"]):
-                                    update["alterado_vendedor"] = False
-
-                                supabase.table("vendas").update(update).eq("id", int(row["id"])).execute()
-
-                            st.success("Conferências salvas!")
-                            st.rerun()
-
-                    with col_b:
-                        confirmar_exclusao = st.checkbox("Confirmo que quero excluir as propostas marcadas")
-
-                        if st.button("🗑️ Excluir propostas marcadas"):
-                            if not confirmar_exclusao:
-                                st.error("Marque a confirmação antes de excluir.")
-                            else:
-                                ids_excluir = editado[editado["excluir"] == True]["id"].tolist()
-
-                                if not ids_excluir:
-                                    st.warning("Nenhuma proposta marcada para excluir.")
-                                else:
-                                    for venda_id in ids_excluir:
-                                        supabase.table("vendas").delete().eq("id", int(venda_id)).execute()
-
-                                    st.success(f"{len(ids_excluir)} proposta(s) excluída(s)!")
-                                    st.rerun()
-
-                # =========================
-                # EDITAR PROPOSTA
-                # =========================
-
-                st.divider()
-                st.subheader("✏️ Editar proposta")
-
-                proposta_id = st.selectbox("Escolha a proposta", df["id"].tolist())
-
-                proposta = df[df["id"] == proposta_id].iloc[0]
-
-                bloqueada = (
-                    st.session_state.tipo != "admin"
-                    and bool(proposta.get("conferido", False)) is True
-                )
-
-                if bloqueada:
-                    st.warning("🔒 Esta proposta já foi conferida pelo admin. O vendedor não pode mais editar.")
-                else:
-                    with st.form("editar_proposta"):
-                        cliente_edit = st.text_input("Cliente", value=str(proposta.get("cliente", "") or ""))
-                        cpf_edit = st.text_input("CPF", value=str(proposta.get("cpf", "") or ""))
-                        cpf_edit_preview = limpar_documento(cpf_edit)
-
-                        if cpf_edit:
-                            if len(cpf_edit_preview) < 11:
-                                st.error(f"CPF incompleto: faltam {11 - len(cpf_edit_preview)} número(s).")
-                            elif len(cpf_edit_preview) > 11:
-                                st.error(f"CPF com números a mais: remova {len(cpf_edit_preview) - 11} número(s).")
-                            elif validar_cpf(cpf_edit_preview):
-                                st.success(f"CPF válido: {cpf_edit_preview}")
-                            else:
-                                st.error("CPF inválido. Confira os números digitados.")
-
-                        telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone", "") or ""))
-                        telefone_edit_preview = limpar_documento(telefone_edit)
-
-                        if telefone_edit:
-                            if len(telefone_edit_preview) < 10:
-                                st.error("Telefone incompleto. Informe DDD + número.")
-                            elif len(telefone_edit_preview) > 11:
-                                st.error(f"Telefone com números a mais: remova {len(telefone_edit_preview) - 11} número(s).")
-                            elif validar_telefone(telefone_edit_preview):
-                                st.success(f"Telefone válido: {telefone_edit_preview}")
-                            else:
-                                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
-
-                        tabelas_edit = carregar_tabelas()
-                        tabela_atual = str(proposta.get("tabela_banco", "") or proposta.get("produto", "") or "")
-                        tabela_index = tabelas_edit.index(tabela_atual) if tabela_atual in tabelas_edit else 0
-
-                        tabela_edit = st.selectbox("Tabela/Banco", tabelas_edit, index=tabela_index)
-
-                        valor_edit_texto = st.text_input(
-                            "Valor",
-                            value=dinheiro(proposta.get("valor") or 0).replace("R$ ", ""),
-                            placeholder="Ex: R$ 1.758,71"
-                        )
-
-                        valor_edit = converter_valor_brasileiro(valor_edit_texto)
-
-                        if valor_edit_texto:
-                            st.caption(f"Valor identificado: {dinheiro(valor_edit)}")
-
-                        status_lista = ["Pendente", "Pago", "Cancelado"]
-                        status_atual = str(proposta.get("status", "Pendente") or "Pendente")
-                        status_index = status_lista.index(status_atual) if status_atual in status_lista else 0
-
-                        status_edit = st.selectbox("Status", status_lista, index=status_index)
-
-                        observacao_edit = st.text_area(
-                            "Observação",
-                            value=str(proposta.get("observacao", "") or "")
-                        )
-
-                        if st.session_state.tipo == "admin":
-                            conferido_edit = st.checkbox(
-                                "✅ Conferido",
-                                value=bool(proposta.get("conferido", False))
-                            )
-
-                            observacao_admin_edit = st.text_area(
-                                "Observação admin",
-                                value=str(proposta.get("observacao_admin", "") or "")
-                            )
-                        else:
-                            observacao_alteracao_edit = st.text_area(
-                                "Motivo da alteração",
-                                placeholder="Ex: corrigi valor, telefone ou status..."
-                            )
-
-                        salvar_edit = st.form_submit_button("Salvar alterações")
-
-                        if salvar_edit:
-                            cpf_edit_limpo = limpar_documento(cpf_edit)
-                            telefone_edit_limpo = limpar_documento(telefone_edit)
-
-                            if not validar_cpf(cpf_edit_limpo):
-                                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
-                            elif not validar_telefone(telefone_edit_limpo):
-                                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
-                            elif valor_edit <= 0:
-                                st.error("Corrija o valor antes de salvar.")
-                            else:
-                                perc_empresa = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
-                                valor_empresa = float(valor_edit) * (perc_empresa / 100)
-
-                                dados_update = {
-                                "cliente": cliente_edit,
-                                "cpf": limpar_documento(cpf_edit),
-                                "telefone": limpar_documento(telefone_edit),
-                                "produto": tabela_edit,
-                                "tabela_banco": tabela_edit,
-                                "valor": valor_edit,
-                                "status": status_edit,
-                                "observacao": observacao_edit,
-                                "comissao_empresa": perc_empresa,
-                                "valor_comissao_empresa": valor_empresa
-                            }
-
-                                if st.session_state.tipo == "admin":
-                                    dados_update["conferido"] = conferido_edit
-                                    dados_update["alterado_vendedor"] = False
-                                    dados_update["observacao_admin"] = observacao_admin_edit
-                                else:
-                                    dados_update["alterado_vendedor"] = True
-                                    dados_update["data_alteracao_vendedor"] = str(datetime.now())
-                                    dados_update["observacao_alteracao"] = observacao_alteracao_edit
-                                    dados_update["conferido"] = False
-
-                                supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
-
-                                st.success("Proposta atualizada!")
-                                st.rerun()
-
-
-    # =========================
-    # USUÁRIOS
-    # =========================
-
-    elif menu == "👥 Usuários":
-        st.header("👥 Usuários")
-        st.subheader("➕ Criar usuário")
-
-        with st.form("novo_usuario"):
-            nome = st.text_input("Nome")
-            usuario = st.text_input("Usuário")
-            senha = st.text_input("Senha", type="password")
-            tipo = st.selectbox("Tipo", ["vendedor", "admin"])
-
-            criar = st.form_submit_button("Criar usuário")
-
-            if criar:
-                if not nome or not usuario or not senha:
-                    st.error("Preencha nome, usuário e senha.")
-                else:
-                    dados = {
-                        "nome": nome.strip(),
-                        "usuario": usuario.strip().lower(),
-                        "senha_hash": hash_senha(senha),
-                        "tipo": tipo,
-                        "ativo": True
-                    }
-
-                    supabase.table("usuarios").insert(dados).execute()
-                    st.success("Usuário criado!")
-                    st.rerun()
-
-        usuarios = supabase.table("usuarios").select("*").order("id").execute()
-        df_users = pd.DataFrame(usuarios.data)
-
-        if not df_users.empty:
-            st.subheader("📋 Usuários cadastrados")
-            st.dataframe(df_users[["id", "nome", "usuario", "tipo", "ativo"]], use_container_width=True)
-
-            st.divider()
-            st.subheader("✏️ Editar usuário")
-
-            user_id = st.selectbox("ID do usuário", df_users["id"].tolist())
-            user = df_users[df_users["id"] == user_id].iloc[0]
-
-            novo_nome = st.text_input("Nome", value=str(user.get("nome", "") or ""))
-            novo_login = st.text_input("Usuário/Login", value=str(user.get("usuario", "") or ""))
-
-            tipo_atual = str(user.get("tipo", "vendedor") or "vendedor")
-            tipo_index = 0 if tipo_atual == "vendedor" else 1
-
-            novo_tipo = st.selectbox("Tipo", ["vendedor", "admin"], index=tipo_index)
-
-            if st.button("Salvar usuário"):
-                supabase.table("usuarios").update({
-                    "nome": novo_nome.strip(),
-                    "usuario": novo_login.strip().lower(),
-                    "tipo": novo_tipo
-                }).eq("id", int(user_id)).execute()
-
-                st.success("Usuário atualizado!")
-                st.rerun()
-
-            st.divider()
-            st.subheader("🔑 Alterar senha")
-
-            nova_senha = st.text_input("Nova senha", type="password")
-
-            if st.button("Alterar senha"):
-                if nova_senha:
-                    supabase.table("usuarios").update({
-                        "senha_hash": hash_senha(nova_senha)
-                    }).eq("id", int(user_id)).execute()
-
-                    st.success("Senha alterada!")
-                    st.rerun()
-                else:
-                    st.error("Digite uma nova senha.")
-
-            st.divider()
-            st.subheader("✅ Ativar / Desativar")
-
-            if st.button("Alterar status"):
-                if str(user.get("usuario", "")).lower() == "admin":
-                    st.error("Não é permitido desativar o admin principal.")
-                else:
-                    supabase.table("usuarios").update({
-                        "ativo": not bool(user.get("ativo", True))
-                    }).eq("id", int(user_id)).execute()
-
-                    st.success("Status alterado!")
-                    st.rerun()
-
-            st.divider()
-            st.subheader("🗑️ Excluir usuário")
-
-            if st.button("Excluir usuário"):
-                if str(user.get("usuario", "")).lower() == "admin":
-                    st.error("Não é permitido excluir o admin principal.")
-                else:
-                    supabase.table("usuarios").delete().eq("id", int(user_id)).execute()
-                    st.success("Usuário excluído!")
-                    st.rerun()
-
-    # =========================
-    # COMISSÕES
-    # =========================
-
-    elif menu == "💰 Comissões":
-        st.header("💰 Regras de Comissão")
-        st.subheader("➕ Criar nova regra")
-
-        with st.form("nova_regra"):
-            produto = st.text_input("Tabela/Banco")
-            valor_minimo = st.number_input("Valor mínimo", min_value=0.0, step=1000.0)
-            percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
-
-            salvar = st.form_submit_button("Salvar regra")
-
-            if salvar:
-                if not produto:
-                    st.error("Preencha o nome da tabela/banco.")
-                else:
-                    supabase.table("regras_comissao").insert({
-                        "produto": produto.strip().upper(),
-                        "valor_minimo": valor_minimo,
-                        "percentual_empresa": percentual_empresa,
-                        "percentual_vendedor": 0,
-                        "ativo": True
-                    }).execute()
-
-                    st.success("Regra criada!")
-                    st.rerun()
-
-        regras = (
-            supabase.table("regras_comissao")
-            .select("*")
-            .order("produto")
-            .order("valor_minimo")
-            .execute()
-        )
-
-        df_regras = pd.DataFrame(regras.data)
-
-        if df_regras.empty:
-            st.warning("Nenhuma regra cadastrada.")
-        else:
-            st.subheader("📋 Regras cadastradas")
-            st.dataframe(df_regras, use_container_width=True)
-
-            st.divider()
-            st.subheader("✏️ Editar regra")
-
-            regra_id = st.selectbox("ID da regra", df_regras["id"].tolist())
-            regra = df_regras[df_regras["id"] == regra_id].iloc[0]
-
-            with st.form("editar_regra"):
-                produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto", "") or ""))
-                valor_minimo_edit = st.number_input(
-                    "Valor mínimo",
-                    min_value=0.0,
-                    step=1000.0,
-                    value=float(regra.get("valor_minimo") or 0)
-                )
-                percentual_empresa_edit = st.number_input(
-                    "% empresa",
-                    min_value=0.0,
-                    step=0.01,
-                    value=float(regra.get("percentual_empresa") or 0)
-                )
-                ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo", True)))
-
-                salvar_regra = st.form_submit_button("Salvar alterações")
-
-                if salvar_regra:
-                    supabase.table("regras_comissao").update({
-                        "produto": produto_edit.strip().upper(),
-                        "valor_minimo": valor_minimo_edit,
-                        "percentual_empresa": percentual_empresa_edit,
-                        "percentual_vendedor": 0,
-                        "ativo": ativo_edit
-                    }).eq("id", int(regra_id)).execute()
-
-                    st.success("Regra atualizada!")
-                    st.rerun()
-
-            st.divider()
-            st.subheader("🗑️ Excluir regra")
-
-            confirmar = st.checkbox("Confirmo que quero excluir esta regra")
-
-            if st.button("Excluir regra"):
-                if not confirmar:
-                    st.error("Marque a confirmação.")
-                else:
-                    supabase.table("regras_comissao").delete().eq("id", int(regra_id)).execute()
-                    st.success("Regra excluída!")
-                    st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
+                <div className="form-group">
+                  <label className="form-check">
+                    <input type="checkbox" checked={!!editData.conferido} onChange={e => setEditData(p => ({ ...p, conferido: e.target.checked }))} />
+                    <span>Conferido</span>
+                  </label>
+                </div>
+              </>
+            )}
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button className="btn btn-primary" onClick={salvarEdit}>{Icons.check} Salvar</button>
+              <button className="btn btn-secondary" onClick={() => setEditId(null)}>{Icons.x} Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== USUÁRIOS =====================
+function Usuarios() {
+  const [lista, setLista] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ nome: "", usuario: "", senha: "", tipo: "vendedor" });
+  const [msg, setMsg] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({});
+  const [novaSenha, setNovaSenha] = useState("");
+
+  async function carregar() {
+    setLoading(true);
+    try { const d = await sb("usuarios?select=*&order=id"); setLista(d); }
+    catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function criar() {
+    if (!form.nome || !form.usuario || !form.senha) { setMsg({ type: "error", text: "Preencha nome, usuário e senha." }); return; }
+    try {
+      const hash = await hashSenha(form.senha);
+      await sb("usuarios", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ nome: form.nome.trim(), usuario: form.usuario.trim().toLowerCase(), senha_hash: hash, tipo: form.tipo, ativo: true }) });
+      setMsg({ type: "success", text: "Usuário criado!" });
+      setForm({ nome: "", usuario: "", senha: "", tipo: "vendedor" });
+      carregar();
+    } catch { setMsg({ type: "error", text: "Erro ao criar usuário." }); }
+  }
+
+  async function salvarEdit() {
+    try {
+      await sb(`usuarios?id=eq.${editId}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ nome: editData.nome?.trim(), usuario: editData.usuario?.trim().toLowerCase(), tipo: editData.tipo }) });
+      if (novaSenha) {
+        const hash = await hashSenha(novaSenha);
+        await sb(`usuarios?id=eq.${editId}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ senha_hash: hash }) });
+      }
+      setMsg({ type: "success", text: "Usuário atualizado!" });
+      setEditId(null); setNovaSenha(""); carregar();
+    } catch { setMsg({ type: "error", text: "Erro ao atualizar." }); }
+  }
+
+  async function toggleAtivo(u) {
+    if (u.usuario === "admin") { setMsg({ type: "error", text: "Não é permitido desativar o admin principal." }); return; }
+    await sb(`usuarios?id=eq.${u.id}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ ativo: !u.ativo }) });
+    carregar();
+  }
+
+  async function excluir(u) {
+    if (u.usuario === "admin") { setMsg({ type: "error", text: "Não é permitido excluir o admin principal." }); return; }
+    if (!confirm(`Excluir usuário ${u.nome}?`)) return;
+    await sb(`usuarios?id=eq.${u.id}`, { method: "DELETE", prefer: "return=minimal" });
+    carregar();
+  }
+
+  return (
+    <div>
+      {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+      <div className="card">
+        <div className="card-header"><div className="card-icon">{Icons.plus}</div><div className="card-title">Criar Usuário</div></div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Nome</label><input className="form-input" value={form.nome} onChange={e => setForm(p => ({ ...p, nome: e.target.value }))} /></div>
+          <div className="form-group"><label className="form-label">Login</label><input className="form-input" value={form.usuario} onChange={e => setForm(p => ({ ...p, usuario: e.target.value }))} /></div>
+        </div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Senha</label><input className="form-input" type="password" value={form.senha} onChange={e => setForm(p => ({ ...p, senha: e.target.value }))} /></div>
+          <div className="form-group"><label className="form-label">Tipo</label>
+            <select className="form-select" value={form.tipo} onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}>
+              <option value="vendedor">Vendedor</option><option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={criar}>{Icons.plus} Criar Usuário</button>
+      </div>
+
+      {loading ? <div className="page-loading"><div className="spinner" /></div> : (
+        <div className="card">
+          <div className="card-header"><div className="card-icon">{Icons.users}</div><div className="card-title">Usuários Cadastrados</div></div>
+          <div className="table-wrap">
+            <table>
+              <thead><tr><th>ID</th><th>Nome</th><th>Login</th><th>Tipo</th><th>Ativo</th><th>Ações</th></tr></thead>
+              <tbody>
+                {lista.map(u => (
+                  <tr key={u.id}>
+                    <td>#{u.id}</td>
+                    <td className="td-primary">{u.nome}</td>
+                    <td>{u.usuario}</td>
+                    <td><span className={`badge ${u.tipo === "admin" ? "badge-admin" : "badge-vendedor"}`}>{u.tipo}</span></td>
+                    <td>{u.ativo ? <span className="badge badge-pago">Ativo</span> : <span className="badge badge-cancelado">Inativo</span>}</td>
+                    <td style={{ display: "flex", gap: 6 }}>
+                      <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => { setEditId(u.id); setEditData({ ...u }); setNovaSenha(""); }}>{Icons.edit}</button>
+                      <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => toggleAtivo(u)}>{u.ativo ? Icons.x : Icons.check}</button>
+                      <button className="btn btn-danger" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => excluir(u)}>{Icons.trash}</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {editId && (
+        <div className="modal-overlay" onClick={() => setEditId(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="card-title">Editar Usuário</div>
+              <button className="modal-close" onClick={() => setEditId(null)}>×</button>
+            </div>
+            <div className="form-group"><label className="form-label">Nome</label><input className="form-input" value={editData.nome || ""} onChange={e => setEditData(p => ({ ...p, nome: e.target.value }))} /></div>
+            <div className="form-group"><label className="form-label">Login</label><input className="form-input" value={editData.usuario || ""} onChange={e => setEditData(p => ({ ...p, usuario: e.target.value }))} /></div>
+            <div className="form-group"><label className="form-label">Tipo</label>
+              <select className="form-select" value={editData.tipo || "vendedor"} onChange={e => setEditData(p => ({ ...p, tipo: e.target.value }))}>
+                <option value="vendedor">Vendedor</option><option value="admin">Admin</option>
+              </select>
+            </div>
+            <div className="form-group"><label className="form-label">Nova Senha (opcional)</label><input className="form-input" type="password" value={novaSenha} onChange={e => setNovaSenha(e.target.value)} placeholder="Deixe em branco para não alterar" /></div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-primary" onClick={salvarEdit}>{Icons.check} Salvar</button>
+              <button className="btn btn-secondary" onClick={() => setEditId(null)}>{Icons.x} Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== COMISSÕES =====================
+function Comissoes() {
+  const [regras, setRegras] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [form, setForm] = useState({ produto: "", valor_minimo: "", percentual_empresa: "" });
+  const [msg, setMsg] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [editData, setEditData] = useState({});
+
+  async function carregar() {
+    setLoading(true);
+    try { const d = await sb("regras_comissao?select=*&order=produto.asc,valor_minimo.asc"); setRegras(d); }
+    catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { carregar(); }, []);
+
+  async function criar() {
+    if (!form.produto) { setMsg({ type: "error", text: "Informe a tabela/banco." }); return; }
+    try {
+      await sb("regras_comissao", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ produto: form.produto.trim().toUpperCase(), valor_minimo: parseFloat(form.valor_minimo) || 0, percentual_empresa: parseFloat(form.percentual_empresa) || 0, percentual_vendedor: 0, ativo: true }) });
+      setMsg({ type: "success", text: "Regra criada!" });
+      setForm({ produto: "", valor_minimo: "", percentual_empresa: "" });
+      carregar();
+    } catch { setMsg({ type: "error", text: "Erro ao criar regra." }); }
+  }
+
+  async function salvarEdit() {
+    try {
+      await sb(`regras_comissao?id=eq.${editId}`, { method: "PATCH", prefer: "return=minimal", body: JSON.stringify({ produto: editData.produto?.trim().toUpperCase(), valor_minimo: parseFloat(editData.valor_minimo) || 0, percentual_empresa: parseFloat(editData.percentual_empresa) || 0, ativo: editData.ativo }) });
+      setMsg({ type: "success", text: "Regra atualizada!" });
+      setEditId(null); carregar();
+    } catch { setMsg({ type: "error", text: "Erro ao atualizar." }); }
+  }
+
+  async function excluir(id) {
+    if (!confirm("Excluir esta regra?")) return;
+    await sb(`regras_comissao?id=eq.${id}`, { method: "DELETE", prefer: "return=minimal" });
+    carregar();
+  }
+
+  return (
+    <div>
+      {msg && <Alert type={msg.type}>{msg.text}</Alert>}
+      <div className="card">
+        <div className="card-header"><div className="card-icon">{Icons.commission}</div><div className="card-title">Nova Regra de Comissão</div></div>
+        <div className="form-row">
+          <div className="form-group"><label className="form-label">Tabela / Banco</label><input className="form-input" value={form.produto} onChange={e => setForm(p => ({ ...p, produto: e.target.value }))} /></div>
+          <div className="form-group"><label className="form-label">Valor Mínimo (R$)</label><input className="form-input" type="number" value={form.valor_minimo} onChange={e => setForm(p => ({ ...p, valor_minimo: e.target.value }))} /></div>
+        </div>
+        <div className="form-group" style={{ maxWidth: 240 }}>
+          <label className="form-label">% Empresa</label>
+          <input className="form-input" type="number" step="0.01" value={form.percentual_empresa} onChange={e => setForm(p => ({ ...p, percentual_empresa: e.target.value }))} />
+        </div>
+        <button className="btn btn-primary" onClick={criar}>{Icons.plus} Criar Regra</button>
+      </div>
+
+      {loading ? <div className="page-loading"><div className="spinner" /></div> : (
+        <div className="card">
+          <div className="card-header"><div className="card-icon">{Icons.bank}</div><div className="card-title">Regras Cadastradas</div></div>
+          {regras.length === 0 ? <div className="empty-state">{Icons.commission}<p>Nenhuma regra cadastrada.</p></div> : (
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>ID</th><th>Tabela/Banco</th><th>Valor Mínimo</th><th>% Empresa</th><th>Ativo</th><th>Ações</th></tr></thead>
+                <tbody>
+                  {regras.map(r => (
+                    <tr key={r.id}>
+                      <td>#{r.id}</td>
+                      <td className="td-primary">{r.produto}</td>
+                      <td>{dinheiro(r.valor_minimo)}</td>
+                      <td>{r.percentual_empresa}%</td>
+                      <td>{r.ativo ? <span className="badge badge-pago">Ativo</span> : <span className="badge badge-cancelado">Inativo</span>}</td>
+                      <td style={{ display: "flex", gap: 6 }}>
+                        <button className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => { setEditId(r.id); setEditData({ ...r }); }}>{Icons.edit}</button>
+                        <button className="btn btn-danger" style={{ padding: "5px 10px", fontSize: 12 }} onClick={() => excluir(r.id)}>{Icons.trash}</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {editId && (
+        <div className="modal-overlay" onClick={() => setEditId(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="card-title">Editar Regra #{editId}</div>
+              <button className="modal-close" onClick={() => setEditId(null)}>×</button>
+            </div>
+            <div className="form-group"><label className="form-label">Tabela/Banco</label><input className="form-input" value={editData.produto || ""} onChange={e => setEditData(p => ({ ...p, produto: e.target.value }))} /></div>
+            <div className="form-row">
+              <div className="form-group"><label className="form-label">Valor Mínimo</label><input className="form-input" type="number" value={editData.valor_minimo || ""} onChange={e => setEditData(p => ({ ...p, valor_minimo: e.target.value }))} /></div>
+              <div className="form-group"><label className="form-label">% Empresa</label><input className="form-input" type="number" step="0.01" value={editData.percentual_empresa || ""} onChange={e => setEditData(p => ({ ...p, percentual_empresa: e.target.value }))} /></div>
+            </div>
+            <div className="form-group">
+              <label className="form-check"><input type="checkbox" checked={!!editData.ativo} onChange={e => setEditData(p => ({ ...p, ativo: e.target.checked }))} /><span>Ativo</span></label>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button className="btn btn-primary" onClick={salvarEdit}>{Icons.check} Salvar</button>
+              <button className="btn btn-secondary" onClick={() => setEditId(null)}>{Icons.x} Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ===================== CHAT =====================
+function Chat({ user }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [destId, setDestId] = useState(null);
+  const [mensagens, setMensagens] = useState([]);
+  const [texto, setTexto] = useState("");
+  const [naoLidas, setNaoLidas] = useState(0);
+  const msgsRef = useRef(null);
+  const leitura = useRef(new Date().toISOString());
+
+  useEffect(() => {
+    sb(`usuarios?select=id,nome,usuario,tipo,ativo&ativo=eq.true&order=nome`).then(d => {
+      setUsuarios(d.filter(u => u.id !== user.id));
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!destId) return;
+    carregarMsgs();
+    const iv = setInterval(carregarMsgs, 5000);
+    return () => clearInterval(iv);
+  }, [destId]);
+
+  async function carregarMsgs() {
+    try {
+      const res = await sb(`chat_interno?select=*&order=criado_em.desc&limit=300`);
+      const meu = user.id; const outro = destId;
+      const filtradas = res.filter(m => {
+        const o = parseInt(m.usuario_id); const d2 = parseInt(m.destinatario_id);
+        return (o === meu && d2 === outro) || (o === outro && d2 === meu);
+      }).slice(-80).reverse();
+      setMensagens(filtradas);
+      setTimeout(() => { if (msgsRef.current) msgsRef.current.scrollTop = msgsRef.current.scrollHeight; }, 50);
+    } catch {}
+  }
+
+  useEffect(() => {
+    const iv = setInterval(async () => {
+      try {
+        const res = await sb(`chat_interno?select=*&destinatario_id=eq.${user.id}`);
+        const ult = leitura.current;
+        const total = res.filter(m => new Date(m.criado_em) > new Date(ult)).length;
+        setNaoLidas(total);
+      } catch {}
+    }, 8000);
+    return () => clearInterval(iv);
+  }, []);
+
+  async function enviar() {
+    if (!texto.trim() || !destId) return;
+    const dest = usuarios.find(u => u.id === destId);
+    try {
+      await sb("chat_interno", { method: "POST", prefer: "return=minimal", body: JSON.stringify({ usuario_id: user.id, destinatario_id: destId, nome: user.nome, tipo: user.tipo, mensagem: texto.trim(), criado_em: new Date().toISOString() }) });
+      setTexto(""); leitura.current = new Date().toISOString();
+      carregarMsgs();
+    } catch {}
+  }
+
+  return (
+    <div style={{ display: "flex", height: "calc(100vh - 64px)", gap: 0 }}>
+      <div className="chat-list" style={{ background: "var(--bg2)", borderRight: "1px solid var(--border)" }}>
+        <div className="section-title" style={{ margin: "12px 0 10px" }}>Conversas</div>
+        {usuarios.length === 0 && <div style={{ color: "var(--text3)", fontSize: 13, padding: 8 }}>Nenhum usuário disponível.</div>}
+        {usuarios.map(u => (
+          <div key={u.id} className={`chat-user-item ${destId === u.id ? "active" : ""}`} onClick={() => setDestId(u.id)}>
+            <div className="user-avatar" style={{ width: 32, height: 32, fontSize: 13 }}>{u.nome[0]?.toUpperCase()}</div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{u.nome}</div>
+              <div style={{ fontSize: 11, color: "var(--text3)" }}>{u.tipo}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="chat-main" style={{ flex: 1, display: "flex", flexDirection: "column", background: "var(--bg)" }}>
+        {!destId ? (
+          <div className="empty-state" style={{ margin: "auto" }}>
+            {Icons.chat}
+            <p>Selecione um usuário para conversar</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+              <div className="user-avatar">{usuarios.find(u => u.id === destId)?.nome[0]?.toUpperCase()}</div>
+              <span style={{ fontWeight: 600 }}>{usuarios.find(u => u.id === destId)?.nome}</span>
+            </div>
+            <div className="chat-messages" ref={msgsRef}>
+              {mensagens.map((m, i) => {
+                const mine = parseInt(m.usuario_id) === user.id;
+                return (
+                  <div key={i} className={`chat-msg ${mine ? "mine" : "theirs"}`}>
+                    {!mine && <div className="chat-msg-name">{m.nome}</div>}
+                    {m.mensagem}
+                    <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 4, textAlign: mine ? "right" : "left" }}>
+                      {m.criado_em ? new Date(m.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="chat-input-row">
+              <input className="form-input" placeholder="Digite sua mensagem..." value={texto}
+                onChange={e => setTexto(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && enviar()}
+                style={{ flex: 1 }} />
+              <button className="btn btn-primary" onClick={enviar}>{Icons.send}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===================== APP =====================
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [menu, setMenu] = useState("Nova Venda");
+  const [chatOpen, setChatOpen] = useState(false);
+
+  function iniciais(nome) {
+    return (nome || "U").split(" ").map(p => p[0]).slice(0, 2).join("").toUpperCase();
+  }
+
+  if (!user) return (
+    <>
+      <style>{CSS}</style>
+      <Login onLogin={u => { setUser(u); }} />
+    </>
+  );
+
+  const isAdmin = user.tipo === "admin";
+
+  const menuItems = [
+    { label: "OPERAÇÃO", section: true },
+    { id: "Nova Venda", label: "Nova Venda", icon: Icons.sale },
+    { id: "Painel", label: "Painel", icon: Icons.panel },
+    ...(isAdmin ? [
+      { label: "GESTÃO", section: true },
+      { id: "Usuarios", label: "Usuários", icon: Icons.users },
+      { id: "Comissoes", label: "Comissões", icon: Icons.commission },
+    ] : []),
+  ];
+
+  function renderPage() {
+    if (chatOpen) return <Chat user={user} />;
+    switch (menu) {
+      case "Nova Venda": return <NovaVenda user={user} />;
+      case "Painel": return <Painel user={user} />;
+      case "Usuarios": return isAdmin ? <Usuarios /> : null;
+      case "Comissoes": return isAdmin ? <Comissoes /> : null;
+      default: return null;
+    }
+  }
+
+  return (
+    <>
+      <style>{CSS}</style>
+      <div className="layout">
+        {/* SIDEBAR */}
+        <aside className="sidebar">
+          <div className="sidebar-logo">
+            <div className="logo-icon">🌀</div>
+            <div>
+              <div className="logo-text">OPERAX</div>
+              <div className="logo-sub">SALES</div>
+            </div>
+          </div>
+
+          <div className="sidebar-user">
+            <div className="user-avatar">{iniciais(user.nome)}</div>
+            <div>
+              <div className="user-name">{user.nome}</div>
+              <div className="user-role">{user.tipo}</div>
+            </div>
+            <div className="user-dot" />
+          </div>
+
+          {menuItems.map((item, i) => item.section ? (
+            <div key={i} className="menu-section">{item.label}</div>
+          ) : (
+            <div key={item.id} className={`menu-item ${menu === item.id && !chatOpen ? "active" : ""}`}
+              onClick={() => { setMenu(item.id); setChatOpen(false); }}>
+              {item.icon}{item.label}
+            </div>
+          ))}
+
+          <div className="sidebar-logout">
+            <div className="menu-item" onClick={() => setUser(null)} style={{ color: "var(--danger)" }}>
+              {Icons.logout} Sair
+            </div>
+          </div>
+        </aside>
+
+        {/* MAIN */}
+        <div className="main">
+          {/* TOPBAR */}
+          <header className="topbar">
+            <div className="topbar-logo">
+              <div style={{ fontSize: 28 }}>🌀</div>
+              <div>
+                <div className="topbar-title">OPERAX <span>SALES</span></div>
+                <div className="topbar-sub">Sistema inteligente de vendas e operações financeiras</div>
+              </div>
+            </div>
+
+            <div className="topbar-pills">
+              <div className="topbar-pill">{Icons.bolt} Painel inteligente</div>
+              <div className="topbar-pill">{Icons.refresh} Atualização por ação</div>
+              <div className="topbar-pill">{Icons.person} Controle por vendedor</div>
+            </div>
+
+            <div className="topbar-chat" onClick={() => setChatOpen(v => !v)}>
+              {Icons.chat} Chat
+            </div>
+          </header>
+
+          {/* CONTENT */}
+          {chatOpen ? (
+            <Chat user={user} />
+          ) : (
+            <div className="content">
+              {renderPage()}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
