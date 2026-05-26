@@ -45,19 +45,20 @@ st.markdown("""
 
     [data-testid="stSidebar"] {
         background:
-            linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.96) 100%);
-        border-right: 1px solid rgba(34, 197, 94, 0.28);
-        min-width: 280px;
-        max-width: 280px;
+            linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,250,252,0.94) 100%);
+        border-right: 1px solid rgba(15,23,42,0.06);
+        min-width: 220px;
+        max-width: 220px;
+        backdrop-filter: blur(10px);
     }
 
     section[data-testid="stSidebar"] > div {
-        padding-left: 10px;
-        padding-right: 10px;
+        padding-left: 4px;
+        padding-right: 4px;
     }
 
     [data-testid="stSidebar"] * {
-        color: #e5e7eb !important;
+        color: #111827 !important;
     }
 
     [data-testid="stSidebar"] .stButton button {
@@ -493,6 +494,35 @@ def destacar_linhas_pendentes(row, tipo_usuario):
         return [""] * len(row)
 
 
+
+
+def carregar_mensagens_chat(limite=80):
+    try:
+        res = (
+            supabase.table("chat_interno")
+            .select("*")
+            .order("criado_em", desc=True)
+            .limit(limite)
+            .execute()
+        )
+
+        mensagens = res.data or []
+        mensagens.reverse()
+        return mensagens
+
+    except Exception:
+        return []
+
+
+def enviar_mensagem_chat(usuario_id, nome, tipo, mensagem):
+    supabase.table("chat_interno").insert({
+        "usuario_id": usuario_id,
+        "nome": nome,
+        "tipo": tipo,
+        "mensagem": mensagem,
+        "criado_em": str(datetime.now())
+    }).execute()
+
 # =========================
 # LOGIN
 # =========================
@@ -520,7 +550,7 @@ if not st.session_state.logado:
             st.error("Usuário ou senha inválidos")
 
 else:
-    st.sidebar.success(f"👤 {st.session_state.nome}")
+    st.sidebar.success(f"{st.session_state.nome}")
 
     if st.sidebar.button("Sair"):
         st.session_state.clear()
@@ -529,19 +559,19 @@ else:
     if st.session_state.tipo == "admin":
         menu = st.sidebar.radio(
             "Menu",
-            ["📋 Nova Venda", "📊 Painel", "👥 Usuários", "💰 Comissões"]
+            ["Nova Venda", "Painel", "Usuários", "Comissões", "Chat Interno"]
         )
     else:
         menu = st.sidebar.radio(
             "Menu",
-            ["📋 Nova Venda", "📊 Painel"]
+            ["Nova Venda", "Painel", "Chat Interno"]
         )
 
     # =========================
     # NOVA VENDA
     # =========================
 
-    if menu == "📋 Nova Venda":
+    if menu == "Nova Venda":
         st.header("📋 Cadastro de Venda")
         st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
@@ -644,7 +674,7 @@ else:
     # PAINEL
     # =========================
 
-    elif menu == "📊 Painel":
+    elif menu == "Painel":
         st.header("📊 Painel de Vendas")
         st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
@@ -1002,11 +1032,84 @@ else:
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+
+    # =========================
+    # CHAT INTERNO
+    # =========================
+
+    elif menu == "Chat Interno":
+        st.header("Chat Interno")
+        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
+
+        col_chat_1, col_chat_2 = st.columns([4, 1])
+
+        with col_chat_1:
+            st.subheader("Conversas da equipe")
+
+        with col_chat_2:
+            if st.button("Atualizar chat"):
+                st.rerun()
+
+        mensagens = carregar_mensagens_chat()
+
+        if not mensagens:
+            st.info("Nenhuma mensagem enviada ainda.")
+        else:
+            for msg in mensagens:
+                nome_msg = msg.get("nome", "Usuário")
+                tipo_msg = msg.get("tipo", "")
+                texto_msg = msg.get("mensagem", "")
+                data_msg = msg.get("criado_em", "")
+
+                if msg.get("usuario_id") == st.session_state.user_id:
+                    st.markdown(
+                        f"""
+                        <div style="background:#dcfce7;border:1px solid #bbf7d0;border-radius:16px;padding:12px 14px;margin:8px 0 8px auto;max-width:75%;">
+                            <b>Você</b> <span style="color:#64748b;font-size:12px;">{data_msg}</span><br>
+                            <span>{texto_msg}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        f"""
+                        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:12px 14px;margin:8px auto 8px 0;max-width:75%;">
+                            <b>{nome_msg}</b> <span style="color:#64748b;font-size:12px;">{tipo_msg} • {data_msg}</span><br>
+                            <span>{texto_msg}</span>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+        st.divider()
+
+        with st.form("form_chat", clear_on_submit=True):
+            mensagem = st.text_area("Digite sua mensagem", placeholder="Escreva uma mensagem para a equipe...")
+
+            enviar = st.form_submit_button("Enviar mensagem")
+
+            if enviar:
+                if not mensagem.strip():
+                    st.error("Digite uma mensagem antes de enviar.")
+                else:
+                    enviar_mensagem_chat(
+                        st.session_state.user_id,
+                        st.session_state.nome,
+                        st.session_state.tipo,
+                        mensagem.strip()
+                    )
+                    st.success("Mensagem enviada!")
+                    st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+
     # =========================
     # USUÁRIOS
     # =========================
 
-    elif menu == "👥 Usuários":
+    elif menu == "Usuários":
         st.header("👥 Usuários")
         st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
@@ -1114,7 +1217,7 @@ else:
     # COMISSÕES
     # =========================
 
-    elif menu == "💰 Comissões":
+    elif menu == "Comissões":
         st.header("💰 Regras de Comissão")
         st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
