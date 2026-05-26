@@ -1,222 +1,158 @@
+# operax_theme.py
+# Tema visual OPERAX SALES — Dark Neon Blue
+# Importe este arquivo no seu app principal com:
+#   from operax_theme import aplicar_tema, mostrar_cabecalho_completo
 
 import streamlit as st
-import pandas as pd
-from supabase import create_client
-from datetime import datetime
-import hashlib
-import re
 from pathlib import Path
 
-# =========================
-# CONFIGURAÇÕES
-# =========================
 
-st.set_page_config(page_title="OPERAX SALES", layout="wide")
+# ══════════════════════════════════════════════════════════════════════
+#  LOGO SVG (inline — sem precisar de arquivo externo)
+# ══════════════════════════════════════════════════════════════════════
 
-SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
-SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
+LOGO_SVG = """
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="72" height="72">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#000918"/>
+      <stop offset="100%" stop-color="#001a3a"/>
+    </radialGradient>
+    <radialGradient id="ring1" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#00d5ff" stop-opacity="0"/>
+      <stop offset="60%"  stop-color="#00aaff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0055ff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ring2" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   stop-color="#5ee7ff" stop-opacity="0"/>
+      <stop offset="65%"  stop-color="#00c8ff" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#003eff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+  <!-- Fundo arredondado -->
+  <rect width="120" height="120" rx="28" fill="url(#bg)"/>
 
-# =========================
-# DESIGN FUTURISTA / LOGO
-# =========================
+  <!-- Anel externo inclinado -->
+  <ellipse cx="60" cy="60" rx="46" ry="14"
+    fill="none" stroke="url(#ring1)" stroke-width="3.5"
+    transform="rotate(-28 60 60)" filter="url(#glow2)" opacity="0.85"/>
 
-st.markdown("""
+  <!-- Anel médio -->
+  <ellipse cx="60" cy="60" rx="34" ry="10"
+    fill="none" stroke="url(#ring2)" stroke-width="2.5"
+    transform="rotate(-28 60 60)" filter="url(#glow)" opacity="0.75"/>
+
+  <!-- Anel interno -->
+  <ellipse cx="60" cy="60" rx="20" ry="6"
+    fill="none" stroke="#00eaff" stroke-width="1.8"
+    transform="rotate(-28 60 60)" filter="url(#glow)" opacity="0.6"/>
+
+  <!-- Núcleo central brilhante -->
+  <circle cx="60" cy="60" r="7" fill="#000" />
+  <circle cx="60" cy="60" r="5" fill="#00d5ff" opacity="0.9" filter="url(#glow2)"/>
+  <circle cx="60" cy="60" r="2.5" fill="#ffffff"/>
+
+  <!-- Reflexo sutil -->
+  <ellipse cx="60" cy="60" rx="52" ry="16"
+    fill="none" stroke="#0088ff" stroke-width="0.8"
+    stroke-dasharray="6 4"
+    transform="rotate(-28 60 60)" opacity="0.30"/>
+</svg>
+"""
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  ÍCONES SVG PARA O MENU LATERAL
+# ══════════════════════════════════════════════════════════════════════
+
+ICONES = {
+    "admin": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/>
+        <path d="M18 8l2 2-2 2"/><path d="M22 10h-4"/></svg>""",
+
+    "nova_venda": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="16" rx="3"/>
+        <path d="M9 8h6M9 12h6M9 16h4"/>
+        <path d="M16 2v4M8 2v4"/></svg>""",
+
+    "painel": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="9" rx="2"/>
+        <rect x="14" y="3" width="7" height="5" rx="2"/>
+        <rect x="14" y="12" width="7" height="9" rx="2"/>
+        <rect x="3" y="16" width="7" height="5" rx="2"/></svg>""",
+
+    "usuarios": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="7" r="4"/><path d="M3 20v-1a6 6 0 0 1 12 0v1"/>
+        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        <path d="M21 20v-1a4 4 0 0 0-3-3.85"/></svg>""",
+
+    "comissoes": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M9 9h.01M15 15h.01"/>
+        <line x1="15" y1="9" x2="9" y2="15"/>
+        <circle cx="9" cy="9" r="1" fill="currentColor"/>
+        <circle cx="15" cy="15" r="1" fill="currentColor"/></svg>""",
+
+    "sair": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+        <polyline points="16 17 21 12 16 7"/>
+        <line x1="21" y1="12" x2="9" y2="12"/></svg>""",
+
+    "chat": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>""",
+
+    "bolt": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>""",
+
+    "refresh": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>""",
+
+    "usuario_ctrl": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M6 20v-1a6 6 0 0 1 12 0v1"/>
+        <circle cx="19" cy="5" r="3" fill="#00c8ff" stroke="none"/></svg>""",
+
+    "banco": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="22" x2="21" y2="22"/>
+        <line x1="6" y1="18" x2="6" y2="11"/>
+        <line x1="10" y1="18" x2="10" y2="11"/>
+        <line x1="14" y1="18" x2="14" y2="11"/>
+        <line x1="18" y1="18" x2="18" y2="11"/>
+        <polygon points="12 2 20 7 4 7"/></svg>""",
+
+    "cifrao": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"/>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>""",
+}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  CSS COMPLETO — DARK NEON BLUE
+# ══════════════════════════════════════════════════════════════════════
+
+CSS_DARK_NEON = """
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top left, rgba(34, 197, 94, 0.13), transparent 28%),
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 30%),
-            linear-gradient(135deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
-    }
-
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-        max-width: 1180px;
-    }
-
-    [data-testid="stSidebar"] {
-        background:
-            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,245,249,0.96) 100%);
-        border-right: 1px solid rgba(15,23,42,0.06);
-        min-width: 220px;
-        max-width: 220px;
-        backdrop-filter: blur(10px);
-    }
-
-    section[data-testid="stSidebar"] > div {
-        padding-left: 4px;
-        padding-right: 4px;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #111827 !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        background: rgba(255,255,255,0.08);
-        color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.18);
-        border-radius: 14px;
-    }
-
-    [data-testid="stSidebar"] .stRadio label {
-        font-size: 16px;
-        font-weight: 600;
-        color: #111827 !important;
-    }
-
-    [data-testid="stSidebar"] [role="radiogroup"] label {
-        background: rgba(255,255,255,0.72);
-        border: 1px solid rgba(15,23,42,0.06);
-        border-radius: 14px;
-        padding: 7px 8px;
-        margin: 5px 0;
-        box-shadow: 0 8px 20px rgba(15,23,42,0.04);
-    }
-
-    [data-testid="stSidebar"] [role="radiogroup"] label:hover {
-        background: rgba(220,252,231,0.88);
-        border-color: rgba(34,197,94,0.20);
-    }
-
-
-    h1, h2, h3 {
-        color: #111827;
-        letter-spacing: -0.04em;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.86), rgba(240,253,250,0.72)),
-            linear-gradient(135deg, rgba(34,197,94,0.10), rgba(59,130,246,0.10));
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 28px;
-        padding: 24px 28px;
-        margin-bottom: 28px;
-        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.11);
-        backdrop-filter: blur(14px);
-    }
-
-    .crm-header {
-        display: flex;
-        align-items: center;
-        gap: 22px;
-    }
-
-    .crm-logo-fallback {
-        width: 104px;
-        height: 104px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #0f766e, #22c55e, #38bdf8);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 48px;
-        box-shadow: 0 20px 45px rgba(34, 197, 94, 0.30);
-    }
-
-    .crm-title {
-        font-size: 48px;
-        line-height: 1.02;
-        font-weight: 900;
-        color: #0f172a;
-        margin: 0;
-    }
-
-    .crm-subtitle {
-        margin: 10px 0 0 0;
-        color: #64748b;
-        font-size: 16px;
-        font-weight: 500;
-    }
-
-    .crm-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(15,118,110,0.10);
-        color: #0f766e;
-        border: 1px solid rgba(15,118,110,0.16);
-        font-weight: 700;
-        font-size: 13px;
-    }
-
-    .crm-card {
-        background: rgba(255, 255, 255, 0.86);
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 24px;
-        padding: 24px;
-        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(14px);
-        margin-bottom: 22px;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,250,0.72));
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 20px;
-        padding: 18px 20px;
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 15px !important;
-        border: 1px solid rgba(15, 23, 42, 0.08) !important;
-        background: rgba(255,255,255,0.86) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-    }
-
-    .stButton button {
-        border-radius: 14px;
-        padding: 0.62rem 1.1rem;
-        font-weight: 800;
-        border: 1px solid rgba(15, 118, 110, 0.2);
-        background: linear-gradient(135deg, #0f766e, #22c55e);
-        color: white;
-        box-shadow: 0 12px 26px rgba(34, 197, 94, 0.24);
-    }
-
-    .stButton button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(34, 197, 94, 0.32);
-    }
-
-    .stDataFrame {
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
-    }
-
-    hr {
-        border-color: rgba(15, 23, 42, 0.08);
-    }
-
-/* =========================================================
-   OPERAX SALES — DARK NEON BLUE FINAL
-   ========================================================= */
+/* ── BASE ────────────────────────────────────────────────── */
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif !important;
+}
 
 .stApp {
     background:
         radial-gradient(circle at 82% 12%, rgba(0, 174, 255, 0.22), transparent 24%),
         radial-gradient(circle at 92% 85%, rgba(0, 102, 255, 0.26), transparent 20%),
+        radial-gradient(circle at 10% 90%, rgba(0, 60, 200, 0.18), transparent 22%),
         linear-gradient(135deg, #020617 0%, #06152f 42%, #020617 100%) !important;
     color: #eaf6ff !important;
 }
@@ -227,1936 +163,616 @@ st.markdown("""
     padding-bottom: 3rem !important;
 }
 
-/* SIDEBAR */
+/* ── SIDEBAR ────────────────────────────────────────────── */
 [data-testid="stSidebar"] {
     background:
-        radial-gradient(circle at top left, rgba(0, 195, 255, .35), transparent 30%),
-        linear-gradient(180deg, #020617 0%, #031633 48%, #020617 100%) !important;
-    border-right: 1px solid rgba(0, 183, 255, .65) !important;
-    box-shadow: 0 0 34px rgba(0, 183, 255, .30) !important;
+        radial-gradient(circle at top left, rgba(0, 195, 255, .32), transparent 32%),
+        linear-gradient(180deg, #020e28 0%, #020617 100%) !important;
+    border-right: 1px solid rgba(0, 183, 255, .55) !important;
+    box-shadow: 4px 0 40px rgba(0, 183, 255, .20) !important;
     min-width: 260px !important;
     max-width: 260px !important;
 }
 
 section[data-testid="stSidebar"] > div {
-    padding-left: 18px !important;
-    padding-right: 18px !important;
-    padding-top: 18px !important;
+    padding: 18px 18px 18px 18px !important;
 }
 
-[data-testid="stSidebar"] * {
-    color: #ffffff !important;
-}
+[data-testid="stSidebar"] * { color: #ffffff !important; }
 
-/* OCULTAR ELEMENTOS VISUAIS NATIVOS QUE ATRAPALHAM */
-[data-testid="collapsedControl"] {
-    background: transparent !important;
-}
+[data-testid="collapsedControl"] { background: transparent !important; }
 
-/* LOGO SIDEBAR */
-.sidebar-logo-v8 {
+/* ── LOGO SIDEBAR ────────────────────────────────────────── */
+.sidebar-logo-wrap {
     display: flex;
     align-items: center;
     gap: 13px;
-    padding: 8px 0 22px 0;
-    color: #ffffff;
-    font-size: 24px;
-    font-weight: 950;
-    letter-spacing: .04em;
+    padding: 4px 0 22px 0;
 }
-
-.sidebar-logo-icon-v8 {
-    width: 62px;
-    height: 62px;
-    border-radius: 22px;
-    background:
-        radial-gradient(circle at 50% 50%, #000 0%, #000 28%, #00d5ff 42%, #0066ff 67%, #5ee7ff 100%);
+.sidebar-logo-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+    background: radial-gradient(circle at 50% 50%, #000918 0%, #001a3a 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
-    font-weight: 950;
-    color: #ffffff;
     box-shadow:
-        0 0 22px rgba(0, 183, 255, .95),
-        0 0 54px rgba(0, 102, 255, .55),
-        inset 0 0 0 1px rgba(255,255,255,.22);
+        0 0 24px rgba(0, 183, 255, .90),
+        0 0 56px rgba(0, 102, 255, .50),
+        inset 0 0 0 1px rgba(255,255,255,.18);
+    flex-shrink: 0;
 }
-
-.sidebar-user-v8 {
-    background: rgba(2, 12, 35, .65);
-    border: 1px solid rgba(0, 183, 255, .45);
-    border-radius: 18px;
-    padding: 16px 14px;
-    margin: 8px 0 22px 0;
-    font-weight: 900;
-    box-shadow: 0 0 22px rgba(0, 183, 255, .18);
+.sidebar-logo-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
 }
-
-.menu-label-v8 {
-    color: #00c8ff !important;
-    font-size: 12px;
-    font-weight: 950;
-    text-transform: uppercase;
+.sidebar-logo-text .name {
+    font-family: 'Rajdhani', sans-serif !important;
+    font-size: 26px;
+    font-weight: 700;
+    color: #ffffff !important;
     letter-spacing: .10em;
-    margin: 20px 0 10px 4px;
+    text-shadow: 0 0 16px rgba(0,183,255,.55);
+}
+.sidebar-logo-text .sub {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .32em;
+    color: #00c8ff !important;
+    text-transform: uppercase;
+    margin-top: 1px;
 }
 
-.menu-ativo-v8 {
-    background: linear-gradient(90deg, rgba(0, 84, 255, .98), rgba(0, 200, 255, .98));
+/* ── USUÁRIO LOGADO ──────────────────────────────────────── */
+.sidebar-user {
+    background: rgba(2, 12, 35, .65);
+    border: 1px solid rgba(0, 183, 255, .40);
+    border-radius: 18px;
+    padding: 14px 16px;
+    margin: 0 0 22px 0;
+    box-shadow: 0 0 22px rgba(0, 183, 255, .15);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.sidebar-user .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #005bff, #00c8ff);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+.sidebar-user .uname {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff !important;
+}
+.sidebar-user .ustatus {
+    font-size: 11px;
+    color: #00ff9d !important;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.sidebar-user .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00ff9d;
+    box-shadow: 0 0 6px #00ff9d;
+    display: inline-block;
+}
+
+/* ── MENU LABELS ─────────────────────────────────────────── */
+.menu-label {
+    font-size: 11px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    color: #00c8ff !important;
+    margin: 18px 0 8px 4px;
+}
+
+/* ── MENU ATIVO ──────────────────────────────────────────── */
+.menu-item-ativo {
+    background: linear-gradient(90deg, rgba(0, 84, 255, .95), rgba(0, 200, 255, .95));
     color: #ffffff !important;
     border-radius: 16px;
-    padding: 14px 14px;
-    margin: 8px 0;
-    font-weight: 950;
+    padding: 13px 14px;
+    margin: 5px 0;
+    font-weight: 800;
+    font-size: 15px;
     box-shadow:
-        0 0 20px rgba(0, 200, 255, .75),
-        0 0 42px rgba(0, 102, 255, .35),
-        inset 0 0 0 1px rgba(255,255,255,.20);
+        0 0 20px rgba(0, 200, 255, .70),
+        0 0 44px rgba(0, 102, 255, .30),
+        inset 0 0 0 1px rgba(255,255,255,.18);
     display: flex;
     align-items: center;
     gap: 12px;
+    cursor: pointer;
+    transition: all .2s;
+}
+.menu-item-ativo svg {
+    width: 20px; height: 20px;
+    stroke: #fff;
+    flex-shrink: 0;
 }
 
-.menu-ativo-v8 span {
-    color: #ffffff !important;
-    font-size: 16px;
-    background: transparent !important;
-}
-
-.menu-ativo-v8 svg,
-.menu-svg-v8 svg {
-    width: 22px;
-    height: 22px;
-    stroke-width: 2.35;
-    stroke: #ffffff;
-    background: transparent !important;
-}
-
-.menu-svg-v8 {
-    min-height: 43px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #00c8ff !important;
-}
-
+/* ── MENU INATIVO ────────────────────────────────────────── */
 [data-testid="stSidebar"] .stButton button {
-    color: #ffffff !important;
+    color: #cceeff !important;
     background: transparent !important;
     border: 0 !important;
     border-radius: 14px !important;
     box-shadow: none !important;
     text-align: left !important;
     justify-content: flex-start !important;
-    font-weight: 800 !important;
-    padding: .67rem .75rem !important;
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    padding: .65rem .75rem !important;
+    width: 100% !important;
+    transition: all .18s !important;
 }
-
 [data-testid="stSidebar"] .stButton button:hover {
-    background: rgba(0, 183, 255, .16) !important;
-    transform: translateX(2px);
+    background: rgba(0, 183, 255, .14) !important;
+    transform: translateX(3px) !important;
+    color: #ffffff !important;
 }
 
-/* HEADER */
-.crm-hero {
+/* ── HEADER / HERO ───────────────────────────────────────── */
+.operax-hero {
     background:
-        radial-gradient(circle at 78% 20%, rgba(0, 183, 255, .22), transparent 28%),
-        linear-gradient(135deg, rgba(2, 6, 23, .92), rgba(3, 14, 40, .88)) !important;
-    border: 1px solid rgba(0, 183, 255, .42) !important;
-    border-radius: 28px !important;
+        radial-gradient(circle at 78% 20%, rgba(0, 183, 255, .20), transparent 30%),
+        radial-gradient(circle at 5% 80%, rgba(0,60,255,.18), transparent 26%),
+        linear-gradient(135deg, rgba(2, 6, 23, .94), rgba(3, 14, 40, .90));
+    border: 1px solid rgba(0, 183, 255, .45);
+    border-radius: 28px;
     box-shadow:
-        0 0 34px rgba(0, 183, 255, .22),
-        0 22px 70px rgba(0,0,0,.30) !important;
-    padding: 26px 30px !important;
-    margin-bottom: 28px !important;
-}
-
-.crm-title {
-    font-size: 54px !important;
-    line-height: 1.02 !important;
-    font-weight: 950 !important;
-    color: #ffffff !important;
-    margin: 0 !important;
-    letter-spacing: -0.04em !important;
-    text-shadow: 0 0 22px rgba(0, 183, 255, .35);
-}
-
-.crm-subtitle {
-    color: #cceeff !important;
-    font-size: 17px !important;
-    font-weight: 560 !important;
-    margin-top: 10px !important;
-}
-
-.crm-pill {
-    background: rgba(2, 12, 35, .72) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(0, 183, 255, .62) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 0 24px rgba(0, 183, 255, .22) !important;
-}
-
-/* TÍTULOS */
-h1, h2, h3 {
-    color: #ffffff !important;
-    letter-spacing: -0.04em !important;
-    text-shadow: 0 0 16px rgba(0, 183, 255, .25);
-}
-
-p, label, span, div {
-    color: inherit;
-}
-
-/* FORMULÁRIOS / CARDS */
-div[data-testid="stTextInput"] input,
-div[data-testid="stNumberInput"] input,
-div[data-testid="stTextArea"] textarea,
-div[data-baseweb="select"] {
-    border-radius: 14px !important;
-    border: 1px solid rgba(0, 183, 255, .48) !important;
-    background: rgba(2, 12, 35, .62) !important;
-    color: #ffffff !important;
-    box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.02),
-        0 0 14px rgba(0, 183, 255, .10) !important;
-}
-
-div[data-testid="stTextInput"] input::placeholder,
-div[data-testid="stTextArea"] textarea::placeholder {
-    color: rgba(207, 236, 255, .68) !important;
-}
-
-div[data-testid="stTextInput"] input:focus,
-div[data-testid="stTextArea"] textarea:focus {
-    border-color: rgba(0, 220, 255, .95) !important;
-    box-shadow: 0 0 0 3px rgba(0, 183, 255, .16), 0 0 22px rgba(0,183,255,.20) !important;
-}
-
-.stButton button {
-    background: linear-gradient(135deg, #005bff, #00c8ff) !important;
-    border: 1px solid rgba(0, 183, 255, .45) !important;
-    border-radius: 15px !important;
-    color: white !important;
-    font-weight: 900 !important;
-    box-shadow: 0 0 22px rgba(0, 183, 255, .36) !important;
-}
-
-.stButton button:hover {
-    box-shadow: 0 0 34px rgba(0, 183, 255, .56) !important;
-    transform: translateY(-1px);
-}
-
-div[data-testid="stMetric"] {
-    background: rgba(2, 12, 35, .70) !important;
-    border: 1px solid rgba(0, 183, 255, .40) !important;
-    border-radius: 22px !important;
-    padding: 18px 20px !important;
-    box-shadow: 0 0 24px rgba(0, 183, 255, .16) !important;
-}
-
-.stDataFrame {
-    border-radius: 18px;
+        0 0 38px rgba(0, 183, 255, .18),
+        0 24px 70px rgba(0,0,0,.32);
+    padding: 22px 30px;
+    margin-bottom: 26px;
+    position: relative;
     overflow: hidden;
-    border: 1px solid rgba(0, 183, 255, .25);
-    box-shadow: 0 0 24px rgba(0, 183, 255, .12);
 }
-
-/* ALERTAS */
-div[data-testid="stAlert"] {
-    border-radius: 16px !important;
+.operax-hero::before {
+    content: '';
+    position: absolute;
+    top: -40%;
+    right: -8%;
+    width: 340px;
+    height: 340px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,183,255,.08), transparent 65%);
+    pointer-events: none;
 }
-
-/* CHAT */
-button[kind="secondary"] {
-    border-radius: 16px !important;
+.operax-hero-inner {
+    display: flex;
+    align-items: center;
+    gap: 22px;
 }
-
-/* REMOVE BUG DO QUADRADO BRANCO */
-.menu-ativo-v8 div,
-.menu-ativo-v8 span,
-.menu-ativo-v8 p,
-.menu-ativo-v8 code {
-    background: transparent !important;
+.operax-hero-logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 24px;
+    background: radial-gradient(circle, #000918, #001a3a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+        0 0 28px rgba(0,183,255,.85),
+        0 0 60px rgba(0,100,255,.45);
+    flex-shrink: 0;
 }
-
-</style>
-""", unsafe_allow_html=True)
-
-
-def mostrar_cabecalho():
-    logo_path = Path("logo.png")
-
-    st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([1.25, 7])
-
-    with col_logo:
-        if logo_path.exists():
-            st.image(str(logo_path), width=155)
-        else:
-            st.markdown('<div class="crm-logo-fallback">💰</div>', unsafe_allow_html=True)
-
-    with col_titulo:
-        st.markdown(
-            """
-            <div>
-                <h1 class="crm-title">OPERAX SALES</h1>
-                <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
-                <div class="crm-pill">⚡ Painel inteligente &nbsp; • &nbsp; 🔄 Atualização por ação &nbsp; • &nbsp; 👤 Controle por vendedor</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-# =========================
-# FUNÇÕES
-# =========================
-
-def hash_senha(senha):
-    return hashlib.sha256(str(senha).encode()).hexdigest()
-
-
-def dinheiro(valor):
-    try:
-        return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return "R$ 0,00"
-
-
-def limpar_documento(valor):
-    return re.sub(r"\D", "", str(valor or ""))
-
-def validar_cpf(cpf):
-    cpf_limpo = limpar_documento(cpf)
-
-    if len(cpf_limpo) != 11:
-        return False
-
-    if cpf_limpo == cpf_limpo[0] * 11:
-        return False
-
-    soma = sum(int(cpf_limpo[i]) * (10 - i) for i in range(9))
-    digito1 = (soma * 10) % 11
-    if digito1 == 10:
-        digito1 = 0
-
-    soma = sum(int(cpf_limpo[i]) * (11 - i) for i in range(10))
-    digito2 = (soma * 10) % 11
-    if digito2 == 10:
-        digito2 = 0
-
-    return digito1 == int(cpf_limpo[9]) and digito2 == int(cpf_limpo[10])
-
-
-def validar_telefone(telefone):
-    telefone_limpo = limpar_documento(telefone)
-
-    if len(telefone_limpo) not in [10, 11]:
-        return False
-
-    ddd = telefone_limpo[:2]
-    numero = telefone_limpo[2:]
-
-    if ddd == "00":
-        return False
-
-    if len(telefone_limpo) == 11 and not numero.startswith("9"):
-        return False
-
-    return True
-
-
-def converter_valor_brasileiro(valor):
-    texto = str(valor or "").strip()
-
-    if not texto:
-        return 0.0
-
-    texto = texto.replace("R$", "").replace(" ", "")
-
-    # Se vier no formato brasileiro: 1.758,71
-    if "," in texto:
-        texto = texto.replace(".", "").replace(",", ".")
-    else:
-        # Se vier como 1758.71, mantém o ponto decimal
-        texto = texto
-
-    try:
-        return float(texto)
-    except Exception:
-        return 0.0
-
-
-def formatar_valor_para_tela(valor):
-    numero = converter_valor_brasileiro(valor)
-    if numero == 0:
-        return ""
-    return f"{numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def login(usuario, senha):
-    usuario = str(usuario).strip().lower()
-    senha_hash = hash_senha(str(senha).strip())
-
-    res = (
-        supabase.table("usuarios")
-        .select("*")
-        .eq("usuario", usuario)
-        .eq("ativo", True)
-        .execute()
-    )
-
-    if not res.data:
-        return None
-
-    user = res.data[0]
-
-    if user.get("senha_hash") == senha_hash:
-        return user
-
-    return None
-
-
-def carregar_tabelas():
-    res = (
-        supabase.table("regras_comissao")
-        .select("*")
-        .eq("ativo", True)
-        .execute()
-    )
-
-    tabelas = sorted(list(set([
-        r.get("produto")
-        for r in res.data
-        if r.get("produto")
-    ])))
-
-    if not tabelas:
-        tabelas = ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]
-
-    return tabelas
-
-
-def calcular_comissao_montante(df_filtrado):
-    total_empresa = 0
-
-    if df_filtrado.empty:
-        return 0
-
-    if "status" not in df_filtrado.columns or "tabela_banco" not in df_filtrado.columns:
-        return 0
-
-    df_pagas = df_filtrado[df_filtrado["status"] == "Pago"].copy()
-
-    if df_pagas.empty:
-        return 0
-
-    for tabela in df_pagas["tabela_banco"].dropna().unique():
-        total_tabela = (
-            df_pagas[df_pagas["tabela_banco"] == tabela]["valor"]
-            .fillna(0)
-            .sum()
-        )
-
-        regras = (
-            supabase.table("regras_comissao")
-            .select("*")
-            .eq("produto", tabela)
-            .eq("ativo", True)
-            .order("valor_minimo", desc=True)
-            .execute()
-        )
-
-        percentual = 0
-
-        for regra in regras.data:
-            valor_minimo = float(regra.get("valor_minimo") or 0)
-
-            if float(total_tabela) >= valor_minimo:
-                percentual = float(regra.get("percentual_empresa") or 0)
-                break
-
-        total_empresa += float(total_tabela) * (percentual / 100)
-
-    return total_empresa
-
-
-def calcular_percentual_empresa_venda(tabela_banco, valor):
-    regras = (
-        supabase.table("regras_comissao")
-        .select("*")
-        .eq("produto", tabela_banco)
-        .eq("ativo", True)
-        .order("valor_minimo", desc=True)
-        .execute()
-    )
-
-    percentual = 0
-
-    for regra in regras.data:
-        valor_minimo = float(regra.get("valor_minimo") or 0)
-
-        if float(valor) >= valor_minimo:
-            percentual = float(regra.get("percentual_empresa") or 0)
-            break
-
-    return percentual
-
-
-def preparar_dataframe_vendas():
-    vendas = (
-        supabase.table("vendas")
-        .select("*")
-        .order("id", desc=True)
-        .execute()
-    )
-
-    df = pd.DataFrame(vendas.data)
-
-    if df.empty:
-        return df
-
-    if "data" not in df.columns:
-        df["data"] = None
-
-    if "vendedor_id" not in df.columns:
-        df["vendedor_id"] = None
-
-    if "tabela_banco" not in df.columns:
-        if "produto" in df.columns:
-            df["tabela_banco"] = df["produto"]
-        else:
-            df["tabela_banco"] = ""
-
-    if "valor" not in df.columns:
-        df["valor"] = 0
-
-    if "status" not in df.columns:
-        df["status"] = "Pendente"
-
-    if "conferido" not in df.columns:
-        df["conferido"] = False
-
-    if "alterado_vendedor" not in df.columns:
-        df["alterado_vendedor"] = False
-
-    df["data"] = pd.to_datetime(df["data"], errors="coerce")
-    df["mes_num"] = df["data"].dt.month
-    df["ano"] = df["data"].dt.year
-
-    return df
-
-
-def destacar_linhas_pendentes(row, tipo_usuario):
-    """
-    Destaca propostas pendentes:
-    - Pendente recente: amarelo
-    - Pendente com mais de 1 hora: vermelho somente para admin
-    """
-    try:
-        status = str(row.get("status", "")).strip().lower()
-        data_venda = row.get("data", None)
-
-        if status != "pendente":
-            return [""] * len(row)
-
-        agora = pd.Timestamp.now()
-
-        if pd.notna(data_venda):
-            data_venda = pd.to_datetime(data_venda, errors="coerce")
-            horas_pendente = (agora - data_venda).total_seconds() / 3600
-        else:
-            horas_pendente = 0
-
-        if tipo_usuario == "admin" and horas_pendente >= 1:
-            return ["background-color: #ffb3b3"] * len(row)
-
-        return ["background-color: #fff3b0"] * len(row)
-
-    except Exception:
-        return [""] * len(row)
-
-
-
-
-def carregar_usuarios_chat():
-    try:
-        res = (
-            supabase.table("usuarios")
-            .select("id,nome,usuario,tipo,ativo")
-            .eq("ativo", True)
-            .order("nome")
-            .execute()
-        )
-
-        usuarios = res.data or []
-
-        return [
-            u for u in usuarios
-            if int(u.get("id")) != int(st.session_state.user_id)
-        ]
-
-    except Exception:
-        return []
-
-
-def carregar_mensagens_chat(destinatario_id, limite=80):
-    try:
-        meu_id = int(st.session_state.user_id)
-        outro_id = int(destinatario_id)
-
-        res = (
-            supabase.table("chat_interno")
-            .select("*")
-            .order("criado_em", desc=True)
-            .limit(300)
-            .execute()
-        )
-
-        todas = res.data or []
-
-        mensagens = []
-
-        for msg in todas:
-            origem = msg.get("usuario_id")
-            destino = msg.get("destinatario_id")
-
-            try:
-                origem = int(origem) if origem is not None else None
-                destino = int(destino) if destino is not None else None
-            except Exception:
-                origem = None
-                destino = None
-
-            # Mensagens privadas entre eu e o usuário escolhido.
-            if (
-                (origem == meu_id and destino == outro_id)
-                or
-                (origem == outro_id and destino == meu_id)
-            ):
-                mensagens.append(msg)
-
-        mensagens = mensagens[-limite:]
-        mensagens.reverse()
-
-        return mensagens
-
-    except Exception:
-        return []
-
-
-def enviar_mensagem_chat(usuario_id, destinatario_id, nome, tipo, mensagem):
-    supabase.table("chat_interno").insert({
-        "usuario_id": usuario_id,
-        "destinatario_id": destinatario_id,
-        "nome": nome,
-        "tipo": tipo,
-        "mensagem": mensagem,
-        "criado_em": str(datetime.now())
-    }).execute()
-
-
-
-def contar_mensagens_nao_lidas():
-    try:
-        if "chat_lido_em" not in st.session_state:
-            st.session_state.chat_lido_em = str(datetime.now())
-
-        res = (
-            supabase.table("chat_interno")
-            .select("*")
-            .eq("destinatario_id", st.session_state.user_id)
-            .execute()
-        )
-
-        mensagens = res.data or []
-        ultima_leitura = pd.to_datetime(st.session_state.chat_lido_em, errors="coerce")
-
-        total = 0
-
-        for msg in mensagens:
-            data_msg = pd.to_datetime(msg.get("criado_em"), errors="coerce")
-
-            if pd.notna(data_msg) and pd.notna(ultima_leitura):
-                if data_msg > ultima_leitura:
-                    total += 1
-
-        return total
-
-    except Exception:
-        return 0
-
-
-def mostrar_chat_popup():
-    nao_lidas = contar_mensagens_nao_lidas()
-
-    if nao_lidas > 0:
-        st.markdown("""
-        <style>
-            @keyframes piscarChat {
-                0% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.35; transform: scale(1.18); }
-                100% { opacity: 1; transform: scale(1); }
-            }
-
-            .chat-alerta {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: #dcfce7;
-                border: 1px solid #86efac;
-                color: #166534;
-                padding: 8px 12px;
-                border-radius: 999px;
-                font-weight: 800;
-                box-shadow: 0 12px 28px rgba(34,197,94,0.22);
-            }
-
-            .bolinha-verde {
-                width: 11px;
-                height: 11px;
-                background: #22c55e;
-                border-radius: 999px;
-                animation: piscarChat 1s infinite;
-            }
-        
-/* =========================================================
-   OPERAX SALES — DARK NEON BLUE FINAL
-   ========================================================= */
-
-.stApp {
-    background:
-        radial-gradient(circle at 82% 12%, rgba(0, 174, 255, 0.22), transparent 24%),
-        radial-gradient(circle at 92% 85%, rgba(0, 102, 255, 0.26), transparent 20%),
-        linear-gradient(135deg, #020617 0%, #06152f 42%, #020617 100%) !important;
+.operax-hero-text h1 {
+    font-family: 'Rajdhani', sans-serif !important;
+    font-size: 52px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    letter-spacing: .06em !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+    text-shadow: 0 0 28px rgba(0,183,255,.40) !important;
+}
+.operax-hero-text h1 span {
+    color: #00c8ff !important;
+    text-shadow: 0 0 22px rgba(0,200,255,.55) !important;
+}
+.operax-hero-text p {
+    color: #cceeff !important;
+    font-size: 16px !important;
+    margin: 8px 0 0 0 !important;
+    font-weight: 500 !important;
+}
+.operax-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+}
+.operax-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(2, 12, 35, .72);
+    border: 1px solid rgba(0, 183, 255, .55);
     color: #eaf6ff !important;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 0 18px rgba(0, 183, 255, .18);
+}
+.operax-pill svg {
+    width: 15px; height: 15px; stroke: #00c8ff;
 }
 
-.block-container {
-    max-width: 1240px !important;
-    padding-top: 1.3rem !important;
-    padding-bottom: 3rem !important;
-}
-
-/* SIDEBAR */
-[data-testid="stSidebar"] {
-    background:
-        radial-gradient(circle at top left, rgba(0, 195, 255, .35), transparent 30%),
-        linear-gradient(180deg, #020617 0%, #031633 48%, #020617 100%) !important;
-    border-right: 1px solid rgba(0, 183, 255, .65) !important;
-    box-shadow: 0 0 34px rgba(0, 183, 255, .30) !important;
-    min-width: 260px !important;
-    max-width: 260px !important;
-}
-
-section[data-testid="stSidebar"] > div {
-    padding-left: 18px !important;
-    padding-right: 18px !important;
-    padding-top: 18px !important;
-}
-
-[data-testid="stSidebar"] * {
-    color: #ffffff !important;
-}
-
-/* OCULTAR ELEMENTOS VISUAIS NATIVOS QUE ATRAPALHAM */
-[data-testid="collapsedControl"] {
-    background: transparent !important;
-}
-
-/* LOGO SIDEBAR */
-.sidebar-logo-v8 {
+/* ── TOPBAR ÍCONES ───────────────────────────────────────── */
+.operax-topbar {
     display: flex;
+    justify-content: flex-end;
     align-items: center;
-    gap: 13px;
-    padding: 8px 0 22px 0;
-    color: #ffffff;
-    font-size: 24px;
-    font-weight: 950;
-    letter-spacing: .04em;
+    gap: 10px;
+    padding: 0 4px 0 0;
+    margin-bottom: 6px;
 }
-
-.sidebar-logo-icon-v8 {
-    width: 62px;
-    height: 62px;
-    border-radius: 22px;
-    background:
-        radial-gradient(circle at 50% 50%, #000 0%, #000 28%, #00d5ff 42%, #0066ff 67%, #5ee7ff 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    font-weight: 950;
-    color: #ffffff;
-    box-shadow:
-        0 0 22px rgba(0, 183, 255, .95),
-        0 0 54px rgba(0, 102, 255, .55),
-        inset 0 0 0 1px rgba(255,255,255,.22);
+.topbar-icon {
+    width: 38px; height: 38px;
+    border-radius: 12px;
+    background: rgba(2, 12, 35, .70);
+    border: 1px solid rgba(0, 183, 255, .35);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .18s;
+    position: relative;
 }
-
-.sidebar-user-v8 {
-    background: rgba(2, 12, 35, .65);
-    border: 1px solid rgba(0, 183, 255, .45);
-    border-radius: 18px;
-    padding: 16px 14px;
-    margin: 8px 0 22px 0;
-    font-weight: 900;
-    box-shadow: 0 0 22px rgba(0, 183, 255, .18);
+.topbar-icon:hover {
+    border-color: rgba(0, 200, 255, .75);
+    box-shadow: 0 0 18px rgba(0,183,255,.35);
 }
-
-.menu-label-v8 {
-    color: #00c8ff !important;
-    font-size: 12px;
-    font-weight: 950;
-    text-transform: uppercase;
-    letter-spacing: .10em;
-    margin: 20px 0 10px 4px;
+.topbar-icon svg { width: 18px; height: 18px; stroke: #00c8ff; }
+.topbar-badge {
+    position: absolute;
+    top: -5px; right: -5px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #005bff, #00c8ff);
+    color: #fff !important;
+    font-size: 10px;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 10px rgba(0,183,255,.6);
 }
-
-.menu-ativo-v8 {
-    background: linear-gradient(90deg, rgba(0, 84, 255, .98), rgba(0, 200, 255, .98));
-    color: #ffffff !important;
-    border-radius: 16px;
-    padding: 14px 14px;
-    margin: 8px 0;
-    font-weight: 950;
-    box-shadow:
-        0 0 20px rgba(0, 200, 255, .75),
-        0 0 42px rgba(0, 102, 255, .35),
-        inset 0 0 0 1px rgba(255,255,255,.20);
-    display: flex;
-    align-items: center;
-    gap: 12px;
+.topbar-chat-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 18px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #005bff, #00c8ff);
+    color: #fff !important;
+    font-weight: 800;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 0 22px rgba(0,183,255,.40);
+    border: 1px solid rgba(0,200,255,.45);
+    transition: all .18s;
 }
+.topbar-chat-btn:hover { box-shadow: 0 0 36px rgba(0,183,255,.65); }
+.topbar-chat-btn svg { width: 17px; height: 17px; stroke: #fff; }
 
-.menu-ativo-v8 span {
-    color: #ffffff !important;
-    font-size: 16px;
-    background: transparent !important;
-}
-
-.menu-ativo-v8 svg,
-.menu-svg-v8 svg {
-    width: 22px;
-    height: 22px;
-    stroke-width: 2.35;
-    stroke: #ffffff;
-    background: transparent !important;
-}
-
-.menu-svg-v8 {
-    min-height: 43px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #00c8ff !important;
-}
-
-[data-testid="stSidebar"] .stButton button {
-    color: #ffffff !important;
-    background: transparent !important;
-    border: 0 !important;
-    border-radius: 14px !important;
-    box-shadow: none !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    font-weight: 800 !important;
-    padding: .67rem .75rem !important;
-}
-
-[data-testid="stSidebar"] .stButton button:hover {
-    background: rgba(0, 183, 255, .16) !important;
-    transform: translateX(2px);
-}
-
-/* HEADER */
-.crm-hero {
-    background:
-        radial-gradient(circle at 78% 20%, rgba(0, 183, 255, .22), transparent 28%),
-        linear-gradient(135deg, rgba(2, 6, 23, .92), rgba(3, 14, 40, .88)) !important;
-    border: 1px solid rgba(0, 183, 255, .42) !important;
-    border-radius: 28px !important;
-    box-shadow:
-        0 0 34px rgba(0, 183, 255, .22),
-        0 22px 70px rgba(0,0,0,.30) !important;
-    padding: 26px 30px !important;
-    margin-bottom: 28px !important;
-}
-
-.crm-title {
-    font-size: 54px !important;
-    line-height: 1.02 !important;
-    font-weight: 950 !important;
-    color: #ffffff !important;
-    margin: 0 !important;
-    letter-spacing: -0.04em !important;
-    text-shadow: 0 0 22px rgba(0, 183, 255, .35);
-}
-
-.crm-subtitle {
-    color: #cceeff !important;
-    font-size: 17px !important;
-    font-weight: 560 !important;
-    margin-top: 10px !important;
-}
-
-.crm-pill {
-    background: rgba(2, 12, 35, .72) !important;
-    color: #ffffff !important;
-    border: 1px solid rgba(0, 183, 255, .62) !important;
-    border-radius: 14px !important;
-    box-shadow: 0 0 24px rgba(0, 183, 255, .22) !important;
-}
-
-/* TÍTULOS */
-h1, h2, h3 {
-    color: #ffffff !important;
-    letter-spacing: -0.04em !important;
-    text-shadow: 0 0 16px rgba(0, 183, 255, .25);
-}
-
-p, label, span, div {
-    color: inherit;
-}
-
-/* FORMULÁRIOS / CARDS */
+/* ── FORMULÁRIOS ─────────────────────────────────────────── */
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input,
-div[data-testid="stTextArea"] textarea,
-div[data-baseweb="select"] {
+div[data-testid="stTextArea"] textarea {
     border-radius: 14px !important;
-    border: 1px solid rgba(0, 183, 255, .48) !important;
-    background: rgba(2, 12, 35, .62) !important;
+    border: 1px solid rgba(0, 183, 255, .45) !important;
+    background: rgba(2, 12, 35, .65) !important;
     color: #ffffff !important;
-    box-shadow:
-        inset 0 0 0 1px rgba(255,255,255,.02),
-        0 0 14px rgba(0, 183, 255, .10) !important;
+    box-shadow: 0 0 14px rgba(0, 183, 255, .10) !important;
+    font-size: 15px !important;
 }
-
 div[data-testid="stTextInput"] input::placeholder,
 div[data-testid="stTextArea"] textarea::placeholder {
-    color: rgba(207, 236, 255, .68) !important;
+    color: rgba(207, 236, 255, .60) !important;
 }
-
 div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus {
-    border-color: rgba(0, 220, 255, .95) !important;
-    box-shadow: 0 0 0 3px rgba(0, 183, 255, .16), 0 0 22px rgba(0,183,255,.20) !important;
+    border-color: rgba(0, 220, 255, .90) !important;
+    box-shadow: 0 0 0 3px rgba(0,183,255,.16), 0 0 22px rgba(0,183,255,.18) !important;
+}
+div[data-baseweb="select"] {
+    border-radius: 14px !important;
+    border: 1px solid rgba(0, 183, 255, .45) !important;
+    background: rgba(2, 12, 35, .65) !important;
+    color: #ffffff !important;
 }
 
+/* ── BOTÕES ──────────────────────────────────────────────── */
 .stButton button {
     background: linear-gradient(135deg, #005bff, #00c8ff) !important;
     border: 1px solid rgba(0, 183, 255, .45) !important;
-    border-radius: 15px !important;
+    border-radius: 14px !important;
     color: white !important;
-    font-weight: 900 !important;
-    box-shadow: 0 0 22px rgba(0, 183, 255, .36) !important;
+    font-weight: 800 !important;
+    font-size: 15px !important;
+    box-shadow: 0 0 22px rgba(0, 183, 255, .35) !important;
+    transition: all .18s !important;
 }
-
 .stButton button:hover {
-    box-shadow: 0 0 34px rgba(0, 183, 255, .56) !important;
-    transform: translateY(-1px);
+    box-shadow: 0 0 38px rgba(0, 183, 255, .60) !important;
+    transform: translateY(-1px) !important;
 }
 
+/* ── CARDS / MÉTRICAS ────────────────────────────────────── */
 div[data-testid="stMetric"] {
-    background: rgba(2, 12, 35, .70) !important;
-    border: 1px solid rgba(0, 183, 255, .40) !important;
+    background: rgba(2, 12, 35, .72) !important;
+    border: 1px solid rgba(0, 183, 255, .38) !important;
     border-radius: 22px !important;
     padding: 18px 20px !important;
-    box-shadow: 0 0 24px rgba(0, 183, 255, .16) !important;
+    box-shadow: 0 0 24px rgba(0, 183, 255, .14) !important;
 }
+div[data-testid="stMetric"] label,
+div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+    color: #ffffff !important;
+}
+div[data-testid="stMetric"] [data-testid="stMetricDelta"] { color: #00ff9d !important; }
 
+/* ── TABELA ──────────────────────────────────────────────── */
 .stDataFrame {
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid rgba(0, 183, 255, .25);
-    box-shadow: 0 0 24px rgba(0, 183, 255, .12);
+    border-radius: 18px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(0, 183, 255, .22) !important;
+    box-shadow: 0 0 24px rgba(0, 183, 255, .10) !important;
 }
 
-/* ALERTAS */
-div[data-testid="stAlert"] {
-    border-radius: 16px !important;
+/* ── TÍTULOS ─────────────────────────────────────────────── */
+h1, h2, h3, h4 {
+    color: #ffffff !important;
+    text-shadow: 0 0 18px rgba(0, 183, 255, .22) !important;
 }
 
-/* CHAT */
-button[kind="secondary"] {
-    border-radius: 16px !important;
+/* ── DIVIDER ─────────────────────────────────────────────── */
+hr { border-color: rgba(0, 183, 255, .20) !important; }
+
+/* ── ALERTAS ─────────────────────────────────────────────── */
+div[data-testid="stAlert"] { border-radius: 16px !important; }
+
+/* ── CHAT FLUTUANTE ──────────────────────────────────────── */
+.chat-float {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #005bff, #00c8ff);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow:
+        0 0 28px rgba(0, 183, 255, .75),
+        0 0 56px rgba(0, 102, 255, .40);
+    border: 2px solid rgba(255,255,255,.25);
+    z-index: 9999;
+    transition: all .2s;
+}
+.chat-float:hover { transform: scale(1.08); box-shadow: 0 0 40px rgba(0,183,255,.90); }
+.chat-float svg { width: 26px; height: 26px; stroke: #fff; }
+.chat-float-badge {
+    position: absolute; top: -4px; right: -4px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(135deg, #0040ff, #00c8ff);
+    color: #fff !important; font-size: 11px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 0 12px rgba(0,183,255,.6);
 }
 
-/* REMOVE BUG DO QUADRADO BRANCO */
-.menu-ativo-v8 div,
-.menu-ativo-v8 span,
-.menu-ativo-v8 p,
-.menu-ativo-v8 code {
-    background: transparent !important;
+/* ── FORMULÁRIO CARD (cadastro de venda) ─────────────────── */
+.form-card {
+    background: rgba(2, 8, 28, .80);
+    border: 1px solid rgba(0, 183, 255, .35);
+    border-radius: 24px;
+    padding: 28px 32px;
+    box-shadow:
+        0 0 32px rgba(0, 183, 255, .12),
+        0 22px 60px rgba(0,0,0,.30);
+    margin-bottom: 24px;
 }
-
+.form-card-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff !important;
+}
+.form-card-title svg {
+    width: 32px; height: 32px;
+    stroke: #00c8ff;
+    background: rgba(0,183,255,.12);
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid rgba(0,183,255,.35);
+    box-sizing: content-box;
+}
+.field-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #cceeff !important;
+    letter-spacing: .04em;
+    margin-bottom: 4px;
+}
 </style>
-        """, unsafe_allow_html=True)
-
-    col_spacer, col_chat = st.columns([8, 1.8])
-
-    with col_chat:
-        label_chat = f"🟢 💬 Chat ({nao_lidas})" if nao_lidas > 0 else "💬 Chat"
-
-        try:
-            chat_context = st.popover(label_chat, use_container_width=True)
-        except Exception:
-            chat_context = st.expander(label_chat, expanded=False)
-
-    with chat_context:
-        st.session_state.chat_lido_em = str(datetime.now())
-        st.markdown("### Chat interno")
-
-        usuarios_chat = carregar_usuarios_chat()
-
-        if not usuarios_chat:
-            st.info("Nenhum outro usuário ativo encontrado.")
-            return
-
-        opcoes = {
-            f"{u.get('nome', u.get('usuario'))} ({u.get('tipo', '')})": u
-            for u in usuarios_chat
-        }
-
-        escolhido_label = st.selectbox(
-            "Enviar mensagem para",
-            list(opcoes.keys())
-        )
-
-        usuario_destino = opcoes[escolhido_label]
-        destinatario_id = int(usuario_destino["id"])
-
-        mensagens = carregar_mensagens_chat(destinatario_id, 80)
-
-        chat_area = st.container(height=360)
-
-        with chat_area:
-            if not mensagens:
-                st.info("Nenhuma mensagem nessa conversa ainda.")
-            else:
-                for msg in mensagens:
-                    nome_msg = msg.get("nome", "Usuário")
-                    texto_msg = msg.get("mensagem", "")
-                    data_msg = str(msg.get("criado_em", ""))[:16]
-
-                    if int(msg.get("usuario_id")) == int(st.session_state.user_id):
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background:linear-gradient(135deg,#dcfce7,#bbf7d0);
-                                border:1px solid #86efac;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px 0 8px auto;
-                                max-width:88%;
-                                text-align:right;
-                                box-shadow:0 8px 20px rgba(34,197,94,0.10);
-                            ">
-                                <div style="font-size:12px;color:#166534;font-weight:700;">Você • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-                    else:
-                        st.markdown(
-                            f"""
-                            <div style="
-                                background:#ffffff;
-                                border:1px solid #e5e7eb;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px auto 8px 0;
-                                max-width:88%;
-                                box-shadow:0 8px 20px rgba(15,23,42,0.06);
-                            ">
-                                <div style="font-size:12px;color:#64748b;font-weight:700;">{nome_msg} • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
-                            unsafe_allow_html=True
-                        )
-
-        with st.form("form_chat_popup", clear_on_submit=True):
-            mensagem = st.text_input(
-                "Mensagem",
-                placeholder=f"Digite uma mensagem para {usuario_destino.get('nome', 'usuário')}..."
-            )
-
-            enviar = st.form_submit_button("Enviar")
-
-            if enviar:
-                if not mensagem.strip():
-                    st.error("Digite uma mensagem antes de enviar.")
-                else:
-                    enviar_mensagem_chat(
-                        st.session_state.user_id,
-                        destinatario_id,
-                        st.session_state.nome,
-                        st.session_state.tipo,
-                        mensagem.strip()
-                    )
-                    st.rerun()
+"""
 
 
-def icone_svg(nome):
-    icones = {
-        "nova": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M7 3h7l4 4v14H7V3Z"/>
-            <path d="M14 3v5h5"/>
-            <path d="M9 14h6"/>
-            <path d="M12 11v6"/>
-        </svg>
-        """,
-        "painel": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M4 19V5"/>
-            <path d="M4 19h16"/>
-            <path d="M8 16v-5"/>
-            <path d="M12 16V8"/>
-            <path d="M16 16v-7"/>
-            <path d="M20 16v-3"/>
-        </svg>
-        """,
-        "usuarios": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-            <circle cx="9.5" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        """,
-        "comissoes": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 2v20"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-            <path d="M19 9l2-2-2-2"/>
-            <path d="M5 15l-2 2 2 2"/>
-        </svg>
-        """
-    }
-    return icones.get(nome, "")
+# ══════════════════════════════════════════════════════════════════════
+#  FUNÇÕES PÚBLICAS
+# ══════════════════════════════════════════════════════════════════════
+
+def aplicar_tema():
+    """Aplica todo o CSS dark neon. Chame logo após st.set_page_config."""
+    st.markdown(CSS_DARK_NEON, unsafe_allow_html=True)
 
 
-def menu_lateral_v8():
-    if "menu_atual" not in st.session_state:
-        st.session_state.menu_atual = "📋 Nova Venda"
+def logo_svg(size: int = 64) -> str:
+    """Retorna o logo SVG como string HTML com tamanho customizável."""
+    return LOGO_SVG.replace('width="72"', f'width="{size}"').replace('height="72"', f'height="{size}"')
 
-    if st.session_state.tipo == "admin":
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-            ("👥 Usuários", "usuarios", "Gestão"),
-            ("💰 Comissões", "comissoes", "Gestão"),
-        ]
-    else:
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-        ]
 
-    st.sidebar.markdown(
-        """
-        <div class="sidebar-logo-v8">
-            <div class="sidebar-logo-icon-v8">O</div>
-            <div>OPERAX<br><span style="font-size:14px;color:#00c8ff;letter-spacing:4px;">SALES</span></div>
+def icone(nome: str, size: int = 22, cor: str = "#00c8ff") -> str:
+    """Retorna ícone SVG como string HTML."""
+    svg = ICONES.get(nome, ICONES["nova_venda"])
+    return f'<span style="display:inline-flex;align-items:center;color:{cor};width:{size}px;height:{size}px">{svg}</span>'
+
+
+def mostrar_topbar(notificacoes: int = 0):
+    """Renderiza a barra superior direita com ícones e botão Chat."""
+    ico_star = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>'
+    ico_pen  = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'
+    ico_gear = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>'
+    ico_bell = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>'
+    ico_chat = ICONES["chat"]
+
+    badge_html = f'<div class="topbar-badge">{notificacoes}</div>' if notificacoes > 0 else ""
+
+    st.markdown(f"""
+    <div class="operax-topbar">
+        <div class="topbar-icon">{ico_star}</div>
+        <div class="topbar-icon">{ico_pen}</div>
+        <div class="topbar-icon">{ico_gear}</div>
+        <div class="topbar-icon" style="position:relative">
+            {ico_bell}
+            {badge_html}
         </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.sidebar.markdown(
-        f"""
-        <div class="sidebar-user-v8">
-            👤 {st.session_state.nome}<br>
-            <span style="font-size:12px;color:#4ade80!important;">● Online</span>
+        <div class="topbar-chat-btn">
+            {ico_chat}&nbsp;Chat
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        """,
-        unsafe_allow_html=True
-    )
+    </div>
+    """, unsafe_allow_html=True)
 
-    grupo_atual = None
 
-    for nome, icone_nome, grupo in opcoes:
-        nome_limpo = (
-            nome.replace("📋 ", "")
-            .replace("📊 ", "")
-            .replace("👥 ", "")
-            .replace("💰 ", "")
-        )
+def mostrar_cabecalho(subtitulo: str = "Sistema inteligente de vendas e operações financeiras"):
+    """Renderiza o hero header com logo SVG, título e pills."""
+    bolt_svg  = ICONES["bolt"]
+    ref_svg   = ICONES["refresh"]
+    ctrl_svg  = ICONES["usuario_ctrl"]
 
-        if grupo != grupo_atual:
-            st.sidebar.markdown(
-                f'<div class="menu-label-v8">{grupo}</div>',
-                unsafe_allow_html=True
-            )
-            grupo_atual = grupo
-
-        svg = icone_svg(icone_nome)
-
-        if st.session_state.menu_atual == nome:
-            st.sidebar.markdown(
-                f"""
-                <div class="menu-ativo-v8">
-                    {svg}
-                    <span>{nome_limpo}</span>
+    st.markdown(f"""
+    <div class="operax-hero">
+        <div class="operax-hero-inner">
+            <div class="operax-hero-logo">{logo_svg(62)}</div>
+            <div class="operax-hero-text">
+                <h1>OPERAX <span>SALES</span></h1>
+                <p>{subtitulo}</p>
+                <div class="operax-pills">
+                    <div class="operax-pill">{bolt_svg} Painel inteligente</div>
+                    <div class="operax-pill">{ref_svg} Atualização por ação</div>
+                    <div class="operax-pill">{ctrl_svg} Controle por vendedor</div>
                 </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
-
-            with col_icon:
-                st.markdown(
-                    f'<div class="menu-svg-v8">{svg}</div>',
-                    unsafe_allow_html=True
-                )
-
-            with col_btn:
-                if st.button(
-                    nome_limpo,
-                    key=f"menu_{nome}",
-                    use_container_width=True
-                ):
-                    st.session_state.menu_atual = nome
-                    st.rerun()
-
-    st.sidebar.markdown("---")
-
-    if st.sidebar.button("Sair  ↪", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
-    return st.session_state.menu_atual
-
-
-
-
-# =========================
-# LOGIN
-# =========================
-
-mostrar_cabecalho()
-
-if "logado" not in st.session_state:
-    st.session_state.logado = False
-
-if not st.session_state.logado:
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
-
-    if st.button("Entrar"):
-        user = login(usuario, senha)
-
-        if user:
-            st.session_state.logado = True
-            st.session_state.user_id = user["id"]
-            st.session_state.usuario = user["usuario"]
-            st.session_state.nome = user["nome"]
-            st.session_state.tipo = user["tipo"]
-            st.rerun()
-        else:
-            st.error("Usuário ou senha inválidos")
-
-else:
-    menu = menu_lateral_v8()
-
-    mostrar_chat_popup()
-
-    if "mostrar_comissao_empresa" not in st.session_state:
-        st.session_state.mostrar_comissao_empresa = True
-
-    if "venda_sucesso_msg" not in st.session_state:
-        st.session_state.venda_sucesso_msg = ""
-
-    # =========================
-    # NOVA VENDA
-    # =========================
-
-    if menu == "📋 Nova Venda":
-        st.header("📋 Cadastro de Venda")
-
-        if st.session_state.venda_sucesso_msg:
-            st.success(st.session_state.venda_sucesso_msg)
-            st.session_state.venda_sucesso_msg = ""
-        tabelas = carregar_tabelas()
-
-        cliente = st.text_input("Cliente", key="novo_cliente")
-
-        cpf_digitado = st.text_input(
-            "CPF",
-            placeholder="Ex: 999.999.999-99",
-            key="novo_cpf"
-        )
-        cpf = limpar_documento(cpf_digitado)
-
-        if cpf_digitado:
-            if len(cpf) < 11:
-                st.error(f"CPF incompleto: faltam {11 - len(cpf)} número(s).")
-            elif len(cpf) > 11:
-                st.error(f"CPF com números a mais: remova {len(cpf) - 11} número(s).")
-            elif validar_cpf(cpf):
-                st.success(f"CPF válido: {cpf}")
-            else:
-                st.error("CPF inválido. Confira os números digitados.")
-
-        telefone_digitado = st.text_input(
-            "Telefone",
-            placeholder="Ex: (11) 99976-7867",
-            key="novo_telefone"
-        )
-        telefone = limpar_documento(telefone_digitado)
-
-        if telefone_digitado:
-            if len(telefone) < 10:
-                st.error("Telefone incompleto. Informe DDD + número.")
-            elif len(telefone) > 11:
-                st.error(f"Telefone com números a mais: remova {len(telefone) - 11} número(s).")
-            elif validar_telefone(telefone):
-                st.success(f"Telefone válido: {telefone}")
-            else:
-                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
-
-        tabela_banco = st.selectbox("Tabela/Banco", tabelas)
-
-        valor_digitado = st.text_input(
-            "Valor vendido",
-            placeholder="Ex: R$ 1.758,71",
-            key="novo_valor"
-        )
-        valor = converter_valor_brasileiro(valor_digitado)
-
-        if valor_digitado:
-            if valor > 0:
-                st.success(f"Valor válido: {dinheiro(valor)}")
-            else:
-                st.error("Valor inválido. Exemplo correto: R$ 1.758,71")
-
-        status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
-
-        observacao = st.text_area("Observação", key="nova_observacao")
-
-        if st.button("Salvar venda"):
-            cpf_ok = validar_cpf(cpf)
-            telefone_ok = validar_telefone(telefone)
-            valor_ok = valor > 0
-
-            if not cpf_ok:
-                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
-            elif not telefone_ok:
-                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
-            elif not valor_ok:
-                st.error("Corrija o valor antes de salvar.")
-            else:
-                perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
-                valor_empresa = float(valor) * (perc_empresa / 100)
-
-                dados = {
-                    "data": str(datetime.now()),
-                    "vendedor_id": st.session_state.user_id,
-                    "vendedor": st.session_state.usuario,
-                    "cliente": cliente,
-                    "cpf": cpf,
-                    "telefone": telefone,
-                    "produto": tabela_banco,
-                    "tabela_banco": tabela_banco,
-                    "valor": valor,
-                    "status": status,
-                    "percentual_comissao": 0,
-                    "valor_comissao": 0,
-                    "comissao_empresa": perc_empresa,
-                    "valor_comissao_empresa": valor_empresa,
-                    "conferido": False,
-                    "alterado_vendedor": False,
-                    "observacao": observacao
-                }
-
-                supabase.table("vendas").insert(dados).execute()
-
-                st.session_state.venda_sucesso_msg = "Proposta cadastrada com sucesso!"
-
-                for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
-                    if campo in st.session_state:
-                        st.session_state[campo] = ""
-
-                st.rerun()
-
-    # =========================
-    # PAINEL
-    # =========================
-
-    elif menu == "📊 Painel":
-        st.header("📊 Painel de Vendas")
-        df = preparar_dataframe_vendas()
-
-        if df.empty:
-            st.warning("Nenhuma venda cadastrada.")
-        else:
-            meses = {
-                1: "Janeiro",
-                2: "Fevereiro",
-                3: "Março",
-                4: "Abril",
-                5: "Maio",
-                6: "Junho",
-                7: "Julho",
-                8: "Agosto",
-                9: "Setembro",
-                10: "Outubro",
-                11: "Novembro",
-                12: "Dezembro"
-            }
-
-            st.subheader("🔎 Filtros")
-
-            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-
-            mes_nome = col_f1.selectbox(
-                "Mês",
-                list(meses.values()),
-                index=datetime.now().month - 1
-            )
-
-            anos = sorted(
-                df["ano"].dropna().unique().astype(int).tolist(),
-                reverse=True
-            )
-
-            if not anos:
-                anos = [datetime.now().year]
-
-            ano_filtro = col_f2.selectbox("Ano", anos)
-
-            dias = ["Todos"] + list(range(1, 32))
-
-            dia_filtro = col_f3.selectbox(
-                "Dia",
-                dias
-            )
-
-            status_filtro = col_f4.selectbox(
-                "Status",
-                ["Todos", "Pago", "Pendente", "Cancelado"]
-            )
-
-            tabelas = carregar_tabelas()
-
-            tabela_filtro = st.selectbox(
-                "Tabela/Banco",
-                ["Todas"] + tabelas
-            )
-
-            mes_num = [k for k, v in meses.items() if v == mes_nome][0]
-
-            df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
-
-            if dia_filtro != "Todos":
-                df = df[df["data"].dt.day == int(dia_filtro)]
-
-            # VENDEDOR VÊ SOMENTE AS PRÓPRIAS VENDAS PELO ID
-            if st.session_state.tipo != "admin":
-                df = df[df["vendedor_id"] == st.session_state.user_id]
-
-            if status_filtro != "Todos":
-                df = df[df["status"] == status_filtro]
-
-            if tabela_filtro != "Todas":
-                df = df[df["tabela_banco"] == tabela_filtro]
-
-            if st.session_state.tipo == "admin":
-                vendedores = sorted(df["vendedor"].dropna().unique().tolist())
-
-                vendedor_filtro = st.selectbox(
-                    "Vendedor",
-                    ["Todos"] + vendedores
-                )
-
-                if vendedor_filtro != "Todos":
-                    df = df[df["vendedor"] == vendedor_filtro]
-
-            total_vendido = df["valor"].fillna(0).sum()
-            qtd = len(df)
-
-            col1, col2, col3 = st.columns(3)
-
-            col1.metric("💵 Total vendido", dinheiro(total_vendido))
-            col2.metric("📋 Quantidade", qtd)
-            col3.metric("🗓️ Mês", mes_nome)
-
-            if st.session_state.tipo == "admin":
-                total_empresa = calcular_comissao_montante(df)
-
-                col_comissao_label, col_comissao_btn = st.columns([4, 1])
-
-                with col_comissao_btn:
-                    if st.button("👁️" if st.session_state.mostrar_comissao_empresa else "🙈", key="btn_ocultar_comissao"):
-                        st.session_state.mostrar_comissao_empresa = not st.session_state.mostrar_comissao_empresa
-                        st.rerun()
-
-                valor_comissao_tela = (
-                    dinheiro(total_empresa)
-                    if st.session_state.mostrar_comissao_empresa
-                    else "R$ •••••"
-                )
-
-                st.metric("🏦 Comissão empresa", valor_comissao_tela)
-
-                alteradas = df[df["alterado_vendedor"] == True]
-
-                if not alteradas.empty:
-                    st.warning(
-                        f"⚠️ Existem {len(alteradas)} proposta(s) alterada(s) pelo vendedor aguardando conferência."
-                    )
-
-            st.divider()
-            st.subheader("📄 Propostas")
-            st.caption("🟨 Pendente | 🟥 Pendente há mais de 1 hora no painel do admin")
-
-            if df.empty:
-                st.info("Nenhuma proposta encontrada.")
-            else:
-                if st.session_state.tipo == "admin":
-                    colunas = [
-                        "id",
-                        "data",
-                        "vendedor",
-                        "cliente",
-                        "cpf",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "alterado_vendedor",
-                        "observacao",
-                        "observacao_admin",
-                        "observacao_alteracao"
-                    ]
-                else:
-                    colunas = [
-                        "id",
-                        "data",
-                        "cliente",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "observacao"
-                    ]
-
-                colunas = [c for c in colunas if c in df.columns]
-
-                df_visao = df[colunas].copy()
-
-                if "valor" in df_visao.columns:
-                    df_visao["valor"] = df_visao["valor"].apply(dinheiro)
-
-                if "valor_comissao_empresa" in df_visao.columns:
-                    df_visao["valor_comissao_empresa"] = (
-                        df_visao["valor_comissao_empresa"].apply(dinheiro)
-                    )
-
-                st.dataframe(
-                    df_visao.style.apply(
-                        destacar_linhas_pendentes,
-                        tipo_usuario=st.session_state.tipo,
-                        axis=1
-                    ),
-                    use_container_width=True
-                )
-
-                # =========================
-                # AÇÕES RÁPIDAS ADMIN
-                # =========================
-
-                if st.session_state.tipo == "admin":
-                    st.divider()
-                    st.subheader("⚙️ Ações rápidas")
-
-                    acoes_df = df[["id", "cliente", "valor", "status", "conferido", "alterado_vendedor"]].copy()
-                    acoes_df["excluir"] = False
-
-                    editado = st.data_editor(
-                        acoes_df,
-                        use_container_width=True,
-                        disabled=["id", "cliente", "valor", "status", "alterado_vendedor"],
-                        hide_index=True
-                    )
-
-                    col_a, col_b = st.columns(2)
-
-                    with col_a:
-                        if st.button("✅ Salvar conferências"):
-                            for _, row in editado.iterrows():
-                                update = {"conferido": bool(row["conferido"])}
-
-                                if bool(row["conferido"]):
-                                    update["alterado_vendedor"] = False
-
-                                supabase.table("vendas").update(update).eq("id", int(row["id"])).execute()
-
-                            st.success("Conferências salvas!")
-                            st.rerun()
-
-                    with col_b:
-                        confirmar_exclusao = st.checkbox("Confirmo que quero excluir as propostas marcadas")
-
-                        if st.button("🗑️ Excluir propostas marcadas"):
-                            if not confirmar_exclusao:
-                                st.error("Marque a confirmação antes de excluir.")
-                            else:
-                                ids_excluir = editado[editado["excluir"] == True]["id"].tolist()
-
-                                if not ids_excluir:
-                                    st.warning("Nenhuma proposta marcada para excluir.")
-                                else:
-                                    for venda_id in ids_excluir:
-                                        supabase.table("vendas").delete().eq("id", int(venda_id)).execute()
-
-                                    st.success(f"{len(ids_excluir)} proposta(s) excluída(s)!")
-                                    st.rerun()
-
-                # =========================
-                # EDITAR PROPOSTA
-                # =========================
-
-                st.divider()
-                st.subheader("✏️ Editar proposta")
-
-                proposta_id = st.selectbox("Escolha a proposta", df["id"].tolist())
-
-                proposta = df[df["id"] == proposta_id].iloc[0]
-
-                bloqueada = (
-                    st.session_state.tipo != "admin"
-                    and bool(proposta.get("conferido", False)) is True
-                )
-
-                if bloqueada:
-                    st.warning("🔒 Esta proposta já foi conferida pelo admin. O vendedor não pode mais editar.")
-                else:
-                    with st.form("editar_proposta"):
-                        cliente_edit = st.text_input("Cliente", value=str(proposta.get("cliente", "") or ""))
-                        cpf_edit = st.text_input("CPF", value=str(proposta.get("cpf", "") or ""))
-                        cpf_edit_preview = limpar_documento(cpf_edit)
-
-                        if cpf_edit:
-                            if len(cpf_edit_preview) < 11:
-                                st.error(f"CPF incompleto: faltam {11 - len(cpf_edit_preview)} número(s).")
-                            elif len(cpf_edit_preview) > 11:
-                                st.error(f"CPF com números a mais: remova {len(cpf_edit_preview) - 11} número(s).")
-                            elif validar_cpf(cpf_edit_preview):
-                                st.success(f"CPF válido: {cpf_edit_preview}")
-                            else:
-                                st.error("CPF inválido. Confira os números digitados.")
-
-                        telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone", "") or ""))
-                        telefone_edit_preview = limpar_documento(telefone_edit)
-
-                        if telefone_edit:
-                            if len(telefone_edit_preview) < 10:
-                                st.error("Telefone incompleto. Informe DDD + número.")
-                            elif len(telefone_edit_preview) > 11:
-                                st.error(f"Telefone com números a mais: remova {len(telefone_edit_preview) - 11} número(s).")
-                            elif validar_telefone(telefone_edit_preview):
-                                st.success(f"Telefone válido: {telefone_edit_preview}")
-                            else:
-                                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
-
-                        tabelas_edit = carregar_tabelas()
-                        tabela_atual = str(proposta.get("tabela_banco", "") or proposta.get("produto", "") or "")
-                        tabela_index = tabelas_edit.index(tabela_atual) if tabela_atual in tabelas_edit else 0
-
-                        tabela_edit = st.selectbox("Tabela/Banco", tabelas_edit, index=tabela_index)
-
-                        valor_edit_texto = st.text_input(
-                            "Valor",
-                            value=dinheiro(proposta.get("valor") or 0).replace("R$ ", ""),
-                            placeholder="Ex: R$ 1.758,71"
-                        )
-
-                        valor_edit = converter_valor_brasileiro(valor_edit_texto)
-
-                        if valor_edit_texto:
-                            st.caption(f"Valor identificado: {dinheiro(valor_edit)}")
-
-                        status_lista = ["Pendente", "Pago", "Cancelado"]
-                        status_atual = str(proposta.get("status", "Pendente") or "Pendente")
-                        status_index = status_lista.index(status_atual) if status_atual in status_lista else 0
-
-                        status_edit = st.selectbox("Status", status_lista, index=status_index)
-
-                        observacao_edit = st.text_area(
-                            "Observação",
-                            value=str(proposta.get("observacao", "") or "")
-                        )
-
-                        if st.session_state.tipo == "admin":
-                            conferido_edit = st.checkbox(
-                                "✅ Conferido",
-                                value=bool(proposta.get("conferido", False))
-                            )
-
-                            observacao_admin_edit = st.text_area(
-                                "Observação admin",
-                                value=str(proposta.get("observacao_admin", "") or "")
-                            )
-                        else:
-                            observacao_alteracao_edit = st.text_area(
-                                "Motivo da alteração",
-                                placeholder="Ex: corrigi valor, telefone ou status..."
-                            )
-
-                        salvar_edit = st.form_submit_button("Salvar alterações")
-
-                        if salvar_edit:
-                            cpf_edit_limpo = limpar_documento(cpf_edit)
-                            telefone_edit_limpo = limpar_documento(telefone_edit)
-
-                            if not validar_cpf(cpf_edit_limpo):
-                                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
-                            elif not validar_telefone(telefone_edit_limpo):
-                                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
-                            elif valor_edit <= 0:
-                                st.error("Corrija o valor antes de salvar.")
-                            else:
-                                perc_empresa = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
-                                valor_empresa = float(valor_edit) * (perc_empresa / 100)
-
-                                dados_update = {
-                                "cliente": cliente_edit,
-                                "cpf": limpar_documento(cpf_edit),
-                                "telefone": limpar_documento(telefone_edit),
-                                "produto": tabela_edit,
-                                "tabela_banco": tabela_edit,
-                                "valor": valor_edit,
-                                "status": status_edit,
-                                "observacao": observacao_edit,
-                                "comissao_empresa": perc_empresa,
-                                "valor_comissao_empresa": valor_empresa
-                            }
-
-                                if st.session_state.tipo == "admin":
-                                    dados_update["conferido"] = conferido_edit
-                                    dados_update["alterado_vendedor"] = False
-                                    dados_update["observacao_admin"] = observacao_admin_edit
-                                else:
-                                    dados_update["alterado_vendedor"] = True
-                                    dados_update["data_alteracao_vendedor"] = str(datetime.now())
-                                    dados_update["observacao_alteracao"] = observacao_alteracao_edit
-                                    dados_update["conferido"] = False
-
-                                supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
-
-                                st.success("Proposta atualizada!")
-                                st.rerun()
-
-
-    # =========================
-    # USUÁRIOS
-    # =========================
-
-    elif menu == "👥 Usuários":
-        st.header("👥 Usuários")
-        st.subheader("➕ Criar usuário")
-
-        with st.form("novo_usuario"):
-            nome = st.text_input("Nome")
-            usuario = st.text_input("Usuário")
-            senha = st.text_input("Senha", type="password")
-            tipo = st.selectbox("Tipo", ["vendedor", "admin"])
-
-            criar = st.form_submit_button("Criar usuário")
-
-            if criar:
-                if not nome or not usuario or not senha:
-                    st.error("Preencha nome, usuário e senha.")
-                else:
-                    dados = {
-                        "nome": nome.strip(),
-                        "usuario": usuario.strip().lower(),
-                        "senha_hash": hash_senha(senha),
-                        "tipo": tipo,
-                        "ativo": True
-                    }
-
-                    supabase.table("usuarios").insert(dados).execute()
-                    st.success("Usuário criado!")
-                    st.rerun()
-
-        usuarios = supabase.table("usuarios").select("*").order("id").execute()
-        df_users = pd.DataFrame(usuarios.data)
-
-        if not df_users.empty:
-            st.subheader("📋 Usuários cadastrados")
-            st.dataframe(df_users[["id", "nome", "usuario", "tipo", "ativo"]], use_container_width=True)
-
-            st.divider()
-            st.subheader("✏️ Editar usuário")
-
-            user_id = st.selectbox("ID do usuário", df_users["id"].tolist())
-            user = df_users[df_users["id"] == user_id].iloc[0]
-
-            novo_nome = st.text_input("Nome", value=str(user.get("nome", "") or ""))
-            novo_login = st.text_input("Usuário/Login", value=str(user.get("usuario", "") or ""))
-
-            tipo_atual = str(user.get("tipo", "vendedor") or "vendedor")
-            tipo_index = 0 if tipo_atual == "vendedor" else 1
-
-            novo_tipo = st.selectbox("Tipo", ["vendedor", "admin"], index=tipo_index)
-
-            if st.button("Salvar usuário"):
-                supabase.table("usuarios").update({
-                    "nome": novo_nome.strip(),
-                    "usuario": novo_login.strip().lower(),
-                    "tipo": novo_tipo
-                }).eq("id", int(user_id)).execute()
-
-                st.success("Usuário atualizado!")
-                st.rerun()
-
-            st.divider()
-            st.subheader("🔑 Alterar senha")
-
-            nova_senha = st.text_input("Nova senha", type="password")
-
-            if st.button("Alterar senha"):
-                if nova_senha:
-                    supabase.table("usuarios").update({
-                        "senha_hash": hash_senha(nova_senha)
-                    }).eq("id", int(user_id)).execute()
-
-                    st.success("Senha alterada!")
-                    st.rerun()
-                else:
-                    st.error("Digite uma nova senha.")
-
-            st.divider()
-            st.subheader("✅ Ativar / Desativar")
-
-            if st.button("Alterar status"):
-                if str(user.get("usuario", "")).lower() == "admin":
-                    st.error("Não é permitido desativar o admin principal.")
-                else:
-                    supabase.table("usuarios").update({
-                        "ativo": not bool(user.get("ativo", True))
-                    }).eq("id", int(user_id)).execute()
-
-                    st.success("Status alterado!")
-                    st.rerun()
-
-            st.divider()
-            st.subheader("🗑️ Excluir usuário")
-
-            if st.button("Excluir usuário"):
-                if str(user.get("usuario", "")).lower() == "admin":
-                    st.error("Não é permitido excluir o admin principal.")
-                else:
-                    supabase.table("usuarios").delete().eq("id", int(user_id)).execute()
-                    st.success("Usuário excluído!")
-                    st.rerun()
-
-    # =========================
-    # COMISSÕES
-    # =========================
-
-    elif menu == "💰 Comissões":
-        st.header("💰 Regras de Comissão")
-        st.subheader("➕ Criar nova regra")
-
-        with st.form("nova_regra"):
-            produto = st.text_input("Tabela/Banco")
-            valor_minimo = st.number_input("Valor mínimo", min_value=0.0, step=1000.0)
-            percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
-
-            salvar = st.form_submit_button("Salvar regra")
-
-            if salvar:
-                if not produto:
-                    st.error("Preencha o nome da tabela/banco.")
-                else:
-                    supabase.table("regras_comissao").insert({
-                        "produto": produto.strip().upper(),
-                        "valor_minimo": valor_minimo,
-                        "percentual_empresa": percentual_empresa,
-                        "percentual_vendedor": 0,
-                        "ativo": True
-                    }).execute()
-
-                    st.success("Regra criada!")
-                    st.rerun()
-
-        regras = (
-            supabase.table("regras_comissao")
-            .select("*")
-            .order("produto")
-            .order("valor_minimo")
-            .execute()
-        )
-
-        df_regras = pd.DataFrame(regras.data)
-
-        if df_regras.empty:
-            st.warning("Nenhuma regra cadastrada.")
-        else:
-            st.subheader("📋 Regras cadastradas")
-            st.dataframe(df_regras, use_container_width=True)
-
-            st.divider()
-            st.subheader("✏️ Editar regra")
-
-            regra_id = st.selectbox("ID da regra", df_regras["id"].tolist())
-            regra = df_regras[df_regras["id"] == regra_id].iloc[0]
-
-            with st.form("editar_regra"):
-                produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto", "") or ""))
-                valor_minimo_edit = st.number_input(
-                    "Valor mínimo",
-                    min_value=0.0,
-                    step=1000.0,
-                    value=float(regra.get("valor_minimo") or 0)
-                )
-                percentual_empresa_edit = st.number_input(
-                    "% empresa",
-                    min_value=0.0,
-                    step=0.01,
-                    value=float(regra.get("percentual_empresa") or 0)
-                )
-                ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo", True)))
-
-                salvar_regra = st.form_submit_button("Salvar alterações")
-
-                if salvar_regra:
-                    supabase.table("regras_comissao").update({
-                        "produto": produto_edit.strip().upper(),
-                        "valor_minimo": valor_minimo_edit,
-                        "percentual_empresa": percentual_empresa_edit,
-                        "percentual_vendedor": 0,
-                        "ativo": ativo_edit
-                    }).eq("id", int(regra_id)).execute()
-
-                    st.success("Regra atualizada!")
-                    st.rerun()
-
-            st.divider()
-            st.subheader("🗑️ Excluir regra")
-
-            confirmar = st.checkbox("Confirmo que quero excluir esta regra")
-
-            if st.button("Excluir regra"):
-                if not confirmar:
-                    st.error("Marque a confirmação.")
-                else:
-                    supabase.table("regras_comissao").delete().eq("id", int(regra_id)).execute()
-                    st.success("Regra excluída!")
-                    st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mostrar_sidebar_logo():
+    """Renderiza o logo e nome OPERAX SALES no topo da sidebar."""
+    st.markdown(f"""
+    <div class="sidebar-logo-wrap">
+        <div class="sidebar-logo-icon">{logo_svg(46)}</div>
+        <div class="sidebar-logo-text">
+            <span class="name">OPERAX</span>
+            <span class="sub">— SALES —</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mostrar_usuario_sidebar(nome: str = "Administrador", online: bool = True):
+    """Renderiza o card do usuário logado na sidebar."""
+    status_dot = '<span class="dot"></span>' if online else ""
+    status_txt = "Online" if online else "Offline"
+    st.markdown(f"""
+    <div class="sidebar-user">
+        <div class="avatar">👤</div>
+        <div>
+            <div class="uname">{nome}</div>
+            <div class="ustatus">{status_dot} {status_txt}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mostrar_menu_label(label: str):
+    """Renderiza o label de seção do menu (ex: OPERAÇÃO, GESTÃO)."""
+    st.markdown(f'<div class="menu-label">{label}</div>', unsafe_allow_html=True)
+
+
+def mostrar_menu_ativo(label: str, icone_nome: str = "nova_venda"):
+    """Renderiza o item de menu ativo (selecionado)."""
+    svg = ICONES.get(icone_nome, ICONES["nova_venda"])
+    st.markdown(f"""
+    <div class="menu-item-ativo">
+        {svg}
+        <span>{label}</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def mostrar_chat_float(badge: int = 2):
+    """Renderiza o botão flutuante de chat no canto inferior direito."""
+    badge_html = f'<div class="chat-float-badge">{badge}</div>' if badge > 0 else ""
+    st.markdown(f"""
+    <div class="chat-float">
+        {ICONES['chat']}
+        {badge_html}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def form_card_inicio(titulo: str, icone_nome: str = "nova_venda"):
+    """Abre o container visual de um formulário/card."""
+    svg = ICONES.get(icone_nome, ICONES["nova_venda"])
+    st.markdown(f"""
+    <div class="form-card">
+        <div class="form-card-title">{svg} {titulo}</div>
+    """, unsafe_allow_html=True)
+
+
+def form_card_fim():
+    """Fecha o container visual de um formulário/card."""
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  EXEMPLO DE USO RÁPIDO
+# ══════════════════════════════════════════════════════════════════════
+
+if __name__ == "__main__":
+    st.set_page_config(page_title="OPERAX SALES", layout="wide", page_icon="💠")
+    aplicar_tema()
+
+    with st.sidebar:
+        mostrar_sidebar_logo()
+        mostrar_usuario_sidebar("Administrador")
+        mostrar_menu_label("OPERAÇÃO")
+        mostrar_menu_ativo("Nova Venda", "nova_venda")
+        st.button("📊 Painel")
+        mostrar_menu_label("GESTÃO")
+        st.button("👥 Usuários")
+        st.button("💰 Comissões")
+        st.button("🚪 Sair")
+
+    mostrar_topbar(notificacoes=2)
+    mostrar_cabecalho()
+    form_card_inicio("Cadastro de Venda", "nova_venda")
+    st.text_input("Cliente", placeholder="Digite o nome do cliente...")
+    st.text_input("CPF / CNPJ", placeholder="Ex: 999.999.999-99")
+    st.text_input("Telefone", placeholder="Ex: (11) 99976-7867")
+    form_card_fim()
+    mostrar_chat_float(2)
