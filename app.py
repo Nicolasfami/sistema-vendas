@@ -36,15 +36,44 @@ def dinheiro(valor):
 def limpar_documento(valor):
     return re.sub(r"\D", "", str(valor or ""))
 
-
 def validar_cpf(cpf):
     cpf_limpo = limpar_documento(cpf)
-    return len(cpf_limpo) == 11
+
+    if len(cpf_limpo) != 11:
+        return False
+
+    if cpf_limpo == cpf_limpo[0] * 11:
+        return False
+
+    soma = sum(int(cpf_limpo[i]) * (10 - i) for i in range(9))
+    digito1 = (soma * 10) % 11
+    if digito1 == 10:
+        digito1 = 0
+
+    soma = sum(int(cpf_limpo[i]) * (11 - i) for i in range(10))
+    digito2 = (soma * 10) % 11
+    if digito2 == 10:
+        digito2 = 0
+
+    return digito1 == int(cpf_limpo[9]) and digito2 == int(cpf_limpo[10])
 
 
 def validar_telefone(telefone):
     telefone_limpo = limpar_documento(telefone)
-    return len(telefone_limpo) in [10, 11]
+
+    if len(telefone_limpo) not in [10, 11]:
+        return False
+
+    ddd = telefone_limpo[:2]
+    numero = telefone_limpo[2:]
+
+    if ddd == "00":
+        return False
+
+    if len(telefone_limpo) == 11 and not numero.startswith("9"):
+        return False
+
+    return True
 
 
 def converter_valor_brasileiro(valor):
@@ -311,78 +340,74 @@ else:
 
         tabelas = carregar_tabelas()
 
-        with st.form("form_venda", clear_on_submit=True):
-            cliente = st.text_input("Cliente")
-            cpf_digitado = st.text_input(
-                "CPF",
-                placeholder="Ex: 266.384.088-28"
-            )
+        cliente = st.text_input("Cliente")
 
-            telefone_digitado = st.text_input(
-                "Telefone",
-                placeholder="Ex: (11) 91072-1110"
-            )
+        cpf_digitado = st.text_input(
+            "CPF",
+            placeholder="Ex: 266.384.088-28"
+        )
+        cpf = limpar_documento(cpf_digitado)
 
-            tabela_banco = st.selectbox("Tabela/Banco", tabelas)
+        if cpf_digitado:
+            if len(cpf) < 11:
+                st.error(f"CPF incompleto: faltam {11 - len(cpf)} número(s).")
+            elif len(cpf) > 11:
+                st.error(f"CPF com números a mais: remova {len(cpf) - 11} número(s).")
+            elif validar_cpf(cpf):
+                st.success(f"CPF válido: {cpf}")
+            else:
+                st.error("CPF inválido. Confira os números digitados.")
 
-            valor_digitado = st.text_input(
-                "Valor vendido",
-                placeholder="Ex: R$ 1.758,71"
-            )
+        telefone_digitado = st.text_input(
+            "Telefone",
+            placeholder="Ex: (11) 91072-1110"
+        )
+        telefone = limpar_documento(telefone_digitado)
 
-            cpf = limpar_documento(cpf_digitado)
-            telefone = limpar_documento(telefone_digitado)
-            valor = converter_valor_brasileiro(valor_digitado)
+        if telefone_digitado:
+            if len(telefone) < 10:
+                st.error("Telefone incompleto. Informe DDD + número.")
+            elif len(telefone) > 11:
+                st.error(f"Telefone com números a mais: remova {len(telefone) - 11} número(s).")
+            elif validar_telefone(telefone):
+                st.success(f"Telefone válido: {telefone}")
+            else:
+                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
 
-            if valor_digitado:
-                st.caption(f"Valor identificado: {dinheiro(valor)}")
+        tabela_banco = st.selectbox("Tabela/Banco", tabelas)
 
-            if cpf_digitado and cpf:
-                st.caption(f"CPF salvo como: {cpf}")
+        valor_digitado = st.text_input(
+            "Valor vendido",
+            placeholder="Ex: R$ 1.758,71"
+        )
+        valor = converter_valor_brasileiro(valor_digitado)
 
-            if telefone_digitado and telefone:
-                st.caption(f"Telefone salvo como: {telefone}")
+        if valor_digitado:
+            if valor > 0:
+                st.success(f"Valor válido: {dinheiro(valor)}")
+            else:
+                st.error("Valor inválido. Exemplo correto: R$ 1.758,71")
 
-            status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
+        status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
 
-            observacao = st.text_area("Observação")
+        observacao = st.text_area("Observação")
 
-            salvar = st.form_submit_button("Salvar venda")
-
+        if st.button("Salvar venda"):
             cpf_ok = validar_cpf(cpf)
             telefone_ok = validar_telefone(telefone)
             valor_ok = valor > 0
 
-            if cpf_digitado:
-                if cpf_ok:
-                    st.success(f"CPF válido: {cpf}")
-                else:
-                    st.warning(f"CPF inválido: precisa ter 11 números. Atual: {len(cpf)} número(s).")
+            if not cpf_ok:
+                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
+            elif not telefone_ok:
+                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
+            elif not valor_ok:
+                st.error("Corrija o valor antes de salvar.")
+            else:
+                perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
+                valor_empresa = float(valor) * (perc_empresa / 100)
 
-            if telefone_digitado:
-                if telefone_ok:
-                    st.success(f"Telefone válido: {telefone}")
-                else:
-                    st.warning(f"Telefone inválido: precisa ter DDD + número, com 10 ou 11 números. Atual: {len(telefone)} número(s).")
-
-            if valor_digitado:
-                if valor_ok:
-                    st.success(f"Valor válido: {dinheiro(valor)}")
-                else:
-                    st.warning("Valor inválido. Informe um valor maior que zero.")
-
-            if salvar:
-                if not cpf_ok:
-                    st.error("Corrija o CPF antes de salvar.")
-                elif not telefone_ok:
-                    st.error("Corrija o telefone antes de salvar.")
-                elif not valor_ok:
-                    st.error("Corrija o valor antes de salvar.")
-                else:
-                    perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
-                    valor_empresa = float(valor) * (perc_empresa / 100)
-
-                    dados = {
+                dados = {
                     "data": str(datetime.now()),
                     "vendedor_id": st.session_state.user_id,
                     "vendedor": st.session_state.usuario,
@@ -402,9 +427,9 @@ else:
                     "observacao": observacao
                 }
 
-                    supabase.table("vendas").insert(dados).execute()
-                    st.success("Venda cadastrada!")
-                    st.rerun()
+                supabase.table("vendas").insert(dados).execute()
+                st.success("Venda cadastrada!")
+                st.rerun()
 
     # =========================
     # PAINEL
@@ -652,7 +677,30 @@ else:
                     with st.form("editar_proposta"):
                         cliente_edit = st.text_input("Cliente", value=str(proposta.get("cliente", "") or ""))
                         cpf_edit = st.text_input("CPF", value=str(proposta.get("cpf", "") or ""))
+                        cpf_edit_preview = limpar_documento(cpf_edit)
+
+                        if cpf_edit:
+                            if len(cpf_edit_preview) < 11:
+                                st.error(f"CPF incompleto: faltam {11 - len(cpf_edit_preview)} número(s).")
+                            elif len(cpf_edit_preview) > 11:
+                                st.error(f"CPF com números a mais: remova {len(cpf_edit_preview) - 11} número(s).")
+                            elif validar_cpf(cpf_edit_preview):
+                                st.success(f"CPF válido: {cpf_edit_preview}")
+                            else:
+                                st.error("CPF inválido. Confira os números digitados.")
+
                         telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone", "") or ""))
+                        telefone_edit_preview = limpar_documento(telefone_edit)
+
+                        if telefone_edit:
+                            if len(telefone_edit_preview) < 10:
+                                st.error("Telefone incompleto. Informe DDD + número.")
+                            elif len(telefone_edit_preview) > 11:
+                                st.error(f"Telefone com números a mais: remova {len(telefone_edit_preview) - 11} número(s).")
+                            elif validar_telefone(telefone_edit_preview):
+                                st.success(f"Telefone válido: {telefone_edit_preview}")
+                            else:
+                                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
 
                         tabelas_edit = carregar_tabelas()
                         tabela_atual = str(proposta.get("tabela_banco", "") or proposta.get("produto", "") or "")
@@ -700,26 +748,14 @@ else:
 
                         salvar_edit = st.form_submit_button("Salvar alterações")
 
-                        cpf_edit_limpo = limpar_documento(cpf_edit)
-                        telefone_edit_limpo = limpar_documento(telefone_edit)
-
-                        if cpf_edit:
-                            if validar_cpf(cpf_edit_limpo):
-                                st.success(f"CPF válido: {cpf_edit_limpo}")
-                            else:
-                                st.warning(f"CPF inválido: precisa ter 11 números. Atual: {len(cpf_edit_limpo)} número(s).")
-
-                        if telefone_edit:
-                            if validar_telefone(telefone_edit_limpo):
-                                st.success(f"Telefone válido: {telefone_edit_limpo}")
-                            else:
-                                st.warning(f"Telefone inválido: precisa ter DDD + número, com 10 ou 11 números. Atual: {len(telefone_edit_limpo)} número(s).")
-
                         if salvar_edit:
+                            cpf_edit_limpo = limpar_documento(cpf_edit)
+                            telefone_edit_limpo = limpar_documento(telefone_edit)
+
                             if not validar_cpf(cpf_edit_limpo):
-                                st.error("Corrija o CPF antes de salvar.")
+                                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
                             elif not validar_telefone(telefone_edit_limpo):
-                                st.error("Corrija o telefone antes de salvar.")
+                                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
                             elif valor_edit <= 0:
                                 st.error("Corrija o valor antes de salvar.")
                             else:
@@ -728,8 +764,8 @@ else:
 
                                 dados_update = {
                                 "cliente": cliente_edit,
-                                "cpf": cpf_edit_limpo,
-                                "telefone": telefone_edit_limpo,
+                                "cpf": limpar_documento(cpf_edit),
+                                "telefone": limpar_documento(telefone_edit),
                                 "produto": tabela_edit,
                                 "tabela_banco": tabela_edit,
                                 "valor": valor_edit,
