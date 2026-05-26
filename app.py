@@ -316,6 +316,60 @@ st.markdown("""
     header {
         background: transparent !important;
     }
+
+    /* ===== PATCH FINAL: LOGO OPERAX + CORREÇÃO DO QUADRADO BRANCO ===== */
+
+    .sidebar-logo-v8 img {
+        width: 190px !important;
+        max-width: 190px !important;
+        height: auto !important;
+        object-fit: contain !important;
+        filter: drop-shadow(0 0 18px rgba(56,189,248,0.55)) !important;
+    }
+
+    .crm-hero img {
+        width: 260px !important;
+        max-width: 260px !important;
+        height: auto !important;
+        object-fit: contain !important;
+        filter: drop-shadow(0 0 18px rgba(14,165,233,0.18)) !important;
+    }
+
+    /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
+    .menu-ativo-v8 pre,
+    .menu-ativo-v8 code,
+    .menu-ativo-v8 div:not(:first-child),
+    .menu-ativo-v8 p {
+        display: none !important;
+    }
+
+    .menu-ativo-v8 {
+        min-height: 58px !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+    }
+
+    .menu-ativo-v8 * {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .menu-ativo-v8 .menu-icon-safe {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 24px !important;
+        font-size: 20px !important;
+        color: #ffffff !important;
+    }
+
+    .menu-ativo-v8 .menu-text-safe {
+        display: inline-flex !important;
+        color: #ffffff !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -324,12 +378,12 @@ def mostrar_cabecalho():
     logo_path = Path("logo_operax.png")
 
     st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([1.35, 7])
+    col_logo, col_titulo = st.columns([2.35, 5.8])
 
     with col_logo:
         try:
             if logo_path.exists() and logo_path.stat().st_size > 100:
-                st.image(str(logo_path), width=180)
+                st.image(str(logo_path), width=260)
             else:
                 st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
         except Exception:
@@ -749,7 +803,61 @@ def mostrar_chat_popup():
                 border-radius: 999px;
                 animation: piscarChat 1s infinite;
             }
-        </style>
+        
+    /* ===== PATCH FINAL: LOGO OPERAX + CORREÇÃO DO QUADRADO BRANCO ===== */
+
+    .sidebar-logo-v8 img {
+        width: 190px !important;
+        max-width: 190px !important;
+        height: auto !important;
+        object-fit: contain !important;
+        filter: drop-shadow(0 0 18px rgba(56,189,248,0.55)) !important;
+    }
+
+    .crm-hero img {
+        width: 260px !important;
+        max-width: 260px !important;
+        height: auto !important;
+        object-fit: contain !important;
+        filter: drop-shadow(0 0 18px rgba(14,165,233,0.18)) !important;
+    }
+
+    /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
+    .menu-ativo-v8 pre,
+    .menu-ativo-v8 code,
+    .menu-ativo-v8 div:not(:first-child),
+    .menu-ativo-v8 p {
+        display: none !important;
+    }
+
+    .menu-ativo-v8 {
+        min-height: 58px !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+    }
+
+    .menu-ativo-v8 * {
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    .menu-ativo-v8 .menu-icon-safe {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-width: 24px !important;
+        font-size: 20px !important;
+        color: #ffffff !important;
+    }
+
+    .menu-ativo-v8 .menu-text-safe {
+        display: inline-flex !important;
+        color: #ffffff !important;
+        font-size: 16px !important;
+        font-weight: 900 !important;
+    }
+
+</style>
         """, unsafe_allow_html=True)
 
     col_spacer, col_chat = st.columns([8, 1.8])
@@ -861,42 +969,12 @@ def mostrar_chat_popup():
 
 def icone_svg(nome):
     icones = {
-        "nova": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M7 3h7l4 4v14H7V3Z"/>
-            <path d="M14 3v5h5"/>
-            <path d="M9 14h6"/>
-            <path d="M12 11v6"/>
-        </svg>
-        """,
-        "painel": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M4 19V5"/>
-            <path d="M4 19h16"/>
-            <path d="M8 16v-5"/>
-            <path d="M12 16V8"/>
-            <path d="M16 16v-7"/>
-            <path d="M20 16v-3"/>
-        </svg>
-        """,
-        "usuarios": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-            <circle cx="9.5" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        """,
-        "comissoes": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 2v20"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-            <path d="M19 9l2-2-2-2"/>
-            <path d="M5 15l-2 2 2 2"/>
-        </svg>
-        """
+        "nova": "▣",
+        "painel": "▥",
+        "usuarios": "◉",
+        "comissoes": "$",
     }
-    return icones.get(nome, "")
+    return icones.get(nome, "•")
 
 
 def menu_lateral_v8():
@@ -921,10 +999,10 @@ def menu_lateral_v8():
     try:
         if logo_path.exists() and logo_path.stat().st_size > 100:
             st.sidebar.markdown('<div class="sidebar-logo-v8">', unsafe_allow_html=True)
-            st.sidebar.image(str(logo_path), width=185)
+            st.sidebar.image(str(logo_path), width=190)
             st.sidebar.markdown('</div>', unsafe_allow_html=True)
         else:
-            raise Exception("Logo não encontrado ou inválido")
+            raise Exception("Logo inválido")
     except Exception:
         st.sidebar.markdown(
             """
@@ -965,35 +1043,26 @@ def menu_lateral_v8():
             )
             grupo_atual = grupo
 
-        svg = icone_svg(icone_nome)
+        icone = icone_svg(icone_nome)
 
         if st.session_state.menu_atual == nome:
             st.sidebar.markdown(
                 f"""
                 <div class="menu-ativo-v8">
-                    {svg}
-                    <span>{nome_limpo}</span>
+                    <span class="menu-icon-safe">{icone}</span>
+                    <span class="menu-text-safe">{nome_limpo}</span>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
         else:
-            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
-
-            with col_icon:
-                st.markdown(
-                    f'<div class="menu-svg-v8">{svg}</div>',
-                    unsafe_allow_html=True
-                )
-
-            with col_btn:
-                if st.button(
-                    nome_limpo,
-                    key=f"menu_{nome}",
-                    use_container_width=True
-                ):
-                    st.session_state.menu_atual = nome
-                    st.rerun()
+            if st.sidebar.button(
+                f"{icone}   {nome_limpo}",
+                key=f"menu_{nome}",
+                use_container_width=True
+            ):
+                st.session_state.menu_atual = nome
+                st.rerun()
 
     st.sidebar.markdown("---")
 
