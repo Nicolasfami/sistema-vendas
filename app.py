@@ -511,33 +511,81 @@ def destacar_linhas_pendentes(row, tipo_usuario):
 
 
 
-def carregar_mensagens_chat(limite=80):
+def carregar_usuarios_chat():
     try:
+        res = (
+            supabase.table("usuarios")
+            .select("id,nome,usuario,tipo,ativo")
+            .eq("ativo", True)
+            .order("nome")
+            .execute()
+        )
+
+        usuarios = res.data or []
+
+        return [
+            u for u in usuarios
+            if int(u.get("id")) != int(st.session_state.user_id)
+        ]
+
+    except Exception:
+        return []
+
+
+def carregar_mensagens_chat(destinatario_id, limite=80):
+    try:
+        meu_id = int(st.session_state.user_id)
+        outro_id = int(destinatario_id)
+
         res = (
             supabase.table("chat_interno")
             .select("*")
             .order("criado_em", desc=True)
-            .limit(limite)
+            .limit(300)
             .execute()
         )
 
-        mensagens = res.data or []
+        todas = res.data or []
+
+        mensagens = []
+
+        for msg in todas:
+            origem = msg.get("usuario_id")
+            destino = msg.get("destinatario_id")
+
+            try:
+                origem = int(origem) if origem is not None else None
+                destino = int(destino) if destino is not None else None
+            except Exception:
+                origem = None
+                destino = None
+
+            # Mensagens privadas entre eu e o usuário escolhido.
+            if (
+                (origem == meu_id and destino == outro_id)
+                or
+                (origem == outro_id and destino == meu_id)
+            ):
+                mensagens.append(msg)
+
+        mensagens = mensagens[-limite:]
         mensagens.reverse()
+
         return mensagens
 
     except Exception:
         return []
 
 
-def enviar_mensagem_chat(usuario_id, nome, tipo, mensagem):
+def enviar_mensagem_chat(usuario_id, destinatario_id, nome, tipo, mensagem):
     supabase.table("chat_interno").insert({
         "usuario_id": usuario_id,
+        "destinatario_id": destinatario_id,
         "nome": nome,
         "tipo": tipo,
         "mensagem": mensagem,
         "criado_em": str(datetime.now())
     }).execute()
-
 
 
 def mostrar_chat_popup():
@@ -547,26 +595,44 @@ def mostrar_chat_popup():
         try:
             chat_context = st.popover("💬 Chat", use_container_width=True)
         except Exception:
-            chat_context = st.expander("💬 Chat da equipe", expanded=False)
+            chat_context = st.expander("💬 Chat", expanded=False)
 
     with chat_context:
-        st.markdown("### Chat da equipe")
+        st.markdown("### Chat interno")
 
-        mensagens = carregar_mensagens_chat(60)
+        usuarios_chat = carregar_usuarios_chat()
+
+        if not usuarios_chat:
+            st.info("Nenhum outro usuário ativo encontrado.")
+            return
+
+        opcoes = {
+            f"{u.get('nome', u.get('usuario'))} ({u.get('tipo', '')})": u
+            for u in usuarios_chat
+        }
+
+        escolhido_label = st.selectbox(
+            "Enviar mensagem para",
+            list(opcoes.keys())
+        )
+
+        usuario_destino = opcoes[escolhido_label]
+        destinatario_id = int(usuario_destino["id"])
+
+        mensagens = carregar_mensagens_chat(destinatario_id, 80)
 
         chat_area = st.container(height=360)
 
         with chat_area:
             if not mensagens:
-                st.info("Nenhuma mensagem ainda.")
+                st.info("Nenhuma mensagem nessa conversa ainda.")
             else:
                 for msg in mensagens:
                     nome_msg = msg.get("nome", "Usuário")
-                    tipo_msg = msg.get("tipo", "")
                     texto_msg = msg.get("mensagem", "")
                     data_msg = str(msg.get("criado_em", ""))[:16]
 
-                    if msg.get("usuario_id") == st.session_state.user_id:
+                    if int(msg.get("usuario_id")) == int(st.session_state.user_id):
                         st.markdown(
                             f"""
                             <div style="
@@ -597,7 +663,7 @@ def mostrar_chat_popup():
                                 max-width:88%;
                                 box-shadow:0 8px 20px rgba(15,23,42,0.06);
                             ">
-                                <div style="font-size:12px;color:#64748b;font-weight:700;">{nome_msg} • {tipo_msg} • {data_msg}</div>
+                                <div style="font-size:12px;color:#64748b;font-weight:700;">{nome_msg} • {data_msg}</div>
                                 <div style="font-size:15px;color:#111827;">{texto_msg}</div>
                             </div>
                             """,
@@ -605,7 +671,11 @@ def mostrar_chat_popup():
                         )
 
         with st.form("form_chat_popup", clear_on_submit=True):
-            mensagem = st.text_input("Mensagem", placeholder="Digite uma mensagem...")
+            mensagem = st.text_input(
+                "Mensagem",
+                placeholder=f"Digite uma mensagem para {usuario_destino.get('nome', 'usuário')}..."
+            )
+
             enviar = st.form_submit_button("Enviar")
 
             if enviar:
@@ -614,11 +684,13 @@ def mostrar_chat_popup():
                 else:
                     enviar_mensagem_chat(
                         st.session_state.user_id,
+                        destinatario_id,
                         st.session_state.nome,
                         st.session_state.tipo,
                         mensagem.strip()
                     )
                     st.rerun()
+
 
 # =========================
 # LOGIN
@@ -672,8 +744,6 @@ else:
 
     if menu == "📋 Nova Venda":
         st.header("📋 Cadastro de Venda")
-        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
-
         tabelas = carregar_tabelas()
 
         cliente = st.text_input("Cliente")
@@ -767,16 +837,12 @@ else:
                 st.success("Venda cadastrada!")
                 st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
     # =========================
     # PAINEL
     # =========================
 
     elif menu == "📊 Painel":
         st.header("📊 Painel de Vendas")
-        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
-
         df = preparar_dataframe_vendas()
 
         if df.empty:
@@ -1129,8 +1195,6 @@ else:
                                 st.success("Proposta atualizada!")
                                 st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
 
     # =========================
     # USUÁRIOS
@@ -1138,8 +1202,6 @@ else:
 
     elif menu == "👥 Usuários":
         st.header("👥 Usuários")
-        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
-
         st.subheader("➕ Criar usuário")
 
         with st.form("novo_usuario"):
@@ -1238,16 +1300,12 @@ else:
                     st.success("Usuário excluído!")
                     st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
     # =========================
     # COMISSÕES
     # =========================
 
     elif menu == "💰 Comissões":
         st.header("💰 Regras de Comissão")
-        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
-
         st.subheader("➕ Criar nova regra")
 
         with st.form("nova_regra"):
