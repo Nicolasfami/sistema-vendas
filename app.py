@@ -37,6 +37,16 @@ def limpar_documento(valor):
     return re.sub(r"\D", "", str(valor or ""))
 
 
+def validar_cpf(cpf):
+    cpf_limpo = limpar_documento(cpf)
+    return len(cpf_limpo) == 11
+
+
+def validar_telefone(telefone):
+    telefone_limpo = limpar_documento(telefone)
+    return len(telefone_limpo) in [10, 11]
+
+
 def converter_valor_brasileiro(valor):
     texto = str(valor or "").strip()
 
@@ -340,6 +350,18 @@ else:
             salvar = st.form_submit_button("Salvar venda")
 
             if salvar:
+                if not validar_cpf(cpf):
+                    st.error("CPF inválido. O CPF precisa ter exatamente 11 números.")
+                    st.stop()
+
+                if not validar_telefone(telefone):
+                    st.error("Telefone inválido. Informe DDD + número. Exemplo: 11910721110.")
+                    st.stop()
+
+                if valor <= 0:
+                    st.error("Valor inválido. Informe um valor maior que zero.")
+                    st.stop()
+
                 perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
                 valor_empresa = float(valor) * (perc_empresa / 100)
 
@@ -662,13 +684,28 @@ else:
                         salvar_edit = st.form_submit_button("Salvar alterações")
 
                         if salvar_edit:
+                            cpf_edit_limpo = limpar_documento(cpf_edit)
+                            telefone_edit_limpo = limpar_documento(telefone_edit)
+
+                            if not validar_cpf(cpf_edit_limpo):
+                                st.error("CPF inválido. O CPF precisa ter exatamente 11 números.")
+                                st.stop()
+
+                            if not validar_telefone(telefone_edit_limpo):
+                                st.error("Telefone inválido. Informe DDD + número. Exemplo: 11910721110.")
+                                st.stop()
+
+                            if valor_edit <= 0:
+                                st.error("Valor inválido. Informe um valor maior que zero.")
+                                st.stop()
+
                             perc_empresa = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
                             valor_empresa = float(valor_edit) * (perc_empresa / 100)
 
                             dados_update = {
                                 "cliente": cliente_edit,
-                                "cpf": limpar_documento(cpf_edit),
-                                "telefone": limpar_documento(telefone_edit),
+                                "cpf": cpf_edit_limpo,
+                                "telefone": telefone_edit_limpo,
                                 "produto": tabela_edit,
                                 "tabela_banco": tabela_edit,
                                 "valor": valor_edit,
