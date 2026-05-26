@@ -204,12 +204,12 @@ section[data-testid="stSidebar"] > div {
 
 /* HEADER PRINCIPAL DARK */
 .crm-hero {
-    background: linear-gradient(135deg, #ffffff, #eff6ff);
-    border: 1.5px solid rgba(14,165,233,0.40);
+    background: linear-gradient(135deg, rgba(3,18,45,0.97), rgba(4,22,55,0.95));
+    border: 1px solid rgba(56,189,248,0.25);
     border-radius: 22px;
     padding: 22px 28px;
     margin-bottom: 26px;
-    box-shadow: 0 0 22px rgba(14,165,233,0.14), 0 8px 32px rgba(0,0,0,0.06);
+    box-shadow: 0 0 0 1px rgba(56,189,248,0.08), 0 0 40px rgba(14,165,233,0.15), 0 16px 48px rgba(0,0,0,0.40);
     position: relative;
     overflow: hidden;
 }
@@ -219,7 +219,7 @@ section[data-testid="stSidebar"] > div {
     position: absolute;
     top: -60px; right: -60px;
     width: 220px; height: 220px;
-    background: radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%);
     pointer-events: none;
 }
 
@@ -239,7 +239,7 @@ section[data-testid="stSidebar"] > div {
     color: #ffffff !important;
     margin: 0;
     letter-spacing: 0.06em;
-    text-shadow: 0 0 22px rgba(56,189,248,0.55) !important;
+    text-shadow: 0 0 25px rgba(56,189,248,0.50);
 }
 
 .crm-title span {
@@ -324,38 +324,38 @@ section[data-testid="stSidebar"] > div {
     opacity: 0.80;
 }
 
-/* INPUTS CLAROS COM BORDA NEON */
+/* INPUTS ESCUROS COM BORDA NEON */
 div[data-testid="stTextInput"] input,
 div[data-testid="stNumberInput"] input,
 div[data-testid="stTextArea"] textarea {
-    background: #ffffff !important;
-    border: 1.5px solid rgba(56,189,248,0.45) !important;
+    background: rgba(5,14,40,0.97) !important;
+    border: 1.5px solid rgba(14,165,233,0.55) !important;
     border-radius: 12px !important;
-    color: #0f172a !important;
-    box-shadow: 0 0 0 0px rgba(14,165,233,0.10);
+    color: #e2f4ff !important;
+    box-shadow: 0 0 8px rgba(14,165,233,0.10);
 }
 
 div[data-testid="stTextInput"] input:focus,
 div[data-testid="stTextArea"] textarea:focus {
     border-color: #0ea5e9 !important;
-    box-shadow: 0 0 0 3px rgba(14,165,233,0.18) !important;
+    box-shadow: 0 0 0 3px rgba(14,165,233,0.20), 0 0 16px rgba(14,165,233,0.20) !important;
 }
 
 div[data-testid="stTextInput"] input::placeholder,
 div[data-testid="stTextArea"] textarea::placeholder {
-    color: #94a3b8 !important;
+    color: rgba(125,211,252,0.35) !important;
 }
 
-/* SELECT CLARO COM BORDA NEON */
+/* SELECT ESCURO COM BORDA NEON */
 div[data-baseweb="select"] {
-    background: #ffffff !important;
-    border: 1.5px solid rgba(56,189,248,0.45) !important;
+    background: rgba(5,14,40,0.97) !important;
+    border: 1.5px solid rgba(14,165,233,0.55) !important;
     border-radius: 12px !important;
 }
 
 div[data-baseweb="select"] * {
-    background: #ffffff !important;
-    color: #0f172a !important;
+    background: rgba(5,14,40,0.97) !important;
+    color: #e2f4ff !important;
 }
 
 /* LABELS */
@@ -364,10 +364,10 @@ div[data-baseweb="select"] * {
 [data-testid="stTextArea"] label,
 [data-testid="stSelectbox"] label,
 .stCheckbox label {
-    color: #0ea5e9 !important;
+    color: #38bdf8 !important;
     font-weight: 700 !important;
     font-size: 12px !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.10em !important;
     text-transform: uppercase !important;
 }
 
@@ -388,35 +388,35 @@ div[data-baseweb="select"] * {
     transform: translateY(-1px) !important;
 }
 
-/* METRICAS CLARAS COM BORDA NEON */
+/* METRICAS ESCURAS COM BORDA NEON */
 div[data-testid="stMetric"] {
-    background: #ffffff !important;
-    border: 1.5px solid rgba(14,165,233,0.45) !important;
+    background: rgba(3,18,45,0.90) !important;
+    border: 1.5px solid rgba(14,165,233,0.40) !important;
     border-radius: 16px !important;
     padding: 18px 20px !important;
-    box-shadow: 0 0 14px rgba(14,165,233,0.12), 0 4px 16px rgba(0,0,0,0.06) !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.14), 0 8px 24px rgba(0,0,0,0.35) !important;
 }
 
 div[data-testid="stMetric"] label {
-    color: #0ea5e9 !important;
+    color: #38bdf8 !important;
     font-size: 11px !important;
     font-weight: 700 !important;
-    letter-spacing: 0.08em !important;
+    letter-spacing: 0.10em !important;
     text-transform: uppercase !important;
 }
 
 div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-    color: #0f172a !important;
+    color: #ffffff !important;
     font-weight: 800 !important;
     font-size: 24px !important;
 }
 
-/* DATAFRAME CLARO COM BORDA NEON */
+/* DATAFRAME ESCURO COM BORDA NEON */
 .stDataFrame {
     border-radius: 14px !important;
     overflow: hidden !important;
-    border: 1.5px solid rgba(14,165,233,0.35) !important;
-    box-shadow: 0 0 18px rgba(14,165,233,0.10) !important;
+    border: 1px solid rgba(56,189,248,0.22) !important;
+    box-shadow: 0 0 18px rgba(14,165,233,0.12) !important;
 }
 
 /* HEADERS */
@@ -456,11 +456,10 @@ h1, h2, h3 {
 
 /* FORM */
 div[data-testid="stForm"] {
-    background: #ffffff !important;
-    border: 1.5px solid rgba(14,165,233,0.30) !important;
+    background: rgba(3,18,45,0.60) !important;
+    border: 1px solid rgba(56,189,248,0.18) !important;
     border-radius: 16px !important;
     padding: 20px !important;
-    box-shadow: 0 0 18px rgba(14,165,233,0.08) !important;
 }
 
 /* DIVIDER */
@@ -476,8 +475,8 @@ hr { border-color: rgba(14,165,233,0.25) !important; }
 }
 
 /* TEXTO GERAL */
-.stApp p, .stApp span, .stApp div { color: #0f172a; }
-.stCaption, small { color: #0369a1 !important; opacity: 1; }
+.stApp p, .stApp span, .stApp div { color: #cbd5e1; }
+.stCaption, small { color: #38bdf8 !important; opacity: 0.9; }
 
 header { background: transparent !important; }
 
