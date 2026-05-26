@@ -1083,6 +1083,7 @@ def menu_lateral_v8():
         opcoes = [
             ("📋 Nova Venda", "nova", "Operação"),
             ("📊 Painel", "painel", "Operação"),
+            ("🏆 Ranking", "ranking", "Operação"),
             ("👥 Usuários", "usuarios", "Gestão"),
             ("💰 Comissões", "comissoes", "Gestão"),
         ]
@@ -1090,6 +1091,7 @@ def menu_lateral_v8():
         opcoes = [
             ("📋 Nova Venda", "nova", "Operação"),
             ("📊 Painel", "painel", "Operação"),
+            ("🏆 Ranking", "ranking", "Operação"),
         ]
 
     logo_path = achar_logo()
@@ -1140,6 +1142,7 @@ def menu_lateral_v8():
             .replace("📊 ", "")
             .replace("👥 ", "")
             .replace("💰 ", "")
+            .replace("🏆 ", "")
         )
 
         if grupo != grupo_atual:
@@ -1882,6 +1885,110 @@ else:
     # =========================
     # USUÁRIOS
     # =========================
+
+    elif menu == "🏆 Ranking":
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Ranking de Vendas</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        df_rank = preparar_dataframe_vendas()
+
+        if df_rank.empty:
+            st.warning("Nenhuma venda cadastrada.")
+        else:
+            meses_r = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
+                       7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+
+            col_r1, col_r2 = st.columns(2)
+            mes_r = col_r1.selectbox("Mês", list(meses_r.values()), index=datetime.now().month-1, key="rank_mes")
+            anos_r = sorted(df_rank["ano"].dropna().unique().astype(int).tolist(), reverse=True)
+            ano_r = col_r2.selectbox("Ano", anos_r if anos_r else [datetime.now().year], key="rank_ano")
+
+            mes_num_r = [k for k,v in meses_r.items() if v == mes_r][0]
+            df_rank = df_rank[(df_rank["mes_num"] == mes_num_r) & (df_rank["ano"] == ano_r)]
+
+            if df_rank.empty:
+                st.info("Nenhuma venda neste período.")
+            else:
+                # KPIs gerais
+                total_geral   = df_rank["valor"].fillna(0).sum()
+                total_pago_r  = df_rank[df_rank["status"] == "Pago"]["valor"].fillna(0).sum()
+                total_pend_r  = df_rank[df_rank["status"].isin(["Pendente","Aguardando Pagamento","Aguardando Assinatura"])]["valor"].fillna(0).sum()
+                qtd_total     = len(df_rank)
+                qtd_pago      = len(df_rank[df_rank["status"] == "Pago"])
+                pct_pago      = round((qtd_pago / qtd_total * 100), 1) if qtd_total > 0 else 0
+
+                st.markdown("""<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin:16px 0 10px;">KPIs do Período</div>""", unsafe_allow_html=True)
+
+                k1, k2, k3, k4, k5 = st.columns(5)
+                k1.metric("💰 Total Geral",    dinheiro(total_geral))
+                k2.metric("✅ Total Pago",      dinheiro(total_pago_r))
+                k3.metric("⏳ Total Pendente",  dinheiro(total_pend_r))
+                k4.metric("📋 Contratos",       qtd_total)
+                k5.metric("🎯 % Pagos",         f"{pct_pago}%")
+
+                st.markdown("""<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin:22px 0 10px;">🏆 Ranking por Vendedor</div>""", unsafe_allow_html=True)
+
+                # Agrupa por vendedor
+                grp = df_rank.groupby("vendedor").agg(
+                    total_vendido=("valor", "sum"),
+                    contratos=("id", "count"),
+                    total_pago=("valor", lambda x: x[df_rank.loc[x.index,"status"]=="Pago"].sum()),
+                    contratos_pagos=("status", lambda x: (x=="Pago").sum()),
+                ).reset_index()
+
+                grp["pct_pagos"] = (grp["contratos_pagos"] / grp["contratos"] * 100).round(1)
+                grp["ticket_medio"] = (grp["total_vendido"] / grp["contratos"]).round(2)
+                grp = grp.sort_values("total_pago", ascending=False).reset_index(drop=True)
+                grp.index += 1
+
+                medalhas = {1:"🥇", 2:"🥈", 3:"🥉"}
+
+                for i, row in grp.iterrows():
+                    medalha = medalhas.get(i, f"#{i}")
+                    pct_bar = min(int(row["pct_pagos"]), 100)
+                    bar_color = "#22c55e" if pct_bar >= 70 else "#f59e0b" if pct_bar >= 40 else "#ef4444"
+
+                    st.markdown(f"""
+                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:18px 22px;margin-bottom:12px;box-shadow:0 4px 16px rgba(14,165,233,0.08);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                            <div style="display:flex;align-items:center;gap:14px;">
+                                <span style="font-size:28px;">{medalha}</span>
+                                <div>
+                                    <div style="font-size:16px;font-weight:800;color:#0f172a;">{row["vendedor"]}</div>
+                                    <div style="font-size:12px;color:#64748b;margin-top:2px;">Ticket médio: {dinheiro(row["ticket_medio"])}</div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px;font-weight:700;color:#0ea5e9;text-transform:uppercase;letter-spacing:0.08em;">Total Vendido</div>
+                                    <div style="font-size:18px;font-weight:800;color:#0f172a;">{dinheiro(row["total_vendido"])}</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px;font-weight:700;color:#22c55e;text-transform:uppercase;letter-spacing:0.08em;">Total Pago</div>
+                                    <div style="font-size:18px;font-weight:800;color:#16a34a;">{dinheiro(row["total_pago"])}</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:0.08em;">Contratos</div>
+                                    <div style="font-size:18px;font-weight:800;color:#0f172a;">{int(row["contratos"])}</div>
+                                </div>
+                                <div style="text-align:center;">
+                                    <div style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:0.08em;">% Pagos</div>
+                                    <div style="font-size:18px;font-weight:800;color:#0f172a;">{row["pct_pagos"]}%</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top:14px;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                            <div style="width:{pct_bar}%;height:100%;background:{bar_color};border-radius:999px;transition:width 0.5s;"></div>
+                        </div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">{int(row["contratos_pagos"])} de {int(row["contratos"])} contratos pagos</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     elif menu == "👥 Usuários":
         st.markdown("""
