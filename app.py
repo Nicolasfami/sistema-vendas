@@ -310,7 +310,7 @@ else:
 
             st.subheader("🔎 Filtros")
 
-            col_f1, col_f2, col_f3 = st.columns(3)
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
             mes_nome = col_f1.selectbox(
                 "Mês",
@@ -328,7 +328,14 @@ else:
 
             ano_filtro = col_f2.selectbox("Ano", anos)
 
-            status_filtro = col_f3.selectbox(
+            dias = ["Todos"] + list(range(1, 32))
+
+            dia_filtro = col_f3.selectbox(
+                "Dia",
+                dias
+            )
+
+            status_filtro = col_f4.selectbox(
                 "Status",
                 ["Todos", "Pago", "Pendente", "Cancelado"]
             )
@@ -343,6 +350,9 @@ else:
             mes_num = [k for k, v in meses.items() if v == mes_nome][0]
 
             df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
+
+            if dia_filtro != "Todos":
+                df = df[df["data"].dt.day == int(dia_filtro)]
 
             # VENDEDOR VÊ SOMENTE AS PRÓPRIAS VENDAS PELO ID
             if st.session_state.tipo != "admin":
@@ -775,53 +785,3 @@ else:
                     supabase.table("regras_comissao").delete().eq("id", int(regra_id)).execute()
                     st.success("Regra excluída!")
                     st.rerun()
-
-
-
-
-# =========================================================
-# PATCH FILTRO DE DIA
-# =========================================================
-
-# PROCURE:
-# col_f1, col_f2, col_f3 = st.columns(3)
-
-# TROQUE POR:
-# col_f1, col_f2, col_f3, col_f4 = st.columns(4)
-
-
-# PROCURE:
-# status_filtro = col_f3.selectbox(
-#     "Status",
-#     ["Todos", "Pago", "Pendente", "Cancelado"]
-# )
-
-# TROQUE POR:
-
-# dias = ["Todos"] + list(range(1, 32))
-#
-# dia_filtro = col_f3.selectbox(
-#     "Dia",
-#     dias
-# )
-#
-# status_filtro = col_f4.selectbox(
-#     "Status",
-#     ["Todos", "Pago", "Pendente", "Cancelado"]
-# )
-
-
-# PROCURE:
-# mes_num = [k for k, v in meses.items() if v == mes_nome][0]
-#
-# df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
-
-# TROQUE POR:
-
-# mes_num = [k for k, v in meses.items() if v == mes_nome][0]
-#
-# df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
-#
-# if dia_filtro != "Todos":
-#     df = df[df["data"].dt.day == int(dia_filtro)]
-
