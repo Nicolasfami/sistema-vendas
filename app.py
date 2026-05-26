@@ -349,23 +349,40 @@ else:
 
             salvar = st.form_submit_button("Salvar venda")
 
+            cpf_ok = validar_cpf(cpf)
+            telefone_ok = validar_telefone(telefone)
+            valor_ok = valor > 0
+
+            if cpf_digitado:
+                if cpf_ok:
+                    st.success(f"CPF válido: {cpf}")
+                else:
+                    st.warning(f"CPF inválido: precisa ter 11 números. Atual: {len(cpf)} número(s).")
+
+            if telefone_digitado:
+                if telefone_ok:
+                    st.success(f"Telefone válido: {telefone}")
+                else:
+                    st.warning(f"Telefone inválido: precisa ter DDD + número, com 10 ou 11 números. Atual: {len(telefone)} número(s).")
+
+            if valor_digitado:
+                if valor_ok:
+                    st.success(f"Valor válido: {dinheiro(valor)}")
+                else:
+                    st.warning("Valor inválido. Informe um valor maior que zero.")
+
             if salvar:
-                if not validar_cpf(cpf):
-                    st.error("CPF inválido. O CPF precisa ter exatamente 11 números.")
-                    st.stop()
+                if not cpf_ok:
+                    st.error("Corrija o CPF antes de salvar.")
+                elif not telefone_ok:
+                    st.error("Corrija o telefone antes de salvar.")
+                elif not valor_ok:
+                    st.error("Corrija o valor antes de salvar.")
+                else:
+                    perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
+                    valor_empresa = float(valor) * (perc_empresa / 100)
 
-                if not validar_telefone(telefone):
-                    st.error("Telefone inválido. Informe DDD + número. Exemplo: 11910721110.")
-                    st.stop()
-
-                if valor <= 0:
-                    st.error("Valor inválido. Informe um valor maior que zero.")
-                    st.stop()
-
-                perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
-                valor_empresa = float(valor) * (perc_empresa / 100)
-
-                dados = {
+                    dados = {
                     "data": str(datetime.now()),
                     "vendedor_id": st.session_state.user_id,
                     "vendedor": st.session_state.usuario,
@@ -385,9 +402,9 @@ else:
                     "observacao": observacao
                 }
 
-                supabase.table("vendas").insert(dados).execute()
-                st.success("Venda cadastrada!")
-                st.rerun()
+                    supabase.table("vendas").insert(dados).execute()
+                    st.success("Venda cadastrada!")
+                    st.rerun()
 
     # =========================
     # PAINEL
@@ -683,26 +700,33 @@ else:
 
                         salvar_edit = st.form_submit_button("Salvar alterações")
 
+                        cpf_edit_limpo = limpar_documento(cpf_edit)
+                        telefone_edit_limpo = limpar_documento(telefone_edit)
+
+                        if cpf_edit:
+                            if validar_cpf(cpf_edit_limpo):
+                                st.success(f"CPF válido: {cpf_edit_limpo}")
+                            else:
+                                st.warning(f"CPF inválido: precisa ter 11 números. Atual: {len(cpf_edit_limpo)} número(s).")
+
+                        if telefone_edit:
+                            if validar_telefone(telefone_edit_limpo):
+                                st.success(f"Telefone válido: {telefone_edit_limpo}")
+                            else:
+                                st.warning(f"Telefone inválido: precisa ter DDD + número, com 10 ou 11 números. Atual: {len(telefone_edit_limpo)} número(s).")
+
                         if salvar_edit:
-                            cpf_edit_limpo = limpar_documento(cpf_edit)
-                            telefone_edit_limpo = limpar_documento(telefone_edit)
-
                             if not validar_cpf(cpf_edit_limpo):
-                                st.error("CPF inválido. O CPF precisa ter exatamente 11 números.")
-                                st.stop()
+                                st.error("Corrija o CPF antes de salvar.")
+                            elif not validar_telefone(telefone_edit_limpo):
+                                st.error("Corrija o telefone antes de salvar.")
+                            elif valor_edit <= 0:
+                                st.error("Corrija o valor antes de salvar.")
+                            else:
+                                perc_empresa = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
+                                valor_empresa = float(valor_edit) * (perc_empresa / 100)
 
-                            if not validar_telefone(telefone_edit_limpo):
-                                st.error("Telefone inválido. Informe DDD + número. Exemplo: 11910721110.")
-                                st.stop()
-
-                            if valor_edit <= 0:
-                                st.error("Valor inválido. Informe um valor maior que zero.")
-                                st.stop()
-
-                            perc_empresa = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
-                            valor_empresa = float(valor_edit) * (perc_empresa / 100)
-
-                            dados_update = {
+                                dados_update = {
                                 "cliente": cliente_edit,
                                 "cpf": cpf_edit_limpo,
                                 "telefone": telefone_edit_limpo,
@@ -715,20 +739,20 @@ else:
                                 "valor_comissao_empresa": valor_empresa
                             }
 
-                            if st.session_state.tipo == "admin":
-                                dados_update["conferido"] = conferido_edit
-                                dados_update["alterado_vendedor"] = False
-                                dados_update["observacao_admin"] = observacao_admin_edit
-                            else:
-                                dados_update["alterado_vendedor"] = True
-                                dados_update["data_alteracao_vendedor"] = str(datetime.now())
-                                dados_update["observacao_alteracao"] = observacao_alteracao_edit
-                                dados_update["conferido"] = False
+                                if st.session_state.tipo == "admin":
+                                    dados_update["conferido"] = conferido_edit
+                                    dados_update["alterado_vendedor"] = False
+                                    dados_update["observacao_admin"] = observacao_admin_edit
+                                else:
+                                    dados_update["alterado_vendedor"] = True
+                                    dados_update["data_alteracao_vendedor"] = str(datetime.now())
+                                    dados_update["observacao_alteracao"] = observacao_alteracao_edit
+                                    dados_update["conferido"] = False
 
-                            supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
+                                supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
 
-                            st.success("Proposta atualizada!")
-                            st.rerun()
+                                st.success("Proposta atualizada!")
+                                st.rerun()
 
     # =========================
     # USUÁRIOS
