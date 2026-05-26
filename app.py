@@ -1174,49 +1174,86 @@ def menu_lateral_v8():
 # LOGIN
 # =========================
 
-mostrar_cabecalho()
-
 if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
+    # CSS extra para tela de login totalmente dark
     st.markdown("""
-    <div style="display:flex;justify-content:center;margin-top:10px;">
+    <style>
+    /* LOGIN: fundo totalmente dark, sem sidebar, sem header */
+    .stApp {
+        background:
+            radial-gradient(ellipse at 20% 30%, rgba(14,165,233,0.12) 0%, transparent 45%),
+            radial-gradient(ellipse at 80% 70%, rgba(37,99,235,0.10) 0%, transparent 40%),
+            linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important;
+    }
+    [data-testid="stSidebar"] { display: none !important; }
+    header[data-testid="stHeader"] { display: none !important; }
+    .block-container {
+        padding-top: 0 !important;
+        max-width: 100% !important;
+    }
+    /* centraliza verticalmente */
+    .login-full-page {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="login-full-page">
         <div style="
-            background:rgba(3,15,35,0.95);
-            border:1px solid rgba(56,189,248,0.22);
-            border-radius:24px;
-            padding:44px 40px;
-            width:100%;max-width:440px;
-            box-shadow:0 0 0 1px rgba(56,189,248,0.08),0 28px 80px rgba(0,0,0,0.65),inset 0 1px 0 rgba(56,189,248,0.10);
-            text-align:center;
+            background: rgba(3,15,40,0.92);
+            border: 1px solid rgba(56,189,248,0.20);
+            border-radius: 28px;
+            padding: 52px 48px 44px;
+            width: 420px;
+            max-width: 95vw;
+            text-align: center;
+            box-shadow:
+                0 0 0 1px rgba(56,189,248,0.07),
+                0 0 60px rgba(14,165,233,0.12),
+                0 32px 80px rgba(0,0,0,0.70);
         ">
             <div style="
-                width:80px;height:80px;border-radius:22px;
-                margin:0 auto 18px auto;
-                background:radial-gradient(circle at 50% 50%,#020617 0%,#020617 30%,#0ea5e9 44%,#2563eb 70%,#38bdf8 100%);
-                display:flex;align-items:center;justify-content:center;
-                font-size:40px;
-                box-shadow:0 0 40px rgba(14,165,233,0.60);
+                width: 88px; height: 88px;
+                border-radius: 26px;
+                margin: 0 auto 22px auto;
+                background: radial-gradient(circle at 38% 38%, #a5f3fc 0%, #0ea5e9 35%, #1d4ed8 65%, #020617 90%);
+                display: flex; align-items: center; justify-content: center;
+                font-size: 44px;
+                box-shadow:
+                    0 0 0 2px rgba(56,189,248,0.45),
+                    0 0 28px rgba(56,189,248,0.80),
+                    0 0 55px rgba(14,165,233,0.45);
             ">🌀</div>
-            <div style="font-family:'Orbitron',sans-serif;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:0.08em;margin-bottom:6px;text-shadow:0 0 20px rgba(56,189,248,0.60);">
-                OPERAX <span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.80);">SALES</span>
-            </div>
-            <div style="color:#7dd3fc;font-size:14px;margin-bottom:28px;opacity:0.80;">
+            <div style="
+                font-family: 'Orbitron', sans-serif;
+                font-size: 28px;
+                font-weight: 800;
+                color: #ffffff;
+                letter-spacing: 0.08em;
+                margin-bottom: 8px;
+                text-shadow: 0 0 22px rgba(56,189,248,0.55);
+            ">OPERAX <span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.85);">SALES</span></div>
+            <div style="color:#7dd3fc;font-size:14px;opacity:0.75;margin-bottom:36px;letter-spacing:0.02em;">
                 Sistema inteligente de vendas e operações financeiras
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    col1, col2, col3 = st.columns([1, 1.4, 1])
     with col2:
         usuario = st.text_input("USUÁRIO", placeholder="Seu login", key="login_user")
         senha = st.text_input("SENHA", type="password", placeholder="••••••••", key="login_pass")
 
         if st.button("⚡  Entrar", use_container_width=True):
             user = login(usuario, senha)
-
             if user:
                 st.session_state.logado = True
                 st.session_state.user_id = user["id"]
@@ -1228,6 +1265,7 @@ if not st.session_state.logado:
                 st.error("Usuário ou senha inválidos")
 
 else:
+    mostrar_cabecalho()
     menu = menu_lateral_v8()
 
     mostrar_chat_popup()
