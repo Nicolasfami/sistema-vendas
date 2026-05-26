@@ -1224,12 +1224,11 @@ if not st.session_state.logado:
     .l-title {
         font-family: Orbitron, sans-serif;
         font-size:24px; font-weight:900; letter-spacing:0.06em;
-        color:#ffffff; margin-bottom:6px; text-align:center;
-        text-shadow: 0 0 18px rgba(255,255,255,0.30);
+        color:#ffffff !important; margin-bottom:6px; text-align:center;
     }
-    .l-title b { color:#38bdf8; text-shadow: 0 0 18px rgba(56,189,248,0.80); }
+    .l-title b { color:#38bdf8 !important; }
     .l-sub {
-        color:#c7e8ff; font-size:13px; opacity:1;
+        color:#ffffff !important; font-size:13px; opacity:0.85;
         margin-bottom:28px; text-align:center; letter-spacing:0.01em;
     }
 
