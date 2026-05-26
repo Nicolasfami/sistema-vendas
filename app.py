@@ -1574,12 +1574,15 @@ else:
             total_vendido = df["valor"].fillna(0).sum()
             qtd = len(df)
 
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3 = st.columns(3)
+            col1.metric("💵 Total Vendido", dinheiro(total_vendido))
+            col2.metric("✅ Total Pago", dinheiro(df[df["status"] == "Pago"]["valor"].fillna(0).sum()))
+            col3.metric("⏳ Total Pendente", dinheiro(df[df["status"].isin(["Pendente", "Aguardando Pagamento", "Aguardando Assinatura"])]["valor"].fillna(0).sum()))
 
-            col1.metric("💵 Total vendido", dinheiro(total_vendido))
-            col2.metric("📋 Contratos", qtd)
-            col3.metric("🗓️ Mês", mes_nome)
-            col4.metric("📅 Dia", str(dia_filtro) if dia_filtro != "Todos" else "Todos")
+            col4, col5, col6 = st.columns(3)
+            col4.metric("📋 Contratos", qtd)
+            col5.metric("🗓️ Mês", mes_nome)
+            col6.metric("📅 Dia", str(dia_filtro) if dia_filtro != "Todos" else "Todos")
 
             if st.session_state.tipo == "admin":
                 total_empresa = calcular_comissao_montante(df)
