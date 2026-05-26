@@ -1260,8 +1260,7 @@ if not st.session_state.logado:
                 0 0 50px rgba(14,165,233,0.10),
                 0 30px 80px rgba(0,0,0,0.75);
         ">
-            <!-- ICONE -->
-            <div style="
+<div style="
                 width:90px; height:90px;
                 border-radius:22px;
                 margin:0 auto 20px;
@@ -1273,9 +1272,7 @@ if not st.session_state.logado:
                     0 0 25px rgba(56,189,248,0.75),
                     0 0 50px rgba(14,165,233,0.40);
             ">🌀</div>
-
-            <!-- TITULO -->
-            <div style="
+<div style="
                 font-family:'Orbitron',sans-serif;
                 font-size:28px;
                 font-weight:800;
@@ -1284,14 +1281,10 @@ if not st.session_state.logado:
                 margin-bottom:8px;
                 text-shadow:0 0 20px rgba(56,189,248,0.50);
             ">OPERAX <span style="color:#38bdf8;text-shadow:0 0 16px rgba(56,189,248,0.85);">SALES</span></div>
-
-            <!-- SUBTITULO -->
-            <div style="color:#7dd3fc;font-size:13px;opacity:0.72;margin-bottom:36px;letter-spacing:0.02em;">
+<div style="color:#7dd3fc;font-size:13px;opacity:0.72;margin-bottom:36px;letter-spacing:0.02em;">
                 Sistema inteligente de vendas e operações financeiras
             </div>
-
-            <!-- LABEL USUARIO -->
-            <div style="text-align:left;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">
+<div style="text-align:left;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">
                 Usuário
             </div>
         </div>
