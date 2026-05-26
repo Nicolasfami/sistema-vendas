@@ -238,13 +238,11 @@ section[data-testid="stSidebar"] > div {
     font-weight: 900;
     color: #ffffff !important;
     margin: 0;
-    letter-spacing: 0.06em;
-    text-shadow: 0 0 22px rgba(56,189,248,0.55);
+    letter-spacing: 0.07em;
 }
 
 .crm-title span {
     color: #38bdf8 !important;
-    text-shadow: 0 0 18px rgba(56,189,248,0.85) !important;
 }
 
 .crm-subtitle {
