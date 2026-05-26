@@ -4,6 +4,7 @@ import pandas as pd
 from supabase import create_client
 from datetime import datetime
 import hashlib
+import re
 
 # =========================
 # CONFIGURAÇÕES
@@ -30,6 +31,38 @@ def dinheiro(valor):
         return f"R$ {float(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return "R$ 0,00"
+
+
+def limpar_documento(valor):
+    return re.sub(r"\D", "", str(valor or ""))
+
+
+def converter_valor_brasileiro(valor):
+    texto = str(valor or "").strip()
+
+    if not texto:
+        return 0.0
+
+    texto = texto.replace("R$", "").replace(" ", "")
+
+    # Se vier no formato brasileiro: 1.758,71
+    if "," in texto:
+        texto = texto.replace(".", "").replace(",", ".")
+    else:
+        # Se vier como 1758.71, mantém o ponto decimal
+        texto = texto
+
+    try:
+        return float(texto)
+    except Exception:
+        return 0.0
+
+
+def formatar_valor_para_tela(valor):
+    numero = converter_valor_brasileiro(valor)
+    if numero == 0:
+        return ""
+    return f"{numero:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def login(usuario, senha):
@@ -270,12 +303,35 @@ else:
 
         with st.form("form_venda", clear_on_submit=True):
             cliente = st.text_input("Cliente")
-            cpf = st.text_input("CPF")
-            telefone = st.text_input("Telefone")
+            cpf_digitado = st.text_input(
+                "CPF",
+                placeholder="Ex: 266.384.088-28"
+            )
+
+            telefone_digitado = st.text_input(
+                "Telefone",
+                placeholder="Ex: (11) 91072-1110"
+            )
 
             tabela_banco = st.selectbox("Tabela/Banco", tabelas)
 
-            valor = st.number_input("Valor vendido", min_value=0.0, step=1000.0)
+            valor_digitado = st.text_input(
+                "Valor vendido",
+                placeholder="Ex: R$ 1.758,71"
+            )
+
+            cpf = limpar_documento(cpf_digitado)
+            telefone = limpar_documento(telefone_digitado)
+            valor = converter_valor_brasileiro(valor_digitado)
+
+            if valor_digitado:
+                st.caption(f"Valor identificado: {dinheiro(valor)}")
+
+            if cpf_digitado and cpf:
+                st.caption(f"CPF salvo como: {cpf}")
+
+            if telefone_digitado and telefone:
+                st.caption(f"Telefone salvo como: {telefone}")
 
             status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
 
@@ -557,12 +613,16 @@ else:
 
                         tabela_edit = st.selectbox("Tabela/Banco", tabelas_edit, index=tabela_index)
 
-                        valor_edit = st.number_input(
+                        valor_edit_texto = st.text_input(
                             "Valor",
-                            min_value=0.0,
-                            step=1000.0,
-                            value=float(proposta.get("valor") or 0)
+                            value=dinheiro(proposta.get("valor") or 0).replace("R$ ", ""),
+                            placeholder="Ex: R$ 1.758,71"
                         )
+
+                        valor_edit = converter_valor_brasileiro(valor_edit_texto)
+
+                        if valor_edit_texto:
+                            st.caption(f"Valor identificado: {dinheiro(valor_edit)}")
 
                         status_lista = ["Pendente", "Pago", "Cancelado"]
                         status_atual = str(proposta.get("status", "Pendente") or "Pendente")
@@ -599,8 +659,8 @@ else:
 
                             dados_update = {
                                 "cliente": cliente_edit,
-                                "cpf": cpf_edit,
-                                "telefone": telefone_edit,
+                                "cpf": limpar_documento(cpf_edit),
+                                "telefone": limpar_documento(telefone_edit),
                                 "produto": tabela_edit,
                                 "tabela_banco": tabela_edit,
                                 "valor": valor_edit,
