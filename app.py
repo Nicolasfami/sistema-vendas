@@ -1307,6 +1307,9 @@ else:
     if "msg_sucesso" not in st.session_state:
         st.session_state.msg_sucesso = ""
 
+    if "form_count" not in st.session_state:
+        st.session_state.form_count = 0
+
 
 
     # =========================
@@ -1345,12 +1348,13 @@ else:
             """, unsafe_allow_html=True)
             st.session_state.msg_sucesso = ""
 
-        cliente = st.text_input("Cliente", key="novo_cliente")
+        fc = st.session_state.form_count
+        cliente = st.text_input("Cliente", key=f"novo_cliente_{fc}")
 
         cpf_digitado = st.text_input(
             "CPF",
             placeholder="Ex: 999.999.999-99",
-            key="novo_cpf"
+            key=f"novo_cpf_{fc}"
         )
         cpf = limpar_documento(cpf_digitado)
 
@@ -1367,7 +1371,7 @@ else:
         telefone_digitado = st.text_input(
             "Telefone",
             placeholder="Ex: (11) 99976-7867",
-            key="novo_telefone"
+            key=f"novo_telefone_{fc}"
         )
         telefone = limpar_documento(telefone_digitado)
 
@@ -1386,7 +1390,7 @@ else:
         valor_digitado = st.text_input(
             "Valor vendido",
             placeholder="Ex: R$ 1.758,71",
-            key="novo_valor"
+            key=f"novo_valor_{fc}"
         )
         valor = converter_valor_brasileiro(valor_digitado)
 
@@ -1398,7 +1402,7 @@ else:
 
         status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
 
-        observacao = st.text_area("Observação", key="nova_observacao")
+        observacao = st.text_area("Observação", key=f"nova_observacao_{fc}")
 
         if st.button("💾 Salvar Venda", use_container_width=True):
             cpf_ok = validar_cpf(cpf)
@@ -1437,13 +1441,11 @@ else:
 
                 supabase.table("vendas").insert(dados).execute()
 
-                # Guarda mensagem para mostrar APOS o rerun
+                # Mensagem de sucesso
                 st.session_state.msg_sucesso = "✅ Venda cadastrada com sucesso!"
 
-                # Limpa todos os campos do formulario
-                for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
-                    if campo in st.session_state:
-                        del st.session_state[campo]
+                # Incrementa counter -> todos os keys mudam -> campos ficam em branco
+                st.session_state.form_count += 1
 
                 st.rerun()
 
