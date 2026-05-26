@@ -249,16 +249,16 @@ st.markdown("""
     }
 
     .menu-ativo-v8 {
-        background: #ffffff;
-        color: #ea580c !important;
+        background: rgba(255,255,255,0.22);
+        color: #ffffff !important;
         border-radius: 14px;
         padding: 12px 14px;
         margin: 7px 0 7px 0;
         font-weight: 900;
-        box-shadow: 0 16px 32px rgba(124,45,18,0.22);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
 
     .menu-label-v8 {
@@ -354,6 +354,46 @@ st.markdown("""
     /* chat flutuante mais parecido com sistema de empresa */
     button[kind="secondary"]:has(div:contains("Chat")) {
         border-radius: 999px !important;
+    }
+
+
+    .menu-ativo-v8 svg,
+    .menu-svg-v8 svg {
+        width: 21px;
+        height: 21px;
+        stroke-width: 2.25;
+        flex-shrink: 0;
+    }
+
+    .menu-svg-v8 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        color: #ffffff;
+        opacity: 0.95;
+    }
+
+    .menu-ativo-v8 span {
+        font-size: 16px;
+        color: #ffffff !important;
+    }
+
+    .menu-ativo-v8 svg,
+    .menu-svg-v8 svg {
+        stroke: #ffffff;
+    }
+
+    [data-testid="stSidebar"] .stButton button {
+        color: #ffffff !important;
+        background: transparent !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        box-shadow: none !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(255,255,255,0.16) !important;
     }
 
 </style>
@@ -840,16 +880,16 @@ def mostrar_chat_popup():
     }
 
     .menu-ativo-v8 {
-        background: #ffffff;
-        color: #ea580c !important;
+        background: rgba(255,255,255,0.22);
+        color: #ffffff !important;
         border-radius: 14px;
         padding: 12px 14px;
         margin: 7px 0 7px 0;
         font-weight: 900;
-        box-shadow: 0 16px 32px rgba(124,45,18,0.22);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
     }
 
     .menu-label-v8 {
@@ -945,6 +985,46 @@ def mostrar_chat_popup():
     /* chat flutuante mais parecido com sistema de empresa */
     button[kind="secondary"]:has(div:contains("Chat")) {
         border-radius: 999px !important;
+    }
+
+
+    .menu-ativo-v8 svg,
+    .menu-svg-v8 svg {
+        width: 21px;
+        height: 21px;
+        stroke-width: 2.25;
+        flex-shrink: 0;
+    }
+
+    .menu-svg-v8 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        color: #ffffff;
+        opacity: 0.95;
+    }
+
+    .menu-ativo-v8 span {
+        font-size: 16px;
+        color: #ffffff !important;
+    }
+
+    .menu-ativo-v8 svg,
+    .menu-svg-v8 svg {
+        stroke: #ffffff;
+    }
+
+    [data-testid="stSidebar"] .stButton button {
+        color: #ffffff !important;
+        background: transparent !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        box-shadow: none !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(255,255,255,0.16) !important;
     }
 
 </style>
@@ -1057,21 +1137,61 @@ def mostrar_chat_popup():
 
 
 
+def icone_svg(nome):
+    icones = {
+        "nova": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M7 3h7l4 4v14H7V3Z"/>
+            <path d="M14 3v5h5"/>
+            <path d="M9 14h6"/>
+            <path d="M12 11v6"/>
+        </svg>
+        """,
+        "painel": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M4 19V5"/>
+            <path d="M4 19h16"/>
+            <path d="M8 16v-5"/>
+            <path d="M12 16V8"/>
+            <path d="M16 16v-7"/>
+            <path d="M20 16v-3"/>
+        </svg>
+        """,
+        "usuarios": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+            <circle cx="9.5" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        """,
+        "comissoes": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 2v20"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+            <path d="M19 9l2-2-2-2"/>
+            <path d="M5 15l-2 2 2 2"/>
+        </svg>
+        """
+    }
+    return icones.get(nome, "")
+
+
 def menu_lateral_v8():
     if "menu_atual" not in st.session_state:
         st.session_state.menu_atual = "📋 Nova Venda"
 
     if st.session_state.tipo == "admin":
         opcoes = [
-            ("📋 Nova Venda", "▣", "Operação"),
-            ("📊 Painel", "⌁", "Operação"),
-            ("👥 Usuários", "☷", "Gestão"),
-            ("💰 Comissões", "◇", "Gestão"),
+            ("📋 Nova Venda", "nova", "Operação"),
+            ("📊 Painel", "painel", "Operação"),
+            ("👥 Usuários", "usuarios", "Gestão"),
+            ("💰 Comissões", "comissoes", "Gestão"),
         ]
     else:
         opcoes = [
-            ("📋 Nova Venda", "▣", "Operação"),
-            ("📊 Painel", "⌁", "Operação"),
+            ("📋 Nova Venda", "nova", "Operação"),
+            ("📊 Painel", "painel", "Operação"),
         ]
 
     st.sidebar.markdown(
@@ -1095,7 +1215,14 @@ def menu_lateral_v8():
 
     grupo_atual = None
 
-    for nome, icone, grupo in opcoes:
+    for nome, icone_nome, grupo in opcoes:
+        nome_limpo = (
+            nome.replace("📋 ", "")
+            .replace("📊 ", "")
+            .replace("👥 ", "")
+            .replace("💰 ", "")
+        )
+
         if grupo != grupo_atual:
             st.sidebar.markdown(
                 f'<div class="menu-label-v8">{grupo}</div>',
@@ -1103,19 +1230,35 @@ def menu_lateral_v8():
             )
             grupo_atual = grupo
 
+        svg = icone_svg(icone_nome)
+
         if st.session_state.menu_atual == nome:
             st.sidebar.markdown(
-                f'<div class="menu-ativo-v8"><span>{icone}</span><span>{nome.replace("📋 ", "").replace("📊 ", "").replace("👥 ", "").replace("💰 ", "")}</span></div>',
+                f"""
+                <div class="menu-ativo-v8">
+                    {svg}
+                    <span>{nome_limpo}</span>
+                </div>
+                """,
                 unsafe_allow_html=True
             )
         else:
-            if st.sidebar.button(
-                f"{icone}  {nome.replace('📋 ', '').replace('📊 ', '').replace('👥 ', '').replace('💰 ', '')}",
-                key=f"menu_{nome}",
-                use_container_width=True
-            ):
-                st.session_state.menu_atual = nome
-                st.rerun()
+            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
+
+            with col_icon:
+                st.markdown(
+                    f'<div class="menu-svg-v8">{svg}</div>',
+                    unsafe_allow_html=True
+                )
+
+            with col_btn:
+                if st.button(
+                    nome_limpo,
+                    key=f"menu_{nome}",
+                    use_container_width=True
+                ):
+                    st.session_state.menu_atual = nome
+                    st.rerun()
 
     st.sidebar.markdown("---")
 
@@ -1124,6 +1267,7 @@ def menu_lateral_v8():
         st.rerun()
 
     return st.session_state.menu_atual
+
 
 # =========================
 # LOGIN
