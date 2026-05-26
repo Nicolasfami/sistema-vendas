@@ -23,7 +23,7 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@500;600;700&display=swap');
 
 html, body, [class*="css"] {
     font-family: 'Inter', sans-serif;
@@ -232,12 +232,13 @@ section[data-testid="stSidebar"] > div {
 }
 
 .crm-title {
-    font-size: 42px;
+    font-size: 40px;
     line-height: 1.02;
-    font-weight: 900;
+    font-family: 'Orbitron', sans-serif !important;
+    font-weight: 800;
     color: #0f172a !important;
     margin: 0;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.04em;
 }
 
 .crm-title span {
@@ -1210,8 +1211,8 @@ if not st.session_state.logado:
                 font-size:40px;
                 box-shadow:0 0 40px rgba(14,165,233,0.60);
             ">🌀</div>
-            <div style="font-size:30px;font-weight:900;color:#ffffff;letter-spacing:0.04em;margin-bottom:6px;">
-                OPERAX <span style="color:#38bdf8;">SALES</span>
+            <div style="font-family:'Orbitron',sans-serif;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:0.08em;margin-bottom:6px;text-shadow:0 0 20px rgba(56,189,248,0.60);">
+                OPERAX <span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.80);">SALES</span>
             </div>
             <div style="color:#7dd3fc;font-size:14px;margin-bottom:28px;opacity:0.80;">
                 Sistema inteligente de vendas e operações financeiras
@@ -1246,8 +1247,7 @@ else:
     if "mostrar_comissao_empresa" not in st.session_state:
         st.session_state.mostrar_comissao_empresa = True
 
-    if "venda_sucesso_msg" not in st.session_state:
-        st.session_state.venda_sucesso_msg = ""
+
 
     # =========================
     # NOVA VENDA
@@ -1256,9 +1256,6 @@ else:
     if menu == "📋 Nova Venda":
         st.header("📋 Cadastro de Venda")
 
-        if st.session_state.venda_sucesso_msg:
-            st.success(st.session_state.venda_sucesso_msg)
-            st.session_state.venda_sucesso_msg = ""
         tabelas = carregar_tabelas()
 
         cliente = st.text_input("Cliente", key="novo_cliente")
@@ -1316,7 +1313,7 @@ else:
 
         observacao = st.text_area("Observação", key="nova_observacao")
 
-        if st.button("Salvar venda"):
+        if st.button("💾 Salvar Venda", use_container_width=True):
             cpf_ok = validar_cpf(cpf)
             telefone_ok = validar_telefone(telefone)
             valor_ok = valor > 0
@@ -1352,8 +1349,7 @@ else:
                 }
 
                 supabase.table("vendas").insert(dados).execute()
-
-                st.session_state.venda_sucesso_msg = "Proposta cadastrada com sucesso!"
+                st.success("✅ Proposta cadastrada com sucesso! Formulário limpo e pronto para nova venda.")
 
                 for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
                     if campo in st.session_state:
