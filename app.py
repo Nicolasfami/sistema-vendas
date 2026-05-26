@@ -1334,6 +1334,9 @@ else:
     if "mostrar_comissao_empresa" not in st.session_state:
         st.session_state.mostrar_comissao_empresa = True
 
+    if "msg_sucesso" not in st.session_state:
+        st.session_state.msg_sucesso = ""
+
 
 
     # =========================
@@ -1351,6 +1354,26 @@ else:
         """, unsafe_allow_html=True)
 
         tabelas = carregar_tabelas()
+
+        # Mostra mensagem de sucesso se existir (vem do rerun anterior)
+        if st.session_state.get("msg_sucesso"):
+            st.markdown(f"""
+            <div style="
+                background: rgba(34,197,94,0.12);
+                border: 1.5px solid rgba(34,197,94,0.45);
+                border-radius: 12px;
+                padding: 14px 18px;
+                margin-bottom: 16px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 0 16px rgba(34,197,94,0.15);
+            ">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <span style="color:#4ade80;font-weight:700;font-size:14px;">{st.session_state.msg_sucesso}</span>
+            </div>
+            """, unsafe_allow_html=True)
+            st.session_state.msg_sucesso = ""
 
         cliente = st.text_input("Cliente", key="novo_cliente")
 
@@ -1443,8 +1466,11 @@ else:
                 }
 
                 supabase.table("vendas").insert(dados).execute()
-                st.success("✅ Proposta cadastrada com sucesso! Formulário limpo e pronto para nova venda.")
 
+                # Guarda mensagem para mostrar APOS o rerun
+                st.session_state.msg_sucesso = "✅ Venda cadastrada com sucesso!"
+
+                # Limpa todos os campos do formulario
                 for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
                     if campo in st.session_state:
                         del st.session_state[campo]
