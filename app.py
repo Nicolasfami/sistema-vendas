@@ -5,6 +5,7 @@ from supabase import create_client
 from datetime import datetime
 import hashlib
 import re
+from pathlib import Path
 
 # =========================
 # CONFIGURAÇÕES
@@ -16,6 +17,127 @@ SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# =========================
+# DESIGN / LOGO
+# =========================
+
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1220px;
+    }
+
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #eef3ff 0%, #f8fafc 100%);
+        border-right: 1px solid #e5e7eb;
+    }
+
+    [data-testid="stSidebar"] .stRadio label {
+        font-size: 16px;
+    }
+
+    h1, h2, h3 {
+        color: #1f2937;
+        letter-spacing: -0.03em;
+    }
+
+    .crm-card {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 18px;
+        padding: 22px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+        margin-bottom: 20px;
+    }
+
+    .crm-header {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .crm-logo-box {
+        width: 70px;
+        height: 70px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #0f766e, #22c55e);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34px;
+        box-shadow: 0 10px 25px rgba(34, 197, 94, 0.25);
+    }
+
+    .crm-title {
+        font-size: 42px;
+        line-height: 1.05;
+        font-weight: 800;
+        color: #111827;
+        margin: 0;
+    }
+
+    .crm-subtitle {
+        margin: 4px 0 0 0;
+        color: #6b7280;
+        font-size: 15px;
+    }
+
+    div[data-testid="stMetric"] {
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 16px 18px;
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] {
+        border-radius: 12px !important;
+    }
+
+    .stButton button {
+        border-radius: 12px;
+        padding: 0.55rem 1rem;
+        font-weight: 600;
+    }
+
+    .stDataFrame {
+        border-radius: 16px;
+        overflow: hidden;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
+def mostrar_cabecalho():
+    logo_path = Path("logo.png")
+
+    col_logo, col_titulo = st.columns([1, 8])
+
+    with col_logo:
+        if logo_path.exists():
+            st.image(str(logo_path), width=82)
+        else:
+            st.markdown('<div class="crm-logo-box">💰</div>', unsafe_allow_html=True)
+
+    with col_titulo:
+        st.markdown(
+            """
+            <div>
+                <h1 class="crm-title">CRM TK Soluções</h1>
+                <p class="crm-subtitle">Sistema de vendas, propostas e conferência operacional</p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
 
 # =========================
@@ -291,7 +413,7 @@ def destacar_linhas_pendentes(row, tipo_usuario):
 # LOGIN
 # =========================
 
-st.title("💰 CRM TK Soluções")
+mostrar_cabecalho()
 
 if "logado" not in st.session_state:
     st.session_state.logado = False
@@ -337,6 +459,7 @@ else:
 
     if menu == "📋 Nova Venda":
         st.header("📋 Cadastro de Venda")
+        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
         tabelas = carregar_tabelas()
 
@@ -344,7 +467,7 @@ else:
 
         cpf_digitado = st.text_input(
             "CPF",
-            placeholder="Ex: 266.384.088-28"
+            placeholder="Ex: 999.999.999-99"
         )
         cpf = limpar_documento(cpf_digitado)
 
@@ -360,7 +483,7 @@ else:
 
         telefone_digitado = st.text_input(
             "Telefone",
-            placeholder="Ex: (11) 91072-1110"
+            placeholder="Ex: (11) 99976-7867"
         )
         telefone = limpar_documento(telefone_digitado)
 
@@ -430,6 +553,8 @@ else:
                 supabase.table("vendas").insert(dados).execute()
                 st.success("Venda cadastrada!")
                 st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # =========================
     # PAINEL
