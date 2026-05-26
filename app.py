@@ -310,7 +310,7 @@ else:
 
             st.subheader("🔎 Filtros")
 
-            col_f1, col_f2, col_f3 = st.columns(3)
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
             mes_nome = col_f1.selectbox(
                 "Mês",
@@ -327,8 +327,13 @@ else:
                 anos = [datetime.now().year]
 
             ano_filtro = col_f2.selectbox("Ano", anos)
+            dias = ["Todos"] + list(range(1, 32))
 
-            status_filtro = col_f3.selectbox(
+dia_filtro = col_f3.selectbox(
+    "Dia",
+    dias
+)
+status_filtro = col_f3.selectbox(
                 "Status",
                 ["Todos", "Pago", "Pendente", "Cancelado"]
             )
