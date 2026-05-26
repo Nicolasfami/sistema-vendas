@@ -678,6 +678,44 @@ st.markdown("""
         background: transparent !important;
     }
 
+
+/* PATCH FINAL OPERAX */
+.stApp {
+    background: linear-gradient(90deg, #020617 0px, #020617 250px, #ffffff 250px, #ffffff 100%) !important;
+}
+[data-testid="stSidebar"] {
+    background: radial-gradient(circle at top left, rgba(14,165,233,0.35), transparent 26%),
+                linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
+    border-right: 1px solid rgba(56,189,248,0.38) !important;
+    min-width: 250px !important;
+    max-width: 250px !important;
+    box-shadow: 18px 0 45px rgba(14,165,233,0.22) !important;
+}
+section[data-testid="stSidebar"] > div {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 18px !important;
+}
+[data-testid="stSidebar"] * { color: #ffffff !important; }
+.sidebar-logo-v8 {display:flex;align-items:center;gap:12px;padding:8px 4px 22px 4px;color:white;font-size:22px;font-weight:900;}
+.sidebar-logo-icon-v8 {width:52px;height:52px;border-radius:18px;background:radial-gradient(circle at 50% 50%, #020617 0%, #020617 32%, #0ea5e9 44%, #2563eb 70%, #38bdf8 100%);display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;color:#fff;box-shadow:0 0 34px rgba(56,189,248,.58), inset 0 0 0 1px rgba(255,255,255,.22);}
+.sidebar-user-v8 {background:rgba(255,255,255,.075);border:1px solid rgba(56,189,248,.30);border-radius:18px;padding:15px 14px;margin:8px 0 20px 0;color:white!important;font-weight:900;box-shadow:0 16px 34px rgba(14,165,233,.18);}
+.menu-label-v8 {color:rgba(56,189,248,.94)!important;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px 6px;}
+.menu-ativo-v8 {background:linear-gradient(90deg, rgba(37,99,235,.96), rgba(14,165,233,.96));color:#fff!important;border-radius:16px;padding:13px 14px;margin:7px 0;font-weight:900;box-shadow:0 0 26px rgba(56,189,248,.52), inset 0 0 0 1px rgba(255,255,255,.22);display:flex;align-items:center;gap:12px;}
+.menu-ativo-v8 span {color:#fff!important;font-size:16px;background:transparent!important;}
+.menu-ativo-v8 svg,.menu-svg-v8 svg {width:21px;height:21px;stroke-width:2.25;flex-shrink:0;stroke:#fff;background:transparent!important;}
+.menu-svg-v8 {display:flex;align-items:center;justify-content:center;min-height:42px;color:#7dd3fc!important;opacity:.95;}
+[data-testid="stSidebar"] .stButton button {color:#fff!important;background:transparent!important;border:0!important;border-radius:14px!important;box-shadow:none!important;text-align:left!important;justify-content:flex-start!important;font-weight:760!important;padding:.65rem .75rem!important;}
+[data-testid="stSidebar"] .stButton button:hover {background:rgba(56,189,248,.14)!important;transform:translateX(2px);}
+.crm-hero {background:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:14px 0 12px 0!important;margin-bottom:24px!important;}
+.crm-title {font-size:50px!important;line-height:1.02!important;font-weight:950!important;color:#0f172a!important;margin:0!important;letter-spacing:-.05em!important;}
+.crm-subtitle {color:#475569!important;font-size:16px!important;font-weight:560!important;margin-top:10px!important;}
+.crm-pill {background:linear-gradient(90deg, rgba(37,99,235,.96), rgba(14,165,233,.96))!important;color:#fff!important;border:1px solid rgba(56,189,248,.28)!important;border-radius:999px!important;box-shadow:0 12px 30px rgba(14,165,233,.22)!important;}
+h1,h2,h3 {color:#0f172a!important;letter-spacing:-.04em!important;}
+div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stTextArea"] textarea, div[data-baseweb="select"] {border-radius:15px!important;border:1px solid rgba(14,165,233,.24)!important;background:#fff!important;}
+.stButton button {background:linear-gradient(135deg,#2563eb,#0ea5e9)!important;border:1px solid rgba(14,165,233,.28)!important;border-radius:15px!important;color:white!important;font-weight:850!important;box-shadow:0 14px 30px rgba(37,99,235,.23)!important;}
+.menu-ativo-v8 div,.menu-ativo-v8 span,.menu-ativo-v8 p {background:transparent!important;}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1591,6 +1629,44 @@ def mostrar_chat_popup():
         background: transparent !important;
     }
 
+
+/* PATCH FINAL OPERAX */
+.stApp {
+    background: linear-gradient(90deg, #020617 0px, #020617 250px, #ffffff 250px, #ffffff 100%) !important;
+}
+[data-testid="stSidebar"] {
+    background: radial-gradient(circle at top left, rgba(14,165,233,0.35), transparent 26%),
+                linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
+    border-right: 1px solid rgba(56,189,248,0.38) !important;
+    min-width: 250px !important;
+    max-width: 250px !important;
+    box-shadow: 18px 0 45px rgba(14,165,233,0.22) !important;
+}
+section[data-testid="stSidebar"] > div {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    padding-top: 18px !important;
+}
+[data-testid="stSidebar"] * { color: #ffffff !important; }
+.sidebar-logo-v8 {display:flex;align-items:center;gap:12px;padding:8px 4px 22px 4px;color:white;font-size:22px;font-weight:900;}
+.sidebar-logo-icon-v8 {width:52px;height:52px;border-radius:18px;background:radial-gradient(circle at 50% 50%, #020617 0%, #020617 32%, #0ea5e9 44%, #2563eb 70%, #38bdf8 100%);display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:900;color:#fff;box-shadow:0 0 34px rgba(56,189,248,.58), inset 0 0 0 1px rgba(255,255,255,.22);}
+.sidebar-user-v8 {background:rgba(255,255,255,.075);border:1px solid rgba(56,189,248,.30);border-radius:18px;padding:15px 14px;margin:8px 0 20px 0;color:white!important;font-weight:900;box-shadow:0 16px 34px rgba(14,165,233,.18);}
+.menu-label-v8 {color:rgba(56,189,248,.94)!important;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin:18px 0 8px 6px;}
+.menu-ativo-v8 {background:linear-gradient(90deg, rgba(37,99,235,.96), rgba(14,165,233,.96));color:#fff!important;border-radius:16px;padding:13px 14px;margin:7px 0;font-weight:900;box-shadow:0 0 26px rgba(56,189,248,.52), inset 0 0 0 1px rgba(255,255,255,.22);display:flex;align-items:center;gap:12px;}
+.menu-ativo-v8 span {color:#fff!important;font-size:16px;background:transparent!important;}
+.menu-ativo-v8 svg,.menu-svg-v8 svg {width:21px;height:21px;stroke-width:2.25;flex-shrink:0;stroke:#fff;background:transparent!important;}
+.menu-svg-v8 {display:flex;align-items:center;justify-content:center;min-height:42px;color:#7dd3fc!important;opacity:.95;}
+[data-testid="stSidebar"] .stButton button {color:#fff!important;background:transparent!important;border:0!important;border-radius:14px!important;box-shadow:none!important;text-align:left!important;justify-content:flex-start!important;font-weight:760!important;padding:.65rem .75rem!important;}
+[data-testid="stSidebar"] .stButton button:hover {background:rgba(56,189,248,.14)!important;transform:translateX(2px);}
+.crm-hero {background:#fff!important;border:0!important;border-radius:0!important;box-shadow:none!important;padding:14px 0 12px 0!important;margin-bottom:24px!important;}
+.crm-title {font-size:50px!important;line-height:1.02!important;font-weight:950!important;color:#0f172a!important;margin:0!important;letter-spacing:-.05em!important;}
+.crm-subtitle {color:#475569!important;font-size:16px!important;font-weight:560!important;margin-top:10px!important;}
+.crm-pill {background:linear-gradient(90deg, rgba(37,99,235,.96), rgba(14,165,233,.96))!important;color:#fff!important;border:1px solid rgba(56,189,248,.28)!important;border-radius:999px!important;box-shadow:0 12px 30px rgba(14,165,233,.22)!important;}
+h1,h2,h3 {color:#0f172a!important;letter-spacing:-.04em!important;}
+div[data-testid="stTextInput"] input, div[data-testid="stNumberInput"] input, div[data-testid="stTextArea"] textarea, div[data-baseweb="select"] {border-radius:15px!important;border:1px solid rgba(14,165,233,.24)!important;background:#fff!important;}
+.stButton button {background:linear-gradient(135deg,#2563eb,#0ea5e9)!important;border:1px solid rgba(14,165,233,.28)!important;border-radius:15px!important;color:white!important;font-weight:850!important;box-shadow:0 14px 30px rgba(37,99,235,.23)!important;}
+.menu-ativo-v8 div,.menu-ativo-v8 span,.menu-ativo-v8 p {background:transparent!important;}
+
 </style>
         """, unsafe_allow_html=True)
 
@@ -1698,6 +1774,139 @@ def mostrar_chat_popup():
                         mensagem.strip()
                     )
                     st.rerun()
+
+
+
+def icone_svg(nome):
+    icones = {
+        "nova": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M7 3h7l4 4v14H7V3Z"/>
+            <path d="M14 3v5h5"/>
+            <path d="M9 14h6"/>
+            <path d="M12 11v6"/>
+        </svg>
+        """,
+        "painel": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M4 19V5"/>
+            <path d="M4 19h16"/>
+            <path d="M8 16v-5"/>
+            <path d="M12 16V8"/>
+            <path d="M16 16v-7"/>
+            <path d="M20 16v-3"/>
+        </svg>
+        """,
+        "usuarios": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+            <circle cx="9.5" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        """,
+        "comissoes": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 2v20"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
+            <path d="M19 9l2-2-2-2"/>
+            <path d="M5 15l-2 2 2 2"/>
+        </svg>
+        """
+    }
+    return icones.get(nome, "")
+
+
+def menu_lateral_v8():
+    if "menu_atual" not in st.session_state:
+        st.session_state.menu_atual = "📋 Nova Venda"
+
+    if st.session_state.tipo == "admin":
+        opcoes = [
+            ("📋 Nova Venda", "nova", "Operação"),
+            ("📊 Painel", "painel", "Operação"),
+            ("👥 Usuários", "usuarios", "Gestão"),
+            ("💰 Comissões", "comissoes", "Gestão"),
+        ]
+    else:
+        opcoes = [
+            ("📋 Nova Venda", "nova", "Operação"),
+            ("📊 Painel", "painel", "Operação"),
+        ]
+
+    st.sidebar.markdown(
+        """
+        <div class="sidebar-logo-v8">
+            <div class="sidebar-logo-icon-v8">O</div>
+            <div>OPERAX</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.sidebar.markdown(
+        f"""
+        <div class="sidebar-user-v8">
+            {st.session_state.nome}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    grupo_atual = None
+
+    for nome, icone_nome, grupo in opcoes:
+        nome_limpo = (
+            nome.replace("📋 ", "")
+            .replace("📊 ", "")
+            .replace("👥 ", "")
+            .replace("💰 ", "")
+        )
+
+        if grupo != grupo_atual:
+            st.sidebar.markdown(
+                f'<div class="menu-label-v8">{grupo}</div>',
+                unsafe_allow_html=True
+            )
+            grupo_atual = grupo
+
+        svg = icone_svg(icone_nome)
+
+        if st.session_state.menu_atual == nome:
+            st.sidebar.markdown(
+                f"""
+                <div class="menu-ativo-v8">
+                    {svg}
+                    <span>{nome_limpo}</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+        else:
+            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
+
+            with col_icon:
+                st.markdown(
+                    f'<div class="menu-svg-v8">{svg}</div>',
+                    unsafe_allow_html=True
+                )
+
+            with col_btn:
+                if st.button(
+                    nome_limpo,
+                    key=f"menu_{nome}",
+                    use_container_width=True
+                ):
+                    st.session_state.menu_atual = nome
+                    st.rerun()
+
+    st.sidebar.markdown("---")
+
+    if st.sidebar.button("Sair  ↪", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+
+    return st.session_state.menu_atual
 
 
 # =========================
