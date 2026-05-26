@@ -1186,44 +1186,114 @@ if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    # CSS da tela de login
     st.markdown("""<style>
-    .stApp { background: radial-gradient(ellipse at 20% 30%, rgba(14,165,233,0.13) 0%, transparent 45%), radial-gradient(ellipse at 80% 70%, rgba(37,99,235,0.10) 0%, transparent 40%), linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important; }
-    [data-testid="stSidebar"] { display: none !important; }
-    header[data-testid="stHeader"] { display: none !important; }
-    .block-container { padding: 2rem 1rem !important; max-width: 100% !important; }
-    div[data-testid="stTextInput"] input { background: rgba(10,25,55,0.90) !important; border: 1px solid rgba(56,189,248,0.28) !important; border-radius: 12px !important; color: #e2f4ff !important; font-size: 15px !important; }
+    .stApp {
+        background:
+            radial-gradient(ellipse at 20% 30%, rgba(14,165,233,0.13) 0%, transparent 45%),
+            radial-gradient(ellipse at 80% 70%, rgba(37,99,235,0.10) 0%, transparent 40%),
+            linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important;
+    }
+    [data-testid="stSidebar"] { display:none !important; }
+    header[data-testid="stHeader"] { display:none !important; }
+    .block-container { padding:0 !important; max-width:100% !important; }
+
+    .login-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .login-card {
+        background: rgba(8,20,50,0.94);
+        border: 1px solid rgba(56,189,248,0.20);
+        border-radius: 24px;
+        padding: 48px 44px 40px;
+        width: 430px;
+        max-width: 92vw;
+        text-align: center;
+        box-shadow: 0 0 60px rgba(14,165,233,0.12), 0 30px 80px rgba(0,0,0,0.75);
+    }
+    .login-icon {
+        width: 90px; height: 90px;
+        border-radius: 22px;
+        margin: 0 auto 20px;
+        background: radial-gradient(circle at 38% 35%, #bfdbfe 0%, #3b82f6 30%, #1d4ed8 58%, #030a1a 88%);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 44px;
+        box-shadow: 0 0 0 2px rgba(56,189,248,0.40), 0 0 25px rgba(56,189,248,0.75), 0 0 50px rgba(14,165,233,0.40);
+    }
+    .login-title {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 28px; font-weight: 800;
+        color: #ffffff; letter-spacing: 0.06em;
+        margin-bottom: 8px;
+        text-shadow: 0 0 20px rgba(56,189,248,0.50);
+    }
+    .login-title span { color: #38bdf8; }
+    .login-sub {
+        color: #7dd3fc; font-size: 13px;
+        opacity: 0.72; margin-bottom: 32px;
+        letter-spacing: 0.02em;
+    }
+    .login-label {
+        text-align: left; font-size: 11px; font-weight: 700;
+        color: #38bdf8; letter-spacing: 0.12em;
+        text-transform: uppercase; margin-bottom: 6px;
+    }
+
+    div[data-testid="stTextInput"] input {
+        background: rgba(10,25,55,0.90) !important;
+        border: 1px solid rgba(56,189,248,0.28) !important;
+        border-radius: 12px !important;
+        color: #e2f4ff !important;
+        font-size: 15px !important;
+    }
     div[data-testid="stTextInput"] input::placeholder { color: rgba(125,211,252,0.35) !important; }
-    div[data-testid="stTextInput"] input:focus { border-color: rgba(56,189,248,0.60) !important; box-shadow: 0 0 0 3px rgba(14,165,233,0.15) !important; }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: rgba(56,189,248,0.60) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.15) !important;
+    }
+    div[data-testid="stTextInput"] label {
+        color: #38bdf8 !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.12em !important;
+        text-transform: uppercase !important;
+    }
+    .stButton>button {
+        background: linear-gradient(135deg,#1a56db,#0ea5e9) !important;
+        border: none !important; border-radius: 12px !important;
+        color: #fff !important; font-size: 16px !important;
+        font-weight: 700 !important; letter-spacing: 0.03em !important;
+        box-shadow: 0 0 22px rgba(14,165,233,0.45), 0 8px 24px rgba(14,165,233,0.25) !important;
+        height: 52px !important;
+    }
+    .stButton>button:hover {
+        box-shadow: 0 0 35px rgba(56,189,248,0.65), 0 12px 32px rgba(14,165,233,0.35) !important;
+        transform: translateY(-1px) !important;
+    }
     </style>""", unsafe_allow_html=True)
 
-    # Card visual centralizado
-    col1, col2, col3 = st.columns([1, 1.4, 1])
-    with col2:
-        st.markdown('<div style="background:rgba(8,20,50,0.94);border:1px solid rgba(56,189,248,0.18);border-radius:24px;padding:44px 36px 36px;text-align:center;box-shadow:0 0 50px rgba(14,165,233,0.10),0 30px 80px rgba(0,0,0,0.75);margin-top:40px;">', unsafe_allow_html=True)
-
-        st.markdown('<div style="width:88px;height:88px;border-radius:22px;margin:0 auto 18px;background:radial-gradient(circle at 38% 35%, #bfdbfe 0%, #3b82f6 30%, #1d4ed8 58%, #030a1a 88%);display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 0 0 2px rgba(56,189,248,0.40),0 0 25px rgba(56,189,248,0.75),0 0 50px rgba(14,165,233,0.40);">🌀</div>', unsafe_allow_html=True)
-
-        st.markdown('<div style="font-family:Orbitron,sans-serif;font-size:26px;font-weight:800;color:#ffffff;letter-spacing:0.06em;margin-bottom:6px;text-shadow:0 0 20px rgba(56,189,248,0.50);">OPERAX <span style="color:#38bdf8;">SALES</span></div>', unsafe_allow_html=True)
-
-        st.markdown('<div style="color:#7dd3fc;font-size:13px;opacity:0.72;margin-bottom:28px;letter-spacing:0.02em;">Sistema inteligente de vendas e operações financeiras</div>', unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 1.4, 1])
+    with c2:
+        st.markdown('<div class="login-icon">🌀</div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-title">OPERAX <span>SALES</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="login-sub">Sistema inteligente de vendas e operações financeiras</div>', unsafe_allow_html=True)
 
         usuario = st.text_input("USUÁRIO", placeholder="Seu login", key="login_user")
-        senha = st.text_input("SENHA", type="password", placeholder="••••••••", key="login_pass")
+        senha   = st.text_input("SENHA", type="password", placeholder="••••••••", key="login_pass")
 
         if st.button("⚡  Entrar", use_container_width=True, key="btn_entrar"):
             user = login(usuario, senha)
             if user:
-                st.session_state.logado = True
-                st.session_state.user_id = user["id"]
-                st.session_state.usuario = user["usuario"]
-                st.session_state.nome = user["nome"]
-                st.session_state.tipo = user["tipo"]
+                st.session_state.logado    = True
+                st.session_state.user_id   = user["id"]
+                st.session_state.usuario   = user["usuario"]
+                st.session_state.nome      = user["nome"]
+                st.session_state.tipo      = user["tipo"]
                 st.rerun()
             else:
                 st.error("Usuário ou senha inválidos")
-
-        st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     mostrar_cabecalho()
