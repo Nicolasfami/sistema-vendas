@@ -11,7 +11,7 @@ from pathlib import Path
 # CONFIGURAÇÕES
 # =========================
 
-st.set_page_config(page_title="CRM TK Soluções", layout="wide")
+st.set_page_config(page_title="OPERAX SALES", layout="wide")
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
@@ -24,408 +24,319 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
-    html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
-    }
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+}
 
-    .stApp {
-        background:
-            radial-gradient(circle at top left, rgba(34, 197, 94, 0.13), transparent 28%),
-            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 30%),
-            linear-gradient(135deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
-    }
+.stApp {
+    background:
+        radial-gradient(circle at 82% 7%, rgba(0, 180, 255, 0.18), transparent 22%),
+        radial-gradient(circle at 96% 80%, rgba(0, 100, 255, 0.22), transparent 23%),
+        linear-gradient(135deg, #020617 0%, #06142e 42%, #020617 100%) !important;
+    color: #eaf6ff !important;
+}
 
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 3rem;
-        max-width: 1180px;
-    }
+.block-container {
+    max-width: 1240px !important;
+    padding-top: 1.2rem !important;
+    padding-bottom: 3rem !important;
+}
 
-    [data-testid="stSidebar"] {
-        background:
-            linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(241,245,249,0.96) 100%);
-        border-right: 1px solid rgba(15,23,42,0.06);
-        min-width: 220px;
-        max-width: 220px;
-        backdrop-filter: blur(10px);
-    }
+header {
+    background: transparent !important;
+}
 
-    section[data-testid="stSidebar"] > div {
-        padding-left: 4px;
-        padding-right: 4px;
-    }
+/* SIDEBAR OPERAX */
+[data-testid="stSidebar"] {
+    background:
+        radial-gradient(circle at top left, rgba(0, 195, 255, 0.32), transparent 30%),
+        linear-gradient(180deg, #020617 0%, #031633 48%, #020617 100%) !important;
+    border-right: 1px solid rgba(0, 183, 255, 0.62) !important;
+    box-shadow: 0 0 38px rgba(0, 183, 255, 0.24) !important;
+    min-width: 260px !important;
+    max-width: 260px !important;
+}
 
-    [data-testid="stSidebar"] * {
-        color: #111827 !important;
-    }
+section[data-testid="stSidebar"] > div {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+    padding-top: 18px !important;
+}
 
-    [data-testid="stSidebar"] .stButton button {
-        background: rgba(255,255,255,0.08);
-        color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.18);
-        border-radius: 14px;
-    }
+[data-testid="stSidebar"] * {
+    color: #ffffff !important;
+}
 
-    [data-testid="stSidebar"] .stRadio label {
-        font-size: 16px;
-        font-weight: 600;
-        color: #111827 !important;
-    }
+.sidebar-logo-v8 {
+    text-align: center;
+    padding: 4px 0 22px 0;
+}
 
-    [data-testid="stSidebar"] [role="radiogroup"] label {
-        background: rgba(255,255,255,0.72);
-        border: 1px solid rgba(15,23,42,0.06);
-        border-radius: 14px;
-        padding: 7px 8px;
-        margin: 5px 0;
-        box-shadow: 0 8px 20px rgba(15,23,42,0.04);
-    }
+.sidebar-logo-v8 img {
+    width: 170px;
+    max-width: 100%;
+    filter: drop-shadow(0 0 18px rgba(0, 183, 255, .55));
+}
 
-    [data-testid="stSidebar"] [role="radiogroup"] label:hover {
-        background: rgba(220,252,231,0.88);
-        border-color: rgba(34,197,94,0.20);
-    }
+.sidebar-logo-icon-v8 {
+    width: 66px;
+    height: 66px;
+    border-radius: 22px;
+    margin: 0 auto 10px auto;
+    background:
+        radial-gradient(circle at 50% 50%, #000 0%, #000 28%, #00d5ff 42%, #0066ff 67%, #5ee7ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 950;
+    color: #ffffff;
+    box-shadow:
+        0 0 22px rgba(0, 183, 255, .95),
+        0 0 54px rgba(0, 102, 255, .55),
+        inset 0 0 0 1px rgba(255,255,255,.22);
+}
 
+.sidebar-user-v8 {
+    background: rgba(2, 12, 35, .65);
+    border: 1px solid rgba(0, 183, 255, .45);
+    border-radius: 18px;
+    padding: 16px 14px;
+    margin: 8px 0 22px 0;
+    font-weight: 900;
+    box-shadow: 0 0 22px rgba(0, 183, 255, .18);
+}
 
-    h1, h2, h3 {
-        color: #111827;
-        letter-spacing: -0.04em;
-    }
+.menu-label-v8 {
+    color: #00c8ff !important;
+    font-size: 12px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: .10em;
+    margin: 20px 0 10px 4px;
+}
 
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.86), rgba(240,253,250,0.72)),
-            linear-gradient(135deg, rgba(34,197,94,0.10), rgba(59,130,246,0.10));
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 28px;
-        padding: 24px 28px;
-        margin-bottom: 28px;
-        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.11);
-        backdrop-filter: blur(14px);
-    }
+.menu-ativo-v8 {
+    background: linear-gradient(90deg, rgba(0, 84, 255, .98), rgba(0, 200, 255, .98));
+    color: #ffffff !important;
+    border-radius: 16px;
+    padding: 14px 14px;
+    margin: 8px 0;
+    font-weight: 950;
+    box-shadow:
+        0 0 20px rgba(0, 200, 255, .75),
+        0 0 42px rgba(0, 102, 255, .35),
+        inset 0 0 0 1px rgba(255,255,255,.20);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
 
-    .crm-header {
-        display: flex;
-        align-items: center;
-        gap: 22px;
-    }
+.menu-ativo-v8 span,
+.menu-ativo-v8 div,
+.menu-ativo-v8 p,
+.menu-ativo-v8 code {
+    color: #ffffff !important;
+    background: transparent !important;
+}
 
-    .crm-logo-fallback {
-        width: 104px;
-        height: 104px;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #0f766e, #22c55e, #38bdf8);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 48px;
-        box-shadow: 0 20px 45px rgba(34, 197, 94, 0.30);
-    }
+.menu-ativo-v8 svg,
+.menu-svg-v8 svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 2.35;
+    stroke: #ffffff;
+    background: transparent !important;
+}
 
-    .crm-title {
-        font-size: 48px;
-        line-height: 1.02;
-        font-weight: 900;
-        color: #0f172a;
-        margin: 0;
-    }
+.menu-svg-v8 {
+    min-height: 43px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #00c8ff !important;
+}
 
-    .crm-subtitle {
-        margin: 10px 0 0 0;
-        color: #64748b;
-        font-size: 16px;
-        font-weight: 500;
-    }
+[data-testid="stSidebar"] .stButton button {
+    color: #ffffff !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    font-weight: 800 !important;
+    padding: .67rem .75rem !important;
+}
 
-    .crm-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 8px 12px;
-        border-radius: 999px;
-        background: rgba(15,118,110,0.10);
-        color: #0f766e;
-        border: 1px solid rgba(15,118,110,0.16);
-        font-weight: 700;
-        font-size: 13px;
-    }
+[data-testid="stSidebar"] .stButton button:hover {
+    background: rgba(0, 183, 255, .16) !important;
+    transform: translateX(2px);
+}
 
-    .crm-card {
-        background: rgba(255, 255, 255, 0.86);
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 24px;
-        padding: 24px;
-        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(14px);
-        margin-bottom: 22px;
-    }
+/* HEADER OPERAX */
+.operax-hero {
+    background:
+        radial-gradient(circle at 86% 10%, rgba(0, 183, 255, .22), transparent 24%),
+        linear-gradient(135deg, rgba(2, 6, 23, .92), rgba(3, 14, 40, .88)) !important;
+    border: 1px solid rgba(0, 183, 255, .42) !important;
+    border-radius: 28px !important;
+    box-shadow:
+        0 0 34px rgba(0, 183, 255, .22),
+        0 22px 70px rgba(0,0,0,.30) !important;
+    padding: 26px 30px !important;
+    margin-bottom: 28px !important;
+}
 
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,250,0.72));
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        border-radius: 20px;
-        padding: 18px 20px;
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
-    }
+.operax-title {
+    font-size: 54px !important;
+    line-height: 1.02 !important;
+    font-weight: 950 !important;
+    color: #ffffff !important;
+    margin: 0 !important;
+    letter-spacing: -0.04em !important;
+    text-shadow: 0 0 22px rgba(0, 183, 255, .35);
+}
 
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 15px !important;
-        border: 1px solid rgba(15, 23, 42, 0.08) !important;
-        background: rgba(255,255,255,0.86) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-    }
+.operax-title span {
+    color: #15bfff !important;
+}
 
-    .stButton button {
-        border-radius: 14px;
-        padding: 0.62rem 1.1rem;
-        font-weight: 800;
-        border: 1px solid rgba(15, 118, 110, 0.2);
-        background: linear-gradient(135deg, #0f766e, #22c55e);
-        color: white;
-        box-shadow: 0 12px 26px rgba(34, 197, 94, 0.24);
-    }
+.operax-subtitle {
+    color: #cceeff !important;
+    font-size: 17px !important;
+    font-weight: 560 !important;
+    margin-top: 10px !important;
+}
 
-    .stButton button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(34, 197, 94, 0.32);
-    }
+.operax-pill {
+    display: inline-flex;
+    gap: 20px;
+    margin-top: 20px;
+    background: rgba(2, 12, 35, .72) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(0, 183, 255, .62) !important;
+    border-radius: 14px !important;
+    box-shadow: 0 0 24px rgba(0, 183, 255, .22) !important;
+    padding: 13px 18px;
+    font-weight: 800;
+}
 
-    .stDataFrame {
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(15, 23, 42, 0.08);
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
-    }
+h1, h2, h3 {
+    color: #ffffff !important;
+    letter-spacing: -0.04em !important;
+    text-shadow: 0 0 16px rgba(0, 183, 255, .25);
+}
 
-    hr {
-        border-color: rgba(15, 23, 42, 0.08);
-    }
+label {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
 
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
+/* FORMULÁRIOS */
+div[data-testid="stTextInput"] input,
+div[data-testid="stNumberInput"] input,
+div[data-testid="stTextArea"] textarea,
+div[data-baseweb="select"] {
+    border-radius: 14px !important;
+    border: 1px solid rgba(0, 183, 255, .48) !important;
+    background: rgba(2, 12, 35, .62) !important;
+    color: #ffffff !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(255,255,255,.02),
+        0 0 14px rgba(0, 183, 255, .10) !important;
+}
 
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
-    }
+div[data-testid="stTextInput"] input::placeholder,
+div[data-testid="stTextArea"] textarea::placeholder {
+    color: rgba(207, 236, 255, .68) !important;
+}
 
-    section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        padding-top: 18px !important;
-    }
+div[data-testid="stTextInput"] input:focus,
+div[data-testid="stTextArea"] textarea:focus {
+    border-color: rgba(0, 220, 255, .95) !important;
+    box-shadow: 0 0 0 3px rgba(0, 183, 255, .16), 0 0 22px rgba(0,183,255,.20) !important;
+}
 
-    [data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
+.stButton button {
+    background: linear-gradient(135deg, #005bff, #00c8ff) !important;
+    border: 1px solid rgba(0, 183, 255, .45) !important;
+    border-radius: 15px !important;
+    color: white !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 22px rgba(0, 183, 255, .36) !important;
+}
 
-    [data-testid="stSidebar"] .stButton button {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
-    }
+.stButton button:hover {
+    box-shadow: 0 0 34px rgba(0, 183, 255, .56) !important;
+    transform: translateY(-1px);
+}
 
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
-    }
+div[data-testid="stMetric"] {
+    background: rgba(2, 12, 35, .70) !important;
+    border: 1px solid rgba(0, 183, 255, .40) !important;
+    border-radius: 22px !important;
+    padding: 18px 20px !important;
+    box-shadow: 0 0 24px rgba(0, 183, 255, .16) !important;
+}
 
-    .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
-        color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
-        font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
+.stDataFrame {
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 183, 255, .25);
+    box-shadow: 0 0 24px rgba(0, 183, 255, .12);
+}
 
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-    }
-
-    .menu-svg-v8 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 42px;
-        color: #ffffff;
-        opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
-        background: transparent !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        box-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
-    }
+div[data-testid="stAlert"] {
+    border-radius: 16px !important;
+}
 
 </style>
 """, unsafe_allow_html=True)
 
-
 def mostrar_cabecalho():
-    logo_path = Path("logo.png")
+    logo_path = Path("logo_operax.png")
 
-    st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([1.25, 7])
+    st.markdown('<div class="operax-hero">', unsafe_allow_html=True)
+    col_logo, col_titulo = st.columns([1.1, 7])
 
     with col_logo:
         if logo_path.exists():
-            st.image(str(logo_path), width=155)
+            st.image(str(logo_path), width=170)
         else:
-            st.markdown('<div class="crm-logo-fallback">💰</div>', unsafe_allow_html=True)
+            st.markdown(
+                '''
+                <div style="text-align:center;">
+                    <div style="
+                        width:130px;height:130px;border-radius:50%;
+                        background:radial-gradient(circle at center,#000 0%,#000 31%,#00d5ff 43%,#0066ff 66%,#5ee7ff 100%);
+                        box-shadow:0 0 30px rgba(0,183,255,.88),0 0 70px rgba(0,102,255,.40);
+                        margin:auto;
+                    "></div>
+                </div>
+                ''',
+                unsafe_allow_html=True
+            )
 
     with col_titulo:
         st.markdown(
-            """
+            '''
             <div>
-                <h1 class="crm-title">CRM TK Soluções</h1>
-                <p class="crm-subtitle">Sistema de vendas, propostas, conferência operacional e controle financeiro</p>
-                <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
+                <h1 class="operax-title">OPERAX <span>SALES</span></h1>
+                <div class="operax-subtitle">Sistema inteligente de vendas e operações financeiras</div>
+                <div class="operax-pill">
+                    <span>⚡ Painel inteligente</span>
+                    <span>🔄 Atualização por ação</span>
+                    <span>👤 Controle por vendedor</span>
+                </div>
             </div>
-            """,
+            ''',
             unsafe_allow_html=True
         )
 
     st.markdown('</div>', unsafe_allow_html=True)
-
 
 
 # =========================
@@ -818,20 +729,6 @@ def mostrar_chat_popup():
                 50% { opacity: 0.35; transform: scale(1.18); }
                 100% { opacity: 1; transform: scale(1); }
             }
-
-            .chat-alerta {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: #dcfce7;
-                border: 1px solid #86efac;
-                color: #166534;
-                padding: 8px 12px;
-                border-radius: 999px;
-                font-weight: 800;
-                box-shadow: 0 12px 28px rgba(34,197,94,0.22);
-            }
-
             .bolinha-verde {
                 width: 11px;
                 height: 11px;
@@ -839,195 +736,7 @@ def mostrar_chat_popup():
                 border-radius: 999px;
                 animation: piscarChat 1s infinite;
             }
-        
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
-
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
-    }
-
-    section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
-        padding-top: 18px !important;
-    }
-
-    [data-testid="stSidebar"] * {
-        color: #ffffff !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
-    }
-
-    .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
-        color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
-        font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-    }
-
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-    }
-
-    .menu-svg-v8 {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 42px;
-        color: #ffffff;
-        opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
-    }
-
-    [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
-        background: transparent !important;
-        text-align: left !important;
-        justify-content: flex-start !important;
-        box-shadow: none !important;
-    }
-
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
-    }
-
-</style>
+        </style>
         """, unsafe_allow_html=True)
 
     col_spacer, col_chat = st.columns([8, 1.8])
@@ -1197,8 +906,10 @@ def menu_lateral_v8():
     st.sidebar.markdown(
         """
         <div class="sidebar-logo-v8">
-            <div class="sidebar-logo-icon-v8">TK</div>
-            <div>CRM TK</div>
+            <img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_operax.png" onerror="this.style.display='none';">
+            <div class="sidebar-logo-icon-v8">O</div>
+            <div style="font-size:26px;font-weight:950;letter-spacing:3px;">OPERAX</div>
+            <div style="font-size:16px;color:#00c8ff!important;letter-spacing:6px;font-weight:900;">SALES</div>
         </div>
         """,
         unsafe_allow_html=True
