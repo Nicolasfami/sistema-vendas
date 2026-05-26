@@ -208,6 +208,154 @@ st.markdown("""
     hr {
         border-color: rgba(15, 23, 42, 0.08);
     }
+
+    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
+
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
+        border-right: none !important;
+        min-width: 245px !important;
+        max-width: 245px !important;
+        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
+    }
+
+    section[data-testid="stSidebar"] > div {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        padding-top: 18px !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button {
+        background: transparent !important;
+        color: #ffffff !important;
+        border: 0 !important;
+        border-radius: 13px !important;
+        padding: 0.62rem 0.76rem !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+        transition: all .18s ease-in-out;
+        width: 100% !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(255,255,255,0.18) !important;
+        transform: translateX(2px);
+    }
+
+    .menu-ativo-v8 {
+        background: #ffffff;
+        color: #ea580c !important;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin: 7px 0 7px 0;
+        font-weight: 900;
+        box-shadow: 0 16px 32px rgba(124,45,18,0.22);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .menu-label-v8 {
+        color: rgba(255,255,255,0.74);
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin: 18px 0 8px 6px;
+    }
+
+    .sidebar-user-v8 {
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.20);
+        border-radius: 16px;
+        padding: 14px 12px;
+        margin: 8px 0 18px 0;
+        color: white;
+        font-weight: 900;
+        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
+    }
+
+    .sidebar-logo-v8 {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding: 8px 4px 18px 4px;
+        color:white;
+        font-size:22px;
+        font-weight:900;
+    }
+
+    .sidebar-logo-icon-v8 {
+        width:44px;
+        height:44px;
+        border-radius:14px;
+        background:rgba(255,255,255,.18);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:24px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+
+    .stApp {
+        background:
+            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
+            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
+            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
+    }
+
+    .crm-hero {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
+            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
+        border: 1px solid rgba(249,115,22,0.14) !important;
+        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
+    }
+
+    .crm-pill {
+        background: rgba(249,115,22,0.11) !important;
+        color: #c2410c !important;
+        border: 1px solid rgba(249,115,22,0.18) !important;
+    }
+
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
+        border: 1px solid rgba(249,115,22,0.13) !important;
+        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
+    }
+
+    .stButton button {
+        background: linear-gradient(135deg, #f97316, #fb923c) !important;
+        border: 1px solid rgba(249,115,22,0.25) !important;
+        color: white !important;
+        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
+    }
+
+    .stButton button:hover {
+        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] {
+        border-radius: 14px !important;
+        border: 1px solid rgba(249,115,22,0.12) !important;
+        background: rgba(255,255,255,0.90) !important;
+    }
+
+    /* chat flutuante mais parecido com sistema de empresa */
+    button[kind="secondary"]:has(div:contains("Chat")) {
+        border-radius: 999px !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -651,7 +799,155 @@ def mostrar_chat_popup():
                 border-radius: 999px;
                 animation: piscarChat 1s infinite;
             }
-        </style>
+        
+    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
+
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
+        border-right: none !important;
+        min-width: 245px !important;
+        max-width: 245px !important;
+        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
+    }
+
+    section[data-testid="stSidebar"] > div {
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        padding-top: 18px !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #ffffff !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button {
+        background: transparent !important;
+        color: #ffffff !important;
+        border: 0 !important;
+        border-radius: 13px !important;
+        padding: 0.62rem 0.76rem !important;
+        justify-content: flex-start !important;
+        text-align: left !important;
+        font-weight: 700 !important;
+        box-shadow: none !important;
+        transition: all .18s ease-in-out;
+        width: 100% !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button:hover {
+        background: rgba(255,255,255,0.18) !important;
+        transform: translateX(2px);
+    }
+
+    .menu-ativo-v8 {
+        background: #ffffff;
+        color: #ea580c !important;
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin: 7px 0 7px 0;
+        font-weight: 900;
+        box-shadow: 0 16px 32px rgba(124,45,18,0.22);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .menu-label-v8 {
+        color: rgba(255,255,255,0.74);
+        font-size: 13px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        margin: 18px 0 8px 6px;
+    }
+
+    .sidebar-user-v8 {
+        background: rgba(255,255,255,0.16);
+        border: 1px solid rgba(255,255,255,0.20);
+        border-radius: 16px;
+        padding: 14px 12px;
+        margin: 8px 0 18px 0;
+        color: white;
+        font-weight: 900;
+        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
+    }
+
+    .sidebar-logo-v8 {
+        display:flex;
+        align-items:center;
+        gap:10px;
+        padding: 8px 4px 18px 4px;
+        color:white;
+        font-size:22px;
+        font-weight:900;
+    }
+
+    .sidebar-logo-icon-v8 {
+        width:44px;
+        height:44px;
+        border-radius:14px;
+        background:rgba(255,255,255,.18);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:24px;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
+    }
+
+    .stApp {
+        background:
+            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
+            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
+            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
+    }
+
+    .crm-hero {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
+            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
+        border: 1px solid rgba(249,115,22,0.14) !important;
+        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
+    }
+
+    .crm-pill {
+        background: rgba(249,115,22,0.11) !important;
+        color: #c2410c !important;
+        border: 1px solid rgba(249,115,22,0.18) !important;
+    }
+
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
+        border: 1px solid rgba(249,115,22,0.13) !important;
+        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
+    }
+
+    .stButton button {
+        background: linear-gradient(135deg, #f97316, #fb923c) !important;
+        border: 1px solid rgba(249,115,22,0.25) !important;
+        color: white !important;
+        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
+    }
+
+    .stButton button:hover {
+        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] {
+        border-radius: 14px !important;
+        border: 1px solid rgba(249,115,22,0.12) !important;
+        background: rgba(255,255,255,0.90) !important;
+    }
+
+    /* chat flutuante mais parecido com sistema de empresa */
+    button[kind="secondary"]:has(div:contains("Chat")) {
+        border-radius: 999px !important;
+    }
+
+</style>
         """, unsafe_allow_html=True)
 
     col_spacer, col_chat = st.columns([8, 1.8])
@@ -760,6 +1056,75 @@ def mostrar_chat_popup():
                     st.rerun()
 
 
+
+def menu_lateral_v8():
+    if "menu_atual" not in st.session_state:
+        st.session_state.menu_atual = "📋 Nova Venda"
+
+    if st.session_state.tipo == "admin":
+        opcoes = [
+            ("📋 Nova Venda", "▣", "Operação"),
+            ("📊 Painel", "⌁", "Operação"),
+            ("👥 Usuários", "☷", "Gestão"),
+            ("💰 Comissões", "◇", "Gestão"),
+        ]
+    else:
+        opcoes = [
+            ("📋 Nova Venda", "▣", "Operação"),
+            ("📊 Painel", "⌁", "Operação"),
+        ]
+
+    st.sidebar.markdown(
+        """
+        <div class="sidebar-logo-v8">
+            <div class="sidebar-logo-icon-v8">TK</div>
+            <div>CRM TK</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.sidebar.markdown(
+        f"""
+        <div class="sidebar-user-v8">
+            {st.session_state.nome}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    grupo_atual = None
+
+    for nome, icone, grupo in opcoes:
+        if grupo != grupo_atual:
+            st.sidebar.markdown(
+                f'<div class="menu-label-v8">{grupo}</div>',
+                unsafe_allow_html=True
+            )
+            grupo_atual = grupo
+
+        if st.session_state.menu_atual == nome:
+            st.sidebar.markdown(
+                f'<div class="menu-ativo-v8"><span>{icone}</span><span>{nome.replace("📋 ", "").replace("📊 ", "").replace("👥 ", "").replace("💰 ", "")}</span></div>',
+                unsafe_allow_html=True
+            )
+        else:
+            if st.sidebar.button(
+                f"{icone}  {nome.replace('📋 ', '').replace('📊 ', '').replace('👥 ', '').replace('💰 ', '')}",
+                key=f"menu_{nome}",
+                use_container_width=True
+            ):
+                st.session_state.menu_atual = nome
+                st.rerun()
+
+    st.sidebar.markdown("---")
+
+    if st.sidebar.button("Sair  ↪", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
+
+    return st.session_state.menu_atual
+
 # =========================
 # LOGIN
 # =========================
@@ -787,27 +1152,12 @@ if not st.session_state.logado:
             st.error("Usuário ou senha inválidos")
 
 else:
-    st.sidebar.success(f"👤 {st.session_state.nome}")
-
-    if st.sidebar.button("Sair"):
-        st.session_state.clear()
-        st.rerun()
+    menu = menu_lateral_v8()
 
     mostrar_chat_popup()
 
     if "mostrar_comissao_empresa" not in st.session_state:
         st.session_state.mostrar_comissao_empresa = True
-
-    if st.session_state.tipo == "admin":
-        menu = st.sidebar.radio(
-            "Menu",
-            ["📋 Nova Venda", "📊 Painel", "👥 Usuários", "💰 Comissões"]
-        )
-    else:
-        menu = st.sidebar.radio(
-            "Menu",
-            ["📋 Nova Venda", "📊 Painel"]
-        )
 
     if "venda_sucesso_msg" not in st.session_state:
         st.session_state.venda_sucesso_msg = ""
