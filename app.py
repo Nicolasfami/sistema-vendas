@@ -1193,52 +1193,61 @@ if not st.session_state.logado:
             radial-gradient(ellipse at 80% 70%, rgba(37,99,235,0.10) 0%, transparent 40%),
             linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important;
     }
-    [data-testid="stSidebar"] { display:none !important; }
-    header[data-testid="stHeader"] { display:none !important; }
-    .block-container { padding:3rem 1rem 1rem !important; max-width:480px !important; }
-
-    /* Card externo */
-    .login-box {
-        background: rgba(7,18,48,0.96);
-        border: 1px solid rgba(56,189,248,0.28);
-        border-radius: 24px;
-        padding: 44px 40px 40px;
-        text-align: center;
-        box-shadow: 0 0 0 1px rgba(56,189,248,0.06), 0 0 55px rgba(14,165,233,0.16), 0 28px 80px rgba(0,0,0,0.82);
+    [data-testid="stSidebar"]          { display:none !important; }
+    header[data-testid="stHeader"]     { display:none !important; }
+    #root > div:nth-child(1) > div > div > div > div > section > div {
+        padding-top: 0 !important;
     }
+
+    /* Centraliza a block-container e faz ela virar o card */
+    .block-container {
+        max-width: 420px !important;
+        margin: 0 auto !important;
+        padding: 40px 36px 36px !important;
+        margin-top: calc(50vh - 320px) !important;
+        background: rgba(7,18,48,0.96) !important;
+        border: 1px solid rgba(56,189,248,0.28) !important;
+        border-radius: 24px !important;
+        box-shadow: 0 0 0 1px rgba(56,189,248,0.07),
+                    0 0 60px rgba(14,165,233,0.18),
+                    0 28px 80px rgba(0,0,0,0.85) !important;
+    }
+
+    /* Icone centralizado */
     .l-icon {
         width:88px; height:88px; border-radius:20px;
-        margin:0 auto 20px;
+        margin:0 auto 18px auto;
         background:radial-gradient(circle at 38% 35%,#bfdbfe 0%,#3b82f6 28%,#1d4ed8 56%,#030a1a 88%);
         display:flex; align-items:center; justify-content:center; font-size:44px;
         box-shadow:0 0 0 2px rgba(56,189,248,0.45),0 0 28px rgba(56,189,248,0.85),0 0 55px rgba(14,165,233,0.45);
     }
     .l-title {
         font-family: Orbitron, sans-serif;
-        font-size:26px; font-weight:900; letter-spacing:0.07em;
-        color:#ffffff; margin-bottom:8px;
-        text-shadow:0 0 22px rgba(56,189,248,0.50);
+        font-size:24px; font-weight:900; letter-spacing:0.06em;
+        color:#ffffff; margin-bottom:6px; text-align:center;
     }
-    .l-title b { color:#38bdf8; font-weight:900; }
-    .l-sub { color:#7dd3fc; font-size:13px; opacity:0.75; margin-bottom:32px; }
+    .l-title b { color:#38bdf8; }
+    .l-sub {
+        color:#7dd3fc; font-size:13px; opacity:0.72;
+        margin-bottom:28px; text-align:center; letter-spacing:0.01em;
+    }
 
-    /* Inputs com borda neon e fundo escuro */
-    div[data-testid="stTextInput"] > div > div > input {
-        background: rgba(6,16,44,0.97) !important;
-        border: 1.5px solid rgba(14,165,233,0.55) !important;
-        border-radius: 12px !important;
+    /* Inputs fundo escuro borda neon */
+    div[data-testid="stTextInput"] input {
+        background: rgba(5,14,40,0.98) !important;
+        border: 1.5px solid rgba(14,165,233,0.60) !important;
+        border-radius: 11px !important;
         color: #e2f4ff !important;
         font-size: 15px !important;
-        box-shadow: 0 0 10px rgba(14,165,233,0.12) !important;
+        box-shadow: 0 0 8px rgba(14,165,233,0.10) !important;
     }
-    div[data-testid="stTextInput"] > div > div > input::placeholder {
-        color: rgba(125,211,252,0.30) !important;
-    }
-    div[data-testid="stTextInput"] > div > div > input:focus {
+    div[data-testid="stTextInput"] input::placeholder { color:rgba(125,211,252,0.28) !important; }
+    div[data-testid="stTextInput"] input:focus {
         border-color: #0ea5e9 !important;
-        box-shadow: 0 0 0 3px rgba(14,165,233,0.20), 0 0 16px rgba(14,165,233,0.25) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.22), 0 0 18px rgba(14,165,233,0.22) !important;
     }
-    /* Label neon azul */
+    /* Labels neon */
+    div[data-testid="stTextInput"] label,
     div[data-testid="stTextInput"] label p {
         color: #38bdf8 !important;
         font-size: 11px !important;
@@ -1248,21 +1257,23 @@ if not st.session_state.logado:
     }
     /* Botao */
     .stButton > button {
-        background: linear-gradient(90deg,#1a56db,#0ea5e9) !important;
-        border: none !important; border-radius: 13px !important;
-        color:#fff !important; font-size:16px !important; font-weight:700 !important;
-        letter-spacing:0.04em !important; height:52px !important; margin-top:8px !important;
-        box-shadow: 0 0 24px rgba(14,165,233,0.50), 0 8px 20px rgba(14,165,233,0.28) !important;
+        background: linear-gradient(90deg,#1848cc,#0ea5e9) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        height: 52px !important;
+        margin-top: 6px !important;
+        box-shadow: 0 0 26px rgba(14,165,233,0.55), 0 8px 22px rgba(14,165,233,0.30) !important;
+        letter-spacing: 0.04em !important;
     }
     .stButton > button:hover {
-        box-shadow: 0 0 38px rgba(56,189,248,0.70), 0 10px 28px rgba(14,165,233,0.40) !important;
+        box-shadow: 0 0 40px rgba(56,189,248,0.75), 0 10px 30px rgba(14,165,233,0.42) !important;
         transform: translateY(-1px) !important;
     }
-    /* Erro */
-    .stAlert { border-radius:12px !important; margin-top:10px !important; }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown('<div class="login-box">', unsafe_allow_html=True)
     st.markdown('<div class="l-icon">🌀</div>', unsafe_allow_html=True)
     st.markdown('<div class="l-title">OPERAX <b>SALES</b></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-sub">Sistema inteligente de vendas e operações financeiras</div>', unsafe_allow_html=True)
@@ -1281,8 +1292,6 @@ if not st.session_state.logado:
             st.rerun()
         else:
             st.error("Usuário ou senha inválidos")
-
-    st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     mostrar_cabecalho()
