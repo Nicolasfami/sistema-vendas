@@ -1574,15 +1574,25 @@ else:
             total_vendido = df["valor"].fillna(0).sum()
             qtd = len(df)
 
+            total_pago = df[df["status"] == "Pago"]["valor"].fillna(0).sum()
+            total_pendente = df[df["status"].isin(["Pendente", "Aguardando Pagamento", "Aguardando Assinatura"])]["valor"].fillna(0).sum()
+
+            # Destaque do Total Pago
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,rgba(34,197,94,0.18),rgba(16,185,129,0.12));border:2px solid rgba(34,197,94,0.55);border-radius:18px;padding:22px 28px;margin-bottom:14px;box-shadow:0 0 24px rgba(34,197,94,0.20);">
+                <div style="font-size:11px;font-weight:700;color:#22c55e;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">✅ Total Pago</div>
+                <div style="font-size:34px;font-weight:900;color:#0f172a;letter-spacing:-0.02em;">{dinheiro(total_pago)}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
             col1, col2, col3 = st.columns(3)
             col1.metric("💵 Total Vendido", dinheiro(total_vendido))
-            col2.metric("✅ Total Pago", dinheiro(df[df["status"] == "Pago"]["valor"].fillna(0).sum()))
-            col3.metric("⏳ Total Pendente", dinheiro(df[df["status"].isin(["Pendente", "Aguardando Pagamento", "Aguardando Assinatura"])]["valor"].fillna(0).sum()))
+            col2.metric("⏳ Total Pendente", dinheiro(total_pendente))
+            col3.metric("📋 Contratos", qtd)
 
-            col4, col5, col6 = st.columns(3)
-            col4.metric("📋 Contratos", qtd)
-            col5.metric("🗓️ Mês", mes_nome)
-            col6.metric("📅 Dia", str(dia_filtro) if dia_filtro != "Todos" else "Todos")
+            col4, col5 = st.columns(2)
+            col4.metric("🗓️ Mês", mes_nome)
+            col5.metric("📅 Dia", str(dia_filtro) if dia_filtro != "Todos" else "Todos")
 
             if st.session_state.tipo == "admin":
                 total_empresa = calcular_comissao_montante(df)
