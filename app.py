@@ -1186,81 +1186,133 @@ if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    # CSS extra para tela de login totalmente dark
     st.markdown("""
     <style>
-    /* LOGIN: fundo totalmente dark, sem sidebar, sem header */
     .stApp {
         background:
-            radial-gradient(ellipse at 20% 30%, rgba(14,165,233,0.12) 0%, transparent 45%),
+            radial-gradient(ellipse at 20% 30%, rgba(14,165,233,0.13) 0%, transparent 45%),
             radial-gradient(ellipse at 80% 70%, rgba(37,99,235,0.10) 0%, transparent 40%),
             linear-gradient(160deg, #020b18 0%, #030f22 50%, #020b18 100%) !important;
     }
     [data-testid="stSidebar"] { display: none !important; }
     header[data-testid="stHeader"] { display: none !important; }
     .block-container {
-        padding-top: 0 !important;
+        padding: 0 !important;
         max-width: 100% !important;
     }
-    /* centraliza verticalmente */
-    .login-full-page {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* Esconde labels dos inputs e usa os do card */
+    [data-testid="stTextInput"] label { display: none !important; }
+
+    /* Inputs dentro do card de login */
+    .login-input [data-testid="stTextInput"] input {
+        background: rgba(10,25,55,0.90) !important;
+        border: 1px solid rgba(56,189,248,0.28) !important;
+        border-radius: 12px !important;
+        color: #e2f4ff !important;
+        font-size: 15px !important;
+        padding: 14px 16px !important;
+        width: 100% !important;
+    }
+    .login-input [data-testid="stTextInput"] input::placeholder {
+        color: rgba(125,211,252,0.35) !important;
+    }
+    .login-input [data-testid="stTextInput"] input:focus {
+        border-color: rgba(56,189,248,0.60) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.15) !important;
+    }
+    /* Botao entrar */
+    .login-input .stButton button {
+        background: linear-gradient(135deg, #1a56db, #0ea5e9) !important;
+        border: none !important;
+        border-radius: 12px !important;
+        color: #fff !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        padding: 14px !important;
+        width: 100% !important;
+        letter-spacing: 0.03em !important;
+        box-shadow: 0 0 22px rgba(14,165,233,0.40), 0 8px 24px rgba(14,165,233,0.25) !important;
+        margin-top: 6px !important;
+    }
+    .login-input .stButton button:hover {
+        box-shadow: 0 0 32px rgba(56,189,248,0.60), 0 12px 32px rgba(14,165,233,0.35) !important;
+        transform: translateY(-1px) !important;
     }
     </style>
-    """, unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class="login-full-page">
+    <div style="
+        min-height:100vh;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        padding: 20px;
+    ">
         <div style="
-            background: rgba(3,15,40,0.92);
-            border: 1px solid rgba(56,189,248,0.20);
-            border-radius: 28px;
-            padding: 52px 48px 44px;
-            width: 420px;
+            background: rgba(8,20,50,0.94);
+            border: 1px solid rgba(56,189,248,0.18);
+            border-radius: 24px;
+            padding: 48px 44px 40px;
+            width: 430px;
             max-width: 95vw;
             text-align: center;
             box-shadow:
-                0 0 0 1px rgba(56,189,248,0.07),
-                0 0 60px rgba(14,165,233,0.12),
-                0 32px 80px rgba(0,0,0,0.70);
+                0 0 0 1px rgba(56,189,248,0.06),
+                0 0 50px rgba(14,165,233,0.10),
+                0 30px 80px rgba(0,0,0,0.75);
         ">
+            <!-- ICONE -->
             <div style="
-                width: 88px; height: 88px;
-                border-radius: 26px;
-                margin: 0 auto 22px auto;
-                background: radial-gradient(circle at 38% 38%, #a5f3fc 0%, #0ea5e9 35%, #1d4ed8 65%, #020617 90%);
-                display: flex; align-items: center; justify-content: center;
-                font-size: 44px;
+                width:90px; height:90px;
+                border-radius:22px;
+                margin:0 auto 20px;
+                background: radial-gradient(circle at 38% 35%, #bfdbfe 0%, #3b82f6 30%, #1d4ed8 58%, #030a1a 88%);
+                display:flex; align-items:center; justify-content:center;
+                font-size:46px;
                 box-shadow:
-                    0 0 0 2px rgba(56,189,248,0.45),
-                    0 0 28px rgba(56,189,248,0.80),
-                    0 0 55px rgba(14,165,233,0.45);
+                    0 0 0 2px rgba(56,189,248,0.40),
+                    0 0 25px rgba(56,189,248,0.75),
+                    0 0 50px rgba(14,165,233,0.40);
             ">🌀</div>
+
+            <!-- TITULO -->
             <div style="
-                font-family: 'Orbitron', sans-serif;
-                font-size: 28px;
-                font-weight: 800;
-                color: #ffffff;
-                letter-spacing: 0.08em;
-                margin-bottom: 8px;
-                text-shadow: 0 0 22px rgba(56,189,248,0.55);
-            ">OPERAX <span style="color:#38bdf8;text-shadow:0 0 18px rgba(56,189,248,0.85);">SALES</span></div>
-            <div style="color:#7dd3fc;font-size:14px;opacity:0.75;margin-bottom:36px;letter-spacing:0.02em;">
+                font-family:'Orbitron',sans-serif;
+                font-size:28px;
+                font-weight:800;
+                color:#ffffff;
+                letter-spacing:0.06em;
+                margin-bottom:8px;
+                text-shadow:0 0 20px rgba(56,189,248,0.50);
+            ">OPERAX <span style="color:#38bdf8;text-shadow:0 0 16px rgba(56,189,248,0.85);">SALES</span></div>
+
+            <!-- SUBTITULO -->
+            <div style="color:#7dd3fc;font-size:13px;opacity:0.72;margin-bottom:36px;letter-spacing:0.02em;">
                 Sistema inteligente de vendas e operações financeiras
+            </div>
+
+            <!-- LABEL USUARIO -->
+            <div style="text-align:left;font-size:11px;font-weight:700;color:#38bdf8;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">
+                Usuário
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1.4, 1])
+    # Inputs e botao centralizados
+    col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
-        usuario = st.text_input("USUÁRIO", placeholder="Seu login", key="login_user")
-        senha = st.text_input("SENHA", type="password", placeholder="••••••••", key="login_pass")
+        st.markdown('<div class="login-input">', unsafe_allow_html=True)
+        usuario = st.text_input("u", placeholder="Seu login", key="login_user", label_visibility="collapsed")
 
-        if st.button("⚡  Entrar", use_container_width=True):
+        st.markdown("""
+        <div style="text-align:left;font-size:11px;font-weight:700;color:#38bdf8;
+            letter-spacing:0.12em;text-transform:uppercase;margin:12px 0 6px;">
+            Senha
+        </div>""", unsafe_allow_html=True)
+
+        senha = st.text_input("s", type="password", placeholder="••••••••", key="login_pass", label_visibility="collapsed")
+
+        if st.button("⚡  Entrar", use_container_width=True, key="btn_entrar"):
             user = login(usuario, senha)
             if user:
                 st.session_state.logado = True
@@ -1271,6 +1323,7 @@ if not st.session_state.logado:
                 st.rerun()
             else:
                 st.error("Usuário ou senha inválidos")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 else:
     mostrar_cabecalho()
