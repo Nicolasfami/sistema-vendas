@@ -19,98 +19,178 @@ SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # =========================
-# DESIGN / LOGO
+# DESIGN FUTURISTA / LOGO
 # =========================
 
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(34, 197, 94, 0.13), transparent 28%),
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.14), transparent 30%),
+            linear-gradient(135deg, #f8fafc 0%, #eef2ff 45%, #f8fafc 100%);
+    }
+
     .block-container {
         padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1220px;
+        padding-bottom: 3rem;
+        max-width: 1180px;
     }
 
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #eef3ff 0%, #f8fafc 100%);
-        border-right: 1px solid #e5e7eb;
+        background:
+            linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.96) 100%);
+        border-right: 1px solid rgba(34, 197, 94, 0.28);
+        min-width: 280px;
+        max-width: 280px;
+    }
+
+    section[data-testid="stSidebar"] > div {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #e5e7eb !important;
+    }
+
+    [data-testid="stSidebar"] .stButton button {
+        background: rgba(255,255,255,0.08);
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 14px;
     }
 
     [data-testid="stSidebar"] .stRadio label {
         font-size: 16px;
+        font-weight: 600;
+        color: #e5e7eb !important;
     }
 
     h1, h2, h3 {
-        color: #1f2937;
-        letter-spacing: -0.03em;
+        color: #111827;
+        letter-spacing: -0.04em;
     }
 
-    .crm-card {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 18px;
-        padding: 22px;
-        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
-        margin-bottom: 20px;
+    .crm-hero {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.86), rgba(240,253,250,0.72)),
+            linear-gradient(135deg, rgba(34,197,94,0.10), rgba(59,130,246,0.10));
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 28px;
+        padding: 24px 28px;
+        margin-bottom: 28px;
+        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.11);
+        backdrop-filter: blur(14px);
     }
 
     .crm-header {
         display: flex;
         align-items: center;
-        gap: 18px;
-        margin-bottom: 18px;
+        gap: 22px;
     }
 
-    .crm-logo-box {
-        width: 70px;
-        height: 70px;
-        border-radius: 18px;
-        background: linear-gradient(135deg, #0f766e, #22c55e);
+    .crm-logo-fallback {
+        width: 104px;
+        height: 104px;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #0f766e, #22c55e, #38bdf8);
         color: white;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 34px;
-        box-shadow: 0 10px 25px rgba(34, 197, 94, 0.25);
+        font-size: 48px;
+        box-shadow: 0 20px 45px rgba(34, 197, 94, 0.30);
     }
 
     .crm-title {
-        font-size: 42px;
-        line-height: 1.05;
-        font-weight: 800;
-        color: #111827;
+        font-size: 48px;
+        line-height: 1.02;
+        font-weight: 900;
+        color: #0f172a;
         margin: 0;
     }
 
     .crm-subtitle {
-        margin: 4px 0 0 0;
-        color: #6b7280;
-        font-size: 15px;
+        margin: 10px 0 0 0;
+        color: #64748b;
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    .crm-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 12px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: rgba(15,118,110,0.10);
+        color: #0f766e;
+        border: 1px solid rgba(15,118,110,0.16);
+        font-weight: 700;
+        font-size: 13px;
+    }
+
+    .crm-card {
+        background: rgba(255, 255, 255, 0.86);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 24px;
+        padding: 24px;
+        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
+        backdrop-filter: blur(14px);
+        margin-bottom: 22px;
     }
 
     div[data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
-        border-radius: 16px;
-        padding: 16px 18px;
-        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(240,253,250,0.72));
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 20px;
+        padding: 18px 20px;
+        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
     }
 
     div[data-testid="stTextInput"] input,
     div[data-testid="stNumberInput"] input,
     div[data-testid="stTextArea"] textarea,
     div[data-baseweb="select"] {
-        border-radius: 12px !important;
+        border-radius: 15px !important;
+        border: 1px solid rgba(15, 23, 42, 0.08) !important;
+        background: rgba(255,255,255,0.86) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
     }
 
     .stButton button {
-        border-radius: 12px;
-        padding: 0.55rem 1rem;
-        font-weight: 600;
+        border-radius: 14px;
+        padding: 0.62rem 1.1rem;
+        font-weight: 800;
+        border: 1px solid rgba(15, 118, 110, 0.2);
+        background: linear-gradient(135deg, #0f766e, #22c55e);
+        color: white;
+        box-shadow: 0 12px 26px rgba(34, 197, 94, 0.24);
+    }
+
+    .stButton button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(34, 197, 94, 0.32);
     }
 
     .stDataFrame {
-        border-radius: 16px;
+        border-radius: 18px;
         overflow: hidden;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+    }
+
+    hr {
+        border-color: rgba(15, 23, 42, 0.08);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -119,24 +199,28 @@ st.markdown("""
 def mostrar_cabecalho():
     logo_path = Path("logo.png")
 
-    col_logo, col_titulo = st.columns([1, 8])
+    st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
+    col_logo, col_titulo = st.columns([1.25, 7])
 
     with col_logo:
         if logo_path.exists():
-            st.image(str(logo_path), width=82)
+            st.image(str(logo_path), width=155)
         else:
-            st.markdown('<div class="crm-logo-box">💰</div>', unsafe_allow_html=True)
+            st.markdown('<div class="crm-logo-fallback">💰</div>', unsafe_allow_html=True)
 
     with col_titulo:
         st.markdown(
             """
             <div>
                 <h1 class="crm-title">CRM TK Soluções</h1>
-                <p class="crm-subtitle">Sistema de vendas, propostas e conferência operacional</p>
+                <p class="crm-subtitle">Sistema de vendas, propostas, conferência operacional e controle financeiro</p>
+                <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
             </div>
             """,
             unsafe_allow_html=True
         )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 
@@ -562,6 +646,7 @@ else:
 
     elif menu == "📊 Painel":
         st.header("📊 Painel de Vendas")
+        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
         df = preparar_dataframe_vendas()
 
@@ -915,12 +1000,15 @@ else:
                                 st.success("Proposta atualizada!")
                                 st.rerun()
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # =========================
     # USUÁRIOS
     # =========================
 
     elif menu == "👥 Usuários":
         st.header("👥 Usuários")
+        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
         st.subheader("➕ Criar usuário")
 
@@ -1020,12 +1108,15 @@ else:
                     st.success("Usuário excluído!")
                     st.rerun()
 
+        st.markdown("</div>", unsafe_allow_html=True)
+
     # =========================
     # COMISSÕES
     # =========================
 
     elif menu == "💰 Comissões":
         st.header("💰 Regras de Comissão")
+        st.markdown('<div class="crm-card">', unsafe_allow_html=True)
 
         st.subheader("➕ Criar nova regra")
 
@@ -1115,3 +1206,5 @@ else:
                     supabase.table("regras_comissao").delete().eq("id", int(regra_id)).execute()
                     st.success("Regra excluída!")
                     st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
