@@ -11,7 +11,7 @@ from pathlib import Path
 # CONFIGURAÇÕES
 # =========================
 
-st.set_page_config(page_title="CRM TK Soluções", layout="wide")
+st.set_page_config(page_title="VORTEX SALES", layout="wide")
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
@@ -209,19 +209,35 @@ st.markdown("""
         border-color: rgba(15, 23, 42, 0.08);
     }
 
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
+    /* =========================================================
+       VORTEX SALES — TEMA NEON AZUL / DASHBOARD PREMIUM
+       ========================================================= */
+
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(37,99,235,0.16), transparent 32%),
+            linear-gradient(135deg, #eff6ff 0%, #f8fafc 42%, #ffffff 100%) !important;
+    }
+
+    .block-container {
+        max-width: 1180px !important;
+        padding-top: 1.8rem !important;
+        padding-bottom: 3rem !important;
+    }
 
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
+        background:
+            linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
+        border-right: 1px solid rgba(56,189,248,0.28) !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+        box-shadow: 18px 0 45px rgba(14,165,233,0.18) !important;
     }
 
     section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
         padding-top: 18px !important;
     }
 
@@ -229,133 +245,74 @@ st.markdown("""
         color: #ffffff !important;
     }
 
-    [data-testid="stSidebar"] .stButton button {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
+    .sidebar-logo-v8 {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding: 8px 4px 20px 4px;
+        color:white;
+        font-size:22px;
+        font-weight:900;
+        letter-spacing: .02em;
     }
 
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
+    .sidebar-logo-icon-v8 {
+        width:48px;
+        height:48px;
+        border-radius:16px;
+        background:
+            radial-gradient(circle at 35% 30%, #7dd3fc 0%, #0ea5e9 35%, #1d4ed8 72%, #0f172a 100%);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:24px;
+        font-weight:900;
+        color:#ffffff;
+        box-shadow:
+            0 0 28px rgba(56,189,248,0.50),
+            inset 0 0 0 1px rgba(255,255,255,0.24);
+    }
+
+    .sidebar-user-v8 {
+        background: rgba(255,255,255,0.075);
+        border: 1px solid rgba(56,189,248,0.26);
+        border-radius: 18px;
+        padding: 15px 14px;
+        margin: 8px 0 20px 0;
+        color: white !important;
+        font-weight: 900;
+        box-shadow: 0 16px 34px rgba(14,165,233,0.15);
+    }
+
+    .menu-label-v8 {
+        color: rgba(125,211,252,0.88) !important;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin: 18px 0 8px 6px;
     }
 
     .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
+        background:
+            linear-gradient(90deg, rgba(37,99,235,0.94), rgba(14,165,233,0.96));
         color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
+        border-radius: 16px;
+        padding: 13px 14px;
+        margin: 7px 0;
         font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
+        box-shadow:
+            0 0 22px rgba(56,189,248,0.42),
+            inset 0 0 0 1px rgba(255,255,255,0.18);
         display: flex;
         align-items: center;
         gap: 12px;
     }
 
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
+    .menu-ativo-v8 span {
+        color:#ffffff !important;
+        font-size: 16px;
     }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
 
     .menu-ativo-v8 svg,
     .menu-svg-v8 svg {
@@ -363,6 +320,7 @@ st.markdown("""
         height: 21px;
         stroke-width: 2.25;
         flex-shrink: 0;
+        stroke: #ffffff;
     }
 
     .menu-svg-v8 {
@@ -370,30 +328,119 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         min-height: 42px;
-        color: #ffffff;
+        color: #7dd3fc !important;
         opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
     }
 
     [data-testid="stSidebar"] .stButton button {
         color: #ffffff !important;
         background: transparent !important;
+        border: 0 !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
         text-align: left !important;
         justify-content: flex-start !important;
-        box-shadow: none !important;
+        font-weight: 760 !important;
+        padding: 0.65rem 0.75rem !important;
+        transition: all .18s ease-in-out;
     }
 
     [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
+        background: rgba(56,189,248,0.13) !important;
+        transform: translateX(2px);
+    }
+
+    .crm-hero {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.86)),
+            linear-gradient(135deg, rgba(14,165,233,0.10), rgba(37,99,235,0.08)) !important;
+        border: 1px solid rgba(14,165,233,0.13) !important;
+        border-radius: 30px !important;
+        box-shadow: 0 24px 70px rgba(15,23,42,0.08), 0 0 38px rgba(56,189,248,0.10) !important;
+        padding: 26px 30px !important;
+        margin-bottom: 28px !important;
+    }
+
+    .crm-title {
+        font-size: 50px !important;
+        line-height: 1.02 !important;
+        font-weight: 950 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        letter-spacing: -0.05em !important;
+    }
+
+    .crm-subtitle {
+        color: #475569 !important;
+        font-size: 16px !important;
+        font-weight: 560 !important;
+        margin-top: 10px !important;
+    }
+
+    .crm-pill {
+        background:
+            linear-gradient(90deg, rgba(37,99,235,0.94), rgba(14,165,233,0.95)) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(56,189,248,0.28) !important;
+        border-radius: 999px !important;
+        box-shadow: 0 12px 30px rgba(14,165,233,0.22) !important;
+    }
+
+    h1, h2, h3 {
+        color: #0f172a !important;
+        letter-spacing: -0.04em !important;
+    }
+
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.95), rgba(239,246,255,0.80)) !important;
+        border: 1px solid rgba(14,165,233,0.14) !important;
+        border-radius: 22px !important;
+        padding: 18px 20px !important;
+        box-shadow: 0 18px 45px rgba(15,23,42,0.07) !important;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] {
+        border-radius: 15px !important;
+        border: 1px solid rgba(14,165,233,0.20) !important;
+        background: rgba(255,255,255,0.94) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8) !important;
+    }
+
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus {
+        border-color: rgba(14,165,233,0.60) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.14) !important;
+    }
+
+    .stButton button {
+        background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+        border: 1px solid rgba(14,165,233,0.28) !important;
+        border-radius: 15px !important;
+        color: white !important;
+        font-weight: 850 !important;
+        box-shadow: 0 14px 30px rgba(37,99,235,0.23) !important;
+    }
+
+    .stButton button:hover {
+        box-shadow: 0 18px 42px rgba(14,165,233,0.32) !important;
+        transform: translateY(-1px);
+    }
+
+    .stDataFrame {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(14,165,233,0.13);
+        box-shadow: 0 16px 42px rgba(15,23,42,0.06);
+    }
+
+    /* Remove bug de quadrado branco antigo */
+    .menu-ativo-v8 div,
+    .menu-ativo-v8 span {
+        background: transparent !important;
     }
 
 </style>
@@ -416,8 +463,8 @@ def mostrar_cabecalho():
         st.markdown(
             """
             <div>
-                <h1 class="crm-title">CRM TK Soluções</h1>
-                <p class="crm-subtitle">Sistema de vendas, propostas, conferência operacional e controle financeiro</p>
+                <h1 class="crm-title">VORTEX SALES</h1>
+                <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
                 <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
             </div>
             """,
@@ -840,19 +887,35 @@ def mostrar_chat_popup():
                 animation: piscarChat 1s infinite;
             }
         
-    /* ===== VISUAL INSPIRADO EM DASHBOARD FINANCEIRO / V8, COM COR LARANJA ===== */
+    /* =========================================================
+       VORTEX SALES — TEMA NEON AZUL / DASHBOARD PREMIUM
+       ========================================================= */
+
+    .stApp {
+        background:
+            radial-gradient(circle at top left, rgba(56,189,248,0.18), transparent 28%),
+            radial-gradient(circle at bottom right, rgba(37,99,235,0.16), transparent 32%),
+            linear-gradient(135deg, #eff6ff 0%, #f8fafc 42%, #ffffff 100%) !important;
+    }
+
+    .block-container {
+        max-width: 1180px !important;
+        padding-top: 1.8rem !important;
+        padding-bottom: 3rem !important;
+    }
 
     [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #ff8a00 0%, #f97316 52%, #ea580c 100%) !important;
-        border-right: none !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(234, 88, 12, 0.22);
+        background:
+            linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
+        border-right: 1px solid rgba(56,189,248,0.28) !important;
+        min-width: 250px !important;
+        max-width: 250px !important;
+        box-shadow: 18px 0 45px rgba(14,165,233,0.18) !important;
     }
 
     section[data-testid="stSidebar"] > div {
-        padding-left: 14px !important;
-        padding-right: 14px !important;
+        padding-left: 16px !important;
+        padding-right: 16px !important;
         padding-top: 18px !important;
     }
 
@@ -860,133 +923,74 @@ def mostrar_chat_popup():
         color: #ffffff !important;
     }
 
-    [data-testid="stSidebar"] .stButton button {
-        background: transparent !important;
-        color: #ffffff !important;
-        border: 0 !important;
-        border-radius: 13px !important;
-        padding: 0.62rem 0.76rem !important;
-        justify-content: flex-start !important;
-        text-align: left !important;
-        font-weight: 700 !important;
-        box-shadow: none !important;
-        transition: all .18s ease-in-out;
-        width: 100% !important;
+    .sidebar-logo-v8 {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        padding: 8px 4px 20px 4px;
+        color:white;
+        font-size:22px;
+        font-weight:900;
+        letter-spacing: .02em;
     }
 
-    [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.18) !important;
-        transform: translateX(2px);
+    .sidebar-logo-icon-v8 {
+        width:48px;
+        height:48px;
+        border-radius:16px;
+        background:
+            radial-gradient(circle at 35% 30%, #7dd3fc 0%, #0ea5e9 35%, #1d4ed8 72%, #0f172a 100%);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:24px;
+        font-weight:900;
+        color:#ffffff;
+        box-shadow:
+            0 0 28px rgba(56,189,248,0.50),
+            inset 0 0 0 1px rgba(255,255,255,0.24);
+    }
+
+    .sidebar-user-v8 {
+        background: rgba(255,255,255,0.075);
+        border: 1px solid rgba(56,189,248,0.26);
+        border-radius: 18px;
+        padding: 15px 14px;
+        margin: 8px 0 20px 0;
+        color: white !important;
+        font-weight: 900;
+        box-shadow: 0 16px 34px rgba(14,165,233,0.15);
+    }
+
+    .menu-label-v8 {
+        color: rgba(125,211,252,0.88) !important;
+        font-size: 12px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin: 18px 0 8px 6px;
     }
 
     .menu-ativo-v8 {
-        background: rgba(255,255,255,0.22);
+        background:
+            linear-gradient(90deg, rgba(37,99,235,0.94), rgba(14,165,233,0.96));
         color: #ffffff !important;
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin: 7px 0 7px 0;
+        border-radius: 16px;
+        padding: 13px 14px;
+        margin: 7px 0;
         font-weight: 900;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.26), 0 16px 32px rgba(124,45,18,0.18);
+        box-shadow:
+            0 0 22px rgba(56,189,248,0.42),
+            inset 0 0 0 1px rgba(255,255,255,0.18);
         display: flex;
         align-items: center;
         gap: 12px;
     }
 
-    .menu-label-v8 {
-        color: rgba(255,255,255,0.74);
-        font-size: 13px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        margin: 18px 0 8px 6px;
+    .menu-ativo-v8 span {
+        color:#ffffff !important;
+        font-size: 16px;
     }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.16);
-        border: 1px solid rgba(255,255,255,0.20);
-        border-radius: 16px;
-        padding: 14px 12px;
-        margin: 8px 0 18px 0;
-        color: white;
-        font-weight: 900;
-        box-shadow: 0 15px 30px rgba(124,45,18,0.18);
-    }
-
-    .sidebar-logo-v8 {
-        display:flex;
-        align-items:center;
-        gap:10px;
-        padding: 8px 4px 18px 4px;
-        color:white;
-        font-size:22px;
-        font-weight:900;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width:44px;
-        height:44px;
-        border-radius:14px;
-        background:rgba(255,255,255,.18);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:24px;
-        box-shadow: inset 0 0 0 1px rgba(255,255,255,.25);
-    }
-
-    .stApp {
-        background:
-            radial-gradient(circle at top right, rgba(251,146,60,0.18), transparent 26%),
-            radial-gradient(circle at top left, rgba(253,186,116,0.22), transparent 26%),
-            linear-gradient(135deg, #fff7ed 0%, #f8fafc 48%, #fff7ed 100%) !important;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.92), rgba(255,247,237,0.82)),
-            linear-gradient(135deg, rgba(249,115,22,0.10), rgba(251,146,60,0.08)) !important;
-        border: 1px solid rgba(249,115,22,0.14) !important;
-        box-shadow: 0 24px 70px rgba(124,45,18,0.10) !important;
-    }
-
-    .crm-pill {
-        background: rgba(249,115,22,0.11) !important;
-        color: #c2410c !important;
-        border: 1px solid rgba(249,115,22,0.18) !important;
-    }
-
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(255,247,237,0.82)) !important;
-        border: 1px solid rgba(249,115,22,0.13) !important;
-        box-shadow: 0 18px 45px rgba(124,45,18,0.08) !important;
-    }
-
-    .stButton button {
-        background: linear-gradient(135deg, #f97316, #fb923c) !important;
-        border: 1px solid rgba(249,115,22,0.25) !important;
-        color: white !important;
-        box-shadow: 0 14px 28px rgba(249,115,22,0.24) !important;
-    }
-
-    .stButton button:hover {
-        box-shadow: 0 18px 38px rgba(249,115,22,0.34) !important;
-    }
-
-    div[data-testid="stTextInput"] input,
-    div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 14px !important;
-        border: 1px solid rgba(249,115,22,0.12) !important;
-        background: rgba(255,255,255,0.90) !important;
-    }
-
-    /* chat flutuante mais parecido com sistema de empresa */
-    button[kind="secondary"]:has(div:contains("Chat")) {
-        border-radius: 999px !important;
-    }
-
 
     .menu-ativo-v8 svg,
     .menu-svg-v8 svg {
@@ -994,6 +998,7 @@ def mostrar_chat_popup():
         height: 21px;
         stroke-width: 2.25;
         flex-shrink: 0;
+        stroke: #ffffff;
     }
 
     .menu-svg-v8 {
@@ -1001,30 +1006,119 @@ def mostrar_chat_popup():
         align-items: center;
         justify-content: center;
         min-height: 42px;
-        color: #ffffff;
+        color: #7dd3fc !important;
         opacity: 0.95;
-    }
-
-    .menu-ativo-v8 span {
-        font-size: 16px;
-        color: #ffffff !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        stroke: #ffffff;
     }
 
     [data-testid="stSidebar"] .stButton button {
         color: #ffffff !important;
         background: transparent !important;
+        border: 0 !important;
+        border-radius: 14px !important;
+        box-shadow: none !important;
         text-align: left !important;
         justify-content: flex-start !important;
-        box-shadow: none !important;
+        font-weight: 760 !important;
+        padding: 0.65rem 0.75rem !important;
+        transition: all .18s ease-in-out;
     }
 
     [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(255,255,255,0.16) !important;
+        background: rgba(56,189,248,0.13) !important;
+        transform: translateX(2px);
+    }
+
+    .crm-hero {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.86)),
+            linear-gradient(135deg, rgba(14,165,233,0.10), rgba(37,99,235,0.08)) !important;
+        border: 1px solid rgba(14,165,233,0.13) !important;
+        border-radius: 30px !important;
+        box-shadow: 0 24px 70px rgba(15,23,42,0.08), 0 0 38px rgba(56,189,248,0.10) !important;
+        padding: 26px 30px !important;
+        margin-bottom: 28px !important;
+    }
+
+    .crm-title {
+        font-size: 50px !important;
+        line-height: 1.02 !important;
+        font-weight: 950 !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        letter-spacing: -0.05em !important;
+    }
+
+    .crm-subtitle {
+        color: #475569 !important;
+        font-size: 16px !important;
+        font-weight: 560 !important;
+        margin-top: 10px !important;
+    }
+
+    .crm-pill {
+        background:
+            linear-gradient(90deg, rgba(37,99,235,0.94), rgba(14,165,233,0.95)) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(56,189,248,0.28) !important;
+        border-radius: 999px !important;
+        box-shadow: 0 12px 30px rgba(14,165,233,0.22) !important;
+    }
+
+    h1, h2, h3 {
+        color: #0f172a !important;
+        letter-spacing: -0.04em !important;
+    }
+
+    div[data-testid="stMetric"] {
+        background:
+            linear-gradient(135deg, rgba(255,255,255,0.95), rgba(239,246,255,0.80)) !important;
+        border: 1px solid rgba(14,165,233,0.14) !important;
+        border-radius: 22px !important;
+        padding: 18px 20px !important;
+        box-shadow: 0 18px 45px rgba(15,23,42,0.07) !important;
+    }
+
+    div[data-testid="stTextInput"] input,
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stTextArea"] textarea,
+    div[data-baseweb="select"] {
+        border-radius: 15px !important;
+        border: 1px solid rgba(14,165,233,0.20) !important;
+        background: rgba(255,255,255,0.94) !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8) !important;
+    }
+
+    div[data-testid="stTextInput"] input:focus,
+    div[data-testid="stTextArea"] textarea:focus {
+        border-color: rgba(14,165,233,0.60) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.14) !important;
+    }
+
+    .stButton button {
+        background: linear-gradient(135deg, #2563eb, #0ea5e9) !important;
+        border: 1px solid rgba(14,165,233,0.28) !important;
+        border-radius: 15px !important;
+        color: white !important;
+        font-weight: 850 !important;
+        box-shadow: 0 14px 30px rgba(37,99,235,0.23) !important;
+    }
+
+    .stButton button:hover {
+        box-shadow: 0 18px 42px rgba(14,165,233,0.32) !important;
+        transform: translateY(-1px);
+    }
+
+    .stDataFrame {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(14,165,233,0.13);
+        box-shadow: 0 16px 42px rgba(15,23,42,0.06);
+    }
+
+    /* Remove bug de quadrado branco antigo */
+    .menu-ativo-v8 div,
+    .menu-ativo-v8 span {
+        background: transparent !important;
     }
 
 </style>
@@ -1134,139 +1228,6 @@ def mostrar_chat_popup():
                         mensagem.strip()
                     )
                     st.rerun()
-
-
-
-def icone_svg(nome):
-    icones = {
-        "nova": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M7 3h7l4 4v14H7V3Z"/>
-            <path d="M14 3v5h5"/>
-            <path d="M9 14h6"/>
-            <path d="M12 11v6"/>
-        </svg>
-        """,
-        "painel": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M4 19V5"/>
-            <path d="M4 19h16"/>
-            <path d="M8 16v-5"/>
-            <path d="M12 16V8"/>
-            <path d="M16 16v-7"/>
-            <path d="M20 16v-3"/>
-        </svg>
-        """,
-        "usuarios": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-            <circle cx="9.5" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        """,
-        "comissoes": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 2v20"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-            <path d="M19 9l2-2-2-2"/>
-            <path d="M5 15l-2 2 2 2"/>
-        </svg>
-        """
-    }
-    return icones.get(nome, "")
-
-
-def menu_lateral_v8():
-    if "menu_atual" not in st.session_state:
-        st.session_state.menu_atual = "📋 Nova Venda"
-
-    if st.session_state.tipo == "admin":
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-            ("👥 Usuários", "usuarios", "Gestão"),
-            ("💰 Comissões", "comissoes", "Gestão"),
-        ]
-    else:
-        opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-        ]
-
-    st.sidebar.markdown(
-        """
-        <div class="sidebar-logo-v8">
-            <div class="sidebar-logo-icon-v8">TK</div>
-            <div>CRM TK</div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.sidebar.markdown(
-        f"""
-        <div class="sidebar-user-v8">
-            {st.session_state.nome}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-    grupo_atual = None
-
-    for nome, icone_nome, grupo in opcoes:
-        nome_limpo = (
-            nome.replace("📋 ", "")
-            .replace("📊 ", "")
-            .replace("👥 ", "")
-            .replace("💰 ", "")
-        )
-
-        if grupo != grupo_atual:
-            st.sidebar.markdown(
-                f'<div class="menu-label-v8">{grupo}</div>',
-                unsafe_allow_html=True
-            )
-            grupo_atual = grupo
-
-        svg = icone_svg(icone_nome)
-
-        if st.session_state.menu_atual == nome:
-            st.sidebar.markdown(
-                f"""
-                <div class="menu-ativo-v8">
-                    {svg}
-                    <span>{nome_limpo}</span>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
-
-            with col_icon:
-                st.markdown(
-                    f'<div class="menu-svg-v8">{svg}</div>',
-                    unsafe_allow_html=True
-                )
-
-            with col_btn:
-                if st.button(
-                    nome_limpo,
-                    key=f"menu_{nome}",
-                    use_container_width=True
-                ):
-                    st.session_state.menu_atual = nome
-                    st.rerun()
-
-    st.sidebar.markdown("---")
-
-    if st.sidebar.button("Sair  ↪", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
-
-    return st.session_state.menu_atual
 
 
 # =========================
