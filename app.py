@@ -523,6 +523,14 @@ else:
 
                 df_visao = df[colunas].copy()
 
+                if "valor" in df_visao.columns:
+                    df_visao["valor"] = df_visao["valor"].apply(dinheiro)
+
+                if "valor_comissao_empresa" in df_visao.columns:
+                    df_visao["valor_comissao_empresa"] = (
+                        df_visao["valor_comissao_empresa"].apply(dinheiro)
+                    )
+
                 st.dataframe(
                     df_visao.style.apply(
                         destacar_linhas_pendentes,
