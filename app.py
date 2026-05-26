@@ -5,11 +5,6 @@ from supabase import create_client
 from datetime import datetime
 import hashlib
 
-try:
-    from streamlit_autorefresh import st_autorefresh
-except Exception:
-    st_autorefresh = None
-
 # =========================
 # CONFIGURAÇÕES
 # =========================
@@ -190,6 +185,36 @@ def preparar_dataframe_vendas():
     return df
 
 
+def destacar_linhas_pendentes(row, tipo_usuario):
+    """
+    Destaca propostas pendentes:
+    - Pendente recente: amarelo
+    - Pendente com mais de 1 hora: vermelho somente para admin
+    """
+    try:
+        status = str(row.get("status", "")).strip().lower()
+        data_venda = row.get("data", None)
+
+        if status != "pendente":
+            return [""] * len(row)
+
+        agora = pd.Timestamp.now()
+
+        if pd.notna(data_venda):
+            data_venda = pd.to_datetime(data_venda, errors="coerce")
+            horas_pendente = (agora - data_venda).total_seconds() / 3600
+        else:
+            horas_pendente = 0
+
+        if tipo_usuario == "admin" and horas_pendente >= 1:
+            return ["background-color: #ffb3b3"] * len(row)
+
+        return ["background-color: #fff3b0"] * len(row)
+
+    except Exception:
+        return [""] * len(row)
+
+
 # =========================
 # LOGIN
 # =========================
@@ -292,23 +317,6 @@ else:
 
     elif menu == "📊 Painel":
         st.header("📊 Painel de Vendas")
-
-        col_refresh_1, col_refresh_2 = st.columns([1, 4])
-
-        with col_refresh_1:
-            if st.button("🔄 Atualizar agora"):
-                st.rerun()
-
-        with col_refresh_2:
-            st.caption("O painel atualiza automaticamente sem precisar apertar F5.")
-
-        if st_autorefresh is not None:
-            intervalo = 10000 if st.session_state.tipo == "admin" else 15000
-            st_autorefresh(
-                interval=intervalo,
-                limit=None,
-                key=f"auto_refresh_{st.session_state.tipo}"
-            )
 
         df = preparar_dataframe_vendas()
 
@@ -420,6 +428,7 @@ else:
 
             st.divider()
             st.subheader("📄 Propostas")
+            st.caption("🟨 Pendente | 🟥 Pendente há mais de 1 hora no painel do admin")
 
             if df.empty:
                 st.info("Nenhuma proposta encontrada.")
@@ -456,7 +465,16 @@ else:
 
                 colunas = [c for c in colunas if c in df.columns]
 
-                st.dataframe(df[colunas], use_container_width=True)
+                df_visao = df[colunas].copy()
+
+                st.dataframe(
+                    df_visao.style.apply(
+                        destacar_linhas_pendentes,
+                        tipo_usuario=st.session_state.tipo,
+                        axis=1
+                    ),
+                    use_container_width=True
+                )
 
                 # =========================
                 # AÇÕES RÁPIDAS ADMIN
