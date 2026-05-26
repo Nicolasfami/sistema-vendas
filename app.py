@@ -1910,16 +1910,42 @@ else:
         if df_rank.empty:
             st.warning("Nenhuma venda cadastrada.")
         else:
-            meses_r = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
-                       7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+            # Filtro por tipo de periodo
+            tipo_filtro = st.radio(
+                "Tipo de filtro",
+                ["Mês/Ano", "Período personalizado"],
+                horizontal=True,
+                key="rank_tipo_filtro"
+            )
 
-            col_r1, col_r2 = st.columns(2)
-            mes_r = col_r1.selectbox("Mês", list(meses_r.values()), index=datetime.now().month-1, key="rank_mes")
-            anos_r = sorted(df_rank["ano"].dropna().unique().astype(int).tolist(), reverse=True)
-            ano_r = col_r2.selectbox("Ano", anos_r if anos_r else [datetime.now().year], key="rank_ano")
-
-            mes_num_r = [k for k,v in meses_r.items() if v == mes_r][0]
-            df_rank = df_rank[(df_rank["mes_num"] == mes_num_r) & (df_rank["ano"] == ano_r)]
+            if tipo_filtro == "Mês/Ano":
+                meses_r = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
+                           7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+                col_r1, col_r2 = st.columns(2)
+                mes_r = col_r1.selectbox("Mês", list(meses_r.values()), index=datetime.now().month-1, key="rank_mes")
+                anos_r = sorted(df_rank["ano"].dropna().unique().astype(int).tolist(), reverse=True)
+                ano_r = col_r2.selectbox("Ano", anos_r if anos_r else [datetime.now().year], key="rank_ano")
+                mes_num_r = [k for k,v in meses_r.items() if v == mes_r][0]
+                df_rank = df_rank[(df_rank["mes_num"] == mes_num_r) & (df_rank["ano"] == ano_r)]
+            else:
+                col_d1, col_d2 = st.columns(2)
+                data_ini = col_d1.date_input(
+                    "Data inicial",
+                    value=datetime.now().replace(day=1).date(),
+                    key="rank_data_ini"
+                )
+                data_fim = col_d2.date_input(
+                    "Data final",
+                    value=datetime.now().date(),
+                    key="rank_data_fim"
+                )
+                df_rank = df_rank[
+                    (df_rank["data"].dt.date >= data_ini) &
+                    (df_rank["data"].dt.date <= data_fim)
+                ]
+                if data_ini > data_fim:
+                    st.error("Data inicial não pode ser maior que a data final.")
+                    st.stop()
 
             if df_rank.empty:
                 st.info("Nenhuma venda neste período.")
