@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from supabase import create_client
@@ -11,7 +10,7 @@ from pathlib import Path
 # CONFIGURAÇÕES
 # =========================
 
-st.set_page_config(page_title="OPERAX SALES", layout="wide")
+st.set_page_config(page_title="OPERAX SALES", layout="wide", page_icon="⚡")
 
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
@@ -19,320 +18,504 @@ SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # =========================
-# DESIGN FUTURISTA / LOGO
+# DESIGN DARK FUTURISTA
 # =========================
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Exo+2:wght@300;400;500;600;700;800;900&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Exo 2', sans-serif;
     }
 
+    /* FUNDO DARK ESPACIAL */
     .stApp {
         background:
-            radial-gradient(circle at top left, rgba(14,165,233,0.14), transparent 25%),
-            radial-gradient(circle at bottom right, rgba(37,99,235,0.10), transparent 30%),
-            linear-gradient(135deg, #f8fbff 0%, #eef6ff 46%, #ffffff 100%) !important;
+            radial-gradient(ellipse at 15% 20%, rgba(14,165,233,0.13) 0%, transparent 40%),
+            radial-gradient(ellipse at 85% 80%, rgba(37,99,235,0.11) 0%, transparent 35%),
+            radial-gradient(ellipse at 50% 50%, rgba(6,30,70,0.55) 0%, transparent 60%),
+            linear-gradient(160deg, #020b18 0%, #030f22 35%, #040d1c 65%, #020b18 100%) !important;
+        min-height: 100vh;
     }
 
     .block-container {
-        padding-top: 2rem !important;
+        padding-top: 1.5rem !important;
         padding-bottom: 3rem !important;
-        max-width: 1180px !important;
+        max-width: 1220px !important;
     }
 
-    /* SIDEBAR AZUL */
+    /* SIDEBAR DARK */
     [data-testid="stSidebar"] {
         background:
-            radial-gradient(circle at top left, rgba(14,165,233,0.35), transparent 30%),
-            linear-gradient(180deg, #020617 0%, #061a3d 48%, #0f172a 100%) !important;
-        border-right: 1px solid rgba(56,189,248,0.38) !important;
-        min-width: 245px !important;
-        max-width: 245px !important;
-        box-shadow: 18px 0 45px rgba(14,165,233,0.22) !important;
+            radial-gradient(ellipse at 10% 5%, rgba(14,165,233,0.22) 0%, transparent 35%),
+            linear-gradient(180deg, #020c1e 0%, #030f28 50%, #020b1a 100%) !important;
+        border-right: 1px solid rgba(56,189,248,0.25) !important;
+        min-width: 260px !important;
+        max-width: 260px !important;
+        box-shadow: 4px 0 40px rgba(14,165,233,0.18), inset -1px 0 0 rgba(56,189,248,0.12) !important;
     }
 
     section[data-testid="stSidebar"] > div {
-        padding-left: 16px !important;
-        padding-right: 16px !important;
-        padding-top: 18px !important;
+        padding-left: 18px !important;
+        padding-right: 18px !important;
+        padding-top: 20px !important;
     }
 
     [data-testid="stSidebar"] * {
-        color: #ffffff !important;
+        color: #e2f4ff !important;
     }
 
     [data-testid="stSidebar"] .stButton button {
-        color: #ffffff !important;
+        color: #b8e3f8 !important;
         background: transparent !important;
         border: 0 !important;
-        border-radius: 14px !important;
+        border-radius: 12px !important;
         box-shadow: none !important;
         text-align: left !important;
         justify-content: flex-start !important;
-        font-weight: 760 !important;
-        padding: 0.65rem 0.75rem !important;
-        transition: all .18s ease-in-out;
+        font-weight: 600 !important;
+        font-family: 'Exo 2', sans-serif !important;
+        padding: 0.7rem 0.85rem !important;
+        transition: all .2s ease;
+        letter-spacing: 0.02em;
     }
 
     [data-testid="stSidebar"] .stButton button:hover {
-        background: rgba(56,189,248,0.14) !important;
-        transform: translateX(2px);
-    }
-
-    .sidebar-logo-v8 {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 8px 4px 22px 4px;
-        color: white;
-        font-size: 22px;
-        font-weight: 900;
-        letter-spacing: .02em;
-    }
-
-    .sidebar-logo-v8 img {
-        width: 190px !important;
-        max-width: 190px !important;
-        height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(56,189,248,0.60)) !important;
-    }
-
-    .sidebar-logo-title {
-        line-height: 1.05;
-        font-weight: 950;
-        letter-spacing: .08em;
-    }
-
-    .sidebar-logo-sub {
-        font-size: 13px;
-        color: #38bdf8 !important;
-        letter-spacing: .28em;
-        margin-top: 4px;
-    }
-
-    .sidebar-logo-icon-v8 {
-        width: 52px;
-        height: 52px;
-        border-radius: 18px;
-        background:
-            radial-gradient(circle at 50% 50%, #020617 0%, #020617 32%, #0ea5e9 44%, #2563eb 70%, #38bdf8 100%);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:25px;
-        font-weight:900;
-        color:#ffffff;
-        box-shadow:
-            0 0 34px rgba(56,189,248,0.58),
-            inset 0 0 0 1px rgba(255,255,255,0.22);
-    }
-
-    .sidebar-user-v8 {
-        background: rgba(255,255,255,0.075);
-        border: 1px solid rgba(56,189,248,0.30);
-        border-radius: 18px;
-        padding: 15px 14px;
-        margin: 8px 0 20px 0;
-        color: white !important;
-        font-weight: 900;
-        box-shadow: 0 16px 34px rgba(14,165,233,0.18);
-    }
-
-    .menu-label-v8 {
-        color: rgba(56,189,248,0.94) !important;
-        font-size: 12px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin: 18px 0 8px 6px;
-    }
-
-    .menu-ativo-v8 {
-        background:
-            linear-gradient(90deg, rgba(37,99,235,0.96), rgba(14,165,233,0.96)) !important;
+        background: rgba(56,189,248,0.12) !important;
         color: #ffffff !important;
-        border-radius: 16px;
-        padding: 13px 14px;
-        margin: 7px 0;
-        font-weight: 900;
-        box-shadow:
-            0 0 26px rgba(56,189,248,0.52),
-            inset 0 0 0 1px rgba(255,255,255,0.22);
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        overflow: hidden;
-        min-height: 54px;
+        transform: translateX(3px);
     }
 
-    .menu-ativo-v8 span {
-        color:#ffffff !important;
-        font-size: 16px;
-        background: transparent !important;
-    }
-
-    .menu-ativo-v8 svg,
-    .menu-svg-v8 svg {
-        width: 21px;
-        height: 21px;
-        stroke-width: 2.25;
-        flex-shrink: 0;
-        stroke: #ffffff !important;
-        background: transparent !important;
-    }
-
-    .menu-svg-v8 {
+    .sidebar-logo-block {
+        padding: 6px 4px 24px 4px;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 42px;
-        color: #7dd3fc !important;
-        opacity: 0.95;
     }
 
-    /* CORREÇÃO DEFINITIVA DO QUADRADO BRANCO */
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 code,
-    .menu-ativo-v8 p {
-        display: none !important;
-    }
-
-    .menu-ativo-v8 * {
-        background: transparent !important;
-        box-shadow: none !important;
-    }
-
-    h1, h2, h3 {
-        color: #0f172a;
-        letter-spacing: -0.04em;
-    }
-
-    .crm-hero {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.94), rgba(239,246,255,0.86));
-        border: 1px solid rgba(14,165,233,0.12);
-        border-radius: 28px;
-        padding: 24px 28px;
-        margin-bottom: 28px;
-        box-shadow: 0 22px 70px rgba(15, 23, 42, 0.10);
-        backdrop-filter: blur(14px);
-    }
-
-    .crm-hero img {
-        width: 260px !important;
-        max-width: 260px !important;
+    .sidebar-logo-block img {
+        width: 200px !important;
+        max-width: 200px !important;
         height: auto !important;
-        object-fit: contain !important;
-        filter: drop-shadow(0 0 18px rgba(14,165,233,0.18)) !important;
+        filter: drop-shadow(0 0 22px rgba(56,189,248,0.65)) brightness(1.08) !important;
     }
 
-    .crm-title {
-        font-size: 48px;
-        line-height: 1.02;
-        font-weight: 950;
-        color: #0f172a;
+    .sidebar-logo-text {
+        text-align: center;
+        padding: 2px 0 20px 0;
+    }
+
+    .sidebar-logo-text .brand-name {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        color: #ffffff !important;
+        text-shadow: 0 0 30px rgba(56,189,248,0.7), 0 0 60px rgba(14,165,233,0.4);
+        line-height: 1;
+    }
+
+    .sidebar-logo-text .brand-sub {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.55em;
+        color: #38bdf8 !important;
+        margin-top: 3px;
+        text-shadow: 0 0 15px rgba(56,189,248,0.5);
+    }
+
+    .sidebar-user-card {
+        background: rgba(14,165,233,0.08);
+        border: 1px solid rgba(56,189,248,0.22);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin: 4px 0 22px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .sidebar-user-card .user-dot {
+        width: 9px;
+        height: 9px;
+        background: #22c55e;
+        border-radius: 50%;
+        box-shadow: 0 0 8px #22c55e;
+        flex-shrink: 0;
+    }
+
+    .sidebar-user-card .user-name {
+        font-weight: 700;
+        font-size: 14px;
+        color: #ffffff !important;
+        letter-spacing: 0.03em;
+    }
+
+    .sidebar-user-card .user-status {
+        font-size: 11px;
+        color: #38bdf8 !important;
+        margin-top: 1px;
+    }
+
+    .menu-section-label {
+        color: rgba(56,189,248,0.7) !important;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        margin: 20px 0 8px 6px;
+        font-family: 'Rajdhani', sans-serif;
+    }
+
+    .menu-item-active {
+        background: linear-gradient(90deg, rgba(37,99,235,0.88), rgba(14,165,233,0.80)) !important;
+        border: 1px solid rgba(56,189,248,0.35) !important;
+        border-radius: 13px;
+        padding: 12px 14px;
+        margin: 5px 0;
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        box-shadow: 0 0 28px rgba(56,189,248,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
+        cursor: default;
+    }
+
+    .menu-item-active span.label {
+        font-weight: 700;
+        font-size: 15px;
+        color: #ffffff !important;
+        font-family: 'Exo 2', sans-serif;
+        letter-spacing: 0.03em;
+    }
+
+    .menu-item-active svg,
+    .menu-item-icon svg {
+        width: 20px;
+        height: 20px;
+        stroke-width: 2;
+        flex-shrink: 0;
+    }
+
+    .menu-item-active svg { stroke: #ffffff !important; }
+    .menu-item-icon { color: #38bdf8 !important; display: flex; align-items: center; min-height: 40px; }
+    .menu-item-icon svg { stroke: #38bdf8 !important; }
+
+    /* Remove white boxes from markdown in menu */
+    .menu-item-active pre, .menu-item-active code, .menu-item-active p { display: none !important; }
+    .menu-item-active * { background: transparent !important; box-shadow: none !important; }
+
+    /* HEADER PRINCIPAL */
+    .main-header {
+        background:
+            linear-gradient(135deg, rgba(3,18,45,0.96), rgba(4,22,55,0.92));
+        border: 1px solid rgba(56,189,248,0.20);
+        border-radius: 20px;
+        padding: 22px 28px;
+        margin-bottom: 26px;
+        box-shadow:
+            0 0 0 1px rgba(56,189,248,0.08),
+            0 20px 60px rgba(0,0,0,0.5),
+            inset 0 1px 0 rgba(56,189,248,0.12);
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .main-header::before {
+        content: '';
+        position: absolute;
+        top: -60px; right: -60px;
+        width: 220px; height: 220px;
+        background: radial-gradient(circle, rgba(14,165,233,0.12) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .main-header-logo img {
+        width: 220px !important;
+        height: auto !important;
+        filter: drop-shadow(0 0 24px rgba(56,189,248,0.6)) brightness(1.1) !important;
+    }
+
+    .main-header-text .title-main {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 42px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        color: #ffffff !important;
+        text-shadow: 0 0 40px rgba(56,189,248,0.5);
+        line-height: 1;
         margin: 0;
-        letter-spacing: -0.05em;
     }
 
-    .crm-title span {
-        color: #0ea5e9;
-        letter-spacing: .05em;
+    .main-header-text .title-main .accent {
+        color: #38bdf8 !important;
+        text-shadow: 0 0 30px rgba(56,189,248,0.8);
     }
 
-    .crm-subtitle {
-        margin: 10px 0 0 0;
-        color: #475569;
-        font-size: 16px;
-        font-weight: 550;
+    .main-header-text .subtitle {
+        color: #7dd3fc !important;
+        font-size: 14px;
+        font-weight: 400;
+        letter-spacing: 0.05em;
+        margin: 6px 0 12px 0;
+        opacity: 0.85;
     }
 
-    .crm-pill {
+    .header-pills {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .header-pill {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 9px 14px;
+        gap: 6px;
+        padding: 6px 14px;
         border-radius: 999px;
-        background: linear-gradient(90deg, #2563eb, #0ea5e9);
-        color: #ffffff;
-        border: 1px solid rgba(14,165,233,0.22);
-        font-weight: 800;
-        font-size: 13px;
-        box-shadow: 0 12px 28px rgba(14,165,233,0.24);
+        border: 1px solid rgba(56,189,248,0.30);
+        background: rgba(14,165,233,0.10);
+        color: #7dd3fc !important;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        backdrop-filter: blur(8px);
     }
 
-    .crm-card {
-        background: rgba(255, 255, 255, 0.90);
-        border: 1px solid rgba(14,165,233,0.12);
-        border-radius: 24px;
+    /* PÁGINA CONTEÚDO */
+    .page-title {
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #e2f4ff !important;
+        margin: 0 0 20px 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        text-shadow: 0 0 20px rgba(56,189,248,0.3);
+    }
+
+    .section-card {
+        background: rgba(3,18,45,0.85);
+        border: 1px solid rgba(56,189,248,0.18);
+        border-radius: 18px;
         padding: 24px;
-        box-shadow: 0 18px 55px rgba(15, 23, 42, 0.08);
-        backdrop-filter: blur(14px);
-        margin-bottom: 22px;
+        margin-bottom: 20px;
+        box-shadow:
+            0 0 0 1px rgba(56,189,248,0.06),
+            0 16px 48px rgba(0,0,0,0.4);
     }
 
-    div[data-testid="stMetric"] {
-        background:
-            linear-gradient(135deg, rgba(255,255,255,0.96), rgba(239,246,255,0.78));
-        border: 1px solid rgba(14,165,233,0.13);
-        border-radius: 20px;
-        padding: 18px 20px;
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.08);
-    }
-
+    /* INPUTS DARK */
     div[data-testid="stTextInput"] input,
     div[data-testid="stNumberInput"] input,
-    div[data-testid="stTextArea"] textarea,
-    div[data-baseweb="select"] {
-        border-radius: 15px !important;
-        border: 1px solid rgba(14,165,233,0.18) !important;
-        background: rgba(255,255,255,0.94) !important;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    div[data-testid="stTextArea"] textarea {
+        background: rgba(2,12,30,0.90) !important;
+        border: 1px solid rgba(56,189,248,0.22) !important;
+        border-radius: 12px !important;
+        color: #e2f4ff !important;
+        font-family: 'Exo 2', sans-serif !important;
+        box-shadow: inset 0 1px 0 rgba(56,189,248,0.05) !important;
     }
 
     div[data-testid="stTextInput"] input:focus,
     div[data-testid="stTextArea"] textarea:focus {
-        border-color: rgba(14,165,233,0.68) !important;
-        box-shadow: 0 0 0 3px rgba(14,165,233,0.14) !important;
+        border-color: rgba(56,189,248,0.55) !important;
+        box-shadow: 0 0 0 3px rgba(14,165,233,0.15), inset 0 1px 0 rgba(56,189,248,0.05) !important;
     }
 
+    div[data-testid="stTextInput"] input::placeholder,
+    div[data-testid="stNumberInput"] input::placeholder,
+    div[data-testid="stTextArea"] textarea::placeholder {
+        color: rgba(125,211,252,0.35) !important;
+    }
+
+    /* SELECT DARK */
+    div[data-baseweb="select"] {
+        background: rgba(2,12,30,0.90) !important;
+        border: 1px solid rgba(56,189,248,0.22) !important;
+        border-radius: 12px !important;
+    }
+
+    div[data-baseweb="select"] * {
+        background: rgba(2,12,30,0.95) !important;
+        color: #e2f4ff !important;
+    }
+
+    /* LABELS */
+    [data-testid="stTextInput"] label,
+    [data-testid="stNumberInput"] label,
+    [data-testid="stTextArea"] label,
+    [data-testid="stSelectbox"] label,
+    .stCheckbox label {
+        color: #7dd3fc !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        letter-spacing: 0.04em !important;
+        font-family: 'Exo 2', sans-serif !important;
+    }
+
+    /* BOTÕES */
     .stButton button {
-        border-radius: 14px;
-        padding: 0.62rem 1.1rem;
-        font-weight: 850;
-        border: 1px solid rgba(14,165,233,0.24);
-        background: linear-gradient(135deg, #2563eb, #0ea5e9);
-        color: white;
-        box-shadow: 0 12px 26px rgba(14,165,233,0.24);
+        background: linear-gradient(135deg, #1d4ed8, #0ea5e9) !important;
+        border: 1px solid rgba(56,189,248,0.35) !important;
+        border-radius: 12px !important;
+        color: #ffffff !important;
+        font-family: 'Exo 2', sans-serif !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.04em !important;
+        box-shadow: 0 8px 24px rgba(14,165,233,0.25) !important;
+        transition: all 0.2s !important;
     }
 
     .stButton button:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 16px 34px rgba(14,165,233,0.32);
+        background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
+        box-shadow: 0 12px 32px rgba(56,189,248,0.4) !important;
+        transform: translateY(-1px) !important;
     }
 
+    /* MÉTRICAS DARK */
+    div[data-testid="stMetric"] {
+        background: rgba(3,18,45,0.90) !important;
+        border: 1px solid rgba(56,189,248,0.18) !important;
+        border-radius: 16px !important;
+        padding: 18px 20px !important;
+        box-shadow: 0 0 0 1px rgba(56,189,248,0.06), 0 12px 32px rgba(0,0,0,0.4) !important;
+    }
+
+    div[data-testid="stMetric"] label {
+        color: #7dd3fc !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+    }
+
+    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        color: #ffffff !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 26px !important;
+        text-shadow: 0 0 20px rgba(56,189,248,0.3) !important;
+    }
+
+    /* DATAFRAME */
     .stDataFrame {
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(14,165,233,0.13);
-        box-shadow: 0 14px 38px rgba(15, 23, 42, 0.06);
+        border-radius: 14px !important;
+        overflow: hidden !important;
+        border: 1px solid rgba(56,189,248,0.15) !important;
+        box-shadow: 0 12px 36px rgba(0,0,0,0.4) !important;
     }
 
+    /* HEADERS h1 h2 h3 */
+    h1, h2, h3 {
+        font-family: 'Rajdhani', sans-serif !important;
+        color: #e2f4ff !important;
+        letter-spacing: 0.05em !important;
+    }
+
+    /* ALERTS */
+    .stSuccess > div {
+        background: rgba(34,197,94,0.12) !important;
+        border: 1px solid rgba(34,197,94,0.35) !important;
+        border-radius: 12px !important;
+        color: #86efac !important;
+    }
+
+    .stError > div {
+        background: rgba(239,68,68,0.12) !important;
+        border: 1px solid rgba(239,68,68,0.35) !important;
+        border-radius: 12px !important;
+        color: #fca5a5 !important;
+    }
+
+    .stWarning > div {
+        background: rgba(234,179,8,0.10) !important;
+        border: 1px solid rgba(234,179,8,0.30) !important;
+        border-radius: 12px !important;
+        color: #fde68a !important;
+    }
+
+    .stInfo > div {
+        background: rgba(14,165,233,0.10) !important;
+        border: 1px solid rgba(14,165,233,0.28) !important;
+        border-radius: 12px !important;
+        color: #7dd3fc !important;
+    }
+
+    /* DIVIDER */
     hr {
-        border-color: rgba(15, 23, 42, 0.08);
+        border-color: rgba(56,189,248,0.15) !important;
+    }
+
+    /* SUBHEADER */
+    .stApp h2 {
+        color: #bae6fd !important;
+        border-bottom: 1px solid rgba(56,189,248,0.15);
+        padding-bottom: 8px;
+    }
+
+    /* FORM */
+    div[data-testid="stForm"] {
+        background: rgba(3,18,45,0.5) !important;
+        border: 1px solid rgba(56,189,248,0.12) !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+    }
+
+    /* MAIN area text */
+    .stApp p, .stApp span, .stApp div {
+        color: #cbd5e1;
     }
 
     header {
         background: transparent !important;
     }
+
+    /* Caption */
+    .stCaption, small {
+        color: #7dd3fc !important;
+        opacity: 0.8;
+    }
+
+    /* LOGIN PAGE */
+    .login-container {
+        max-width: 420px;
+        margin: 0 auto;
+        padding: 40px 36px;
+        background: rgba(3,18,45,0.92);
+        border: 1px solid rgba(56,189,248,0.22);
+        border-radius: 24px;
+        box-shadow:
+            0 0 0 1px rgba(56,189,248,0.08),
+            0 24px 80px rgba(0,0,0,0.6),
+            inset 0 1px 0 rgba(56,189,248,0.12);
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(2,12,30,0.5); }
+    ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.25); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(56,189,248,0.45); }
+
+    /* DATA EDITOR */
+    .stDataEditor {
+        border: 1px solid rgba(56,189,248,0.15) !important;
+        border-radius: 14px !important;
+        overflow: hidden !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
+
+# =========================
+# FUNÇÕES AUXILIARES
+# =========================
 
 def achar_logo():
     nomes = [
@@ -341,49 +524,12 @@ def achar_logo():
         "logo_operax (1).png",
         "logo.png"
     ]
-
     for nome in nomes:
         caminho = Path(nome)
         if caminho.exists() and caminho.stat().st_size > 100:
             return caminho
-
     return None
 
-
-def mostrar_cabecalho():
-    logo_path = achar_logo()
-
-    st.markdown('<div class="crm-hero">', unsafe_allow_html=True)
-    col_logo, col_titulo = st.columns([2.35, 5.8])
-
-    with col_logo:
-        try:
-            if logo_path:
-                st.image(str(logo_path), width=260)
-            else:
-                st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
-        except Exception:
-            st.markdown('<div class="sidebar-logo-icon-v8">O</div>', unsafe_allow_html=True)
-
-    with col_titulo:
-        st.markdown(
-            """
-            <div>
-                <h1 class="crm-title">OPERAX <span>SALES</span></h1>
-                <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
-                <div class="crm-pill">⚡ Painel inteligente • Atualização por ação • Controle por vendedor</div>
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-
-# =========================
-# FUNÇÕES
-# =========================
 
 def hash_senha(senha):
     return hashlib.sha256(str(senha).encode()).hexdigest()
@@ -399,68 +545,51 @@ def dinheiro(valor):
 def limpar_documento(valor):
     return re.sub(r"\D", "", str(valor or ""))
 
+
 def validar_cpf(cpf):
     cpf_limpo = limpar_documento(cpf)
-
     if len(cpf_limpo) != 11:
         return False
-
     if cpf_limpo == cpf_limpo[0] * 11:
         return False
-
     soma = sum(int(cpf_limpo[i]) * (10 - i) for i in range(9))
     digito1 = (soma * 10) % 11
     if digito1 == 10:
         digito1 = 0
-
     soma = sum(int(cpf_limpo[i]) * (11 - i) for i in range(10))
     digito2 = (soma * 10) % 11
     if digito2 == 10:
         digito2 = 0
-
     return digito1 == int(cpf_limpo[9]) and digito2 == int(cpf_limpo[10])
 
 
 def validar_telefone(telefone):
     telefone_limpo = limpar_documento(telefone)
-
     if len(telefone_limpo) not in [10, 11]:
         return False
-
     ddd = telefone_limpo[:2]
     numero = telefone_limpo[2:]
-
     if ddd == "00":
         return False
-
     if len(telefone_limpo) == 11 and not numero.startswith("9"):
         return False
-
     return True
 
 
 def converter_valor_brasileiro(valor):
     texto = str(valor or "").strip()
-
     if not texto:
         return 0.0
-
     texto = texto.replace("R$", "").replace(" ", "")
-
-    # Se vier no formato brasileiro: 1.758,71
     if "," in texto:
         texto = texto.replace(".", "").replace(",", ".")
-    else:
-        # Se vier como 1758.71, mantém o ponto decimal
-        texto = texto
-
     try:
         return float(texto)
     except Exception:
         return 0.0
 
 
-def formatar_valor_para_tela(valor):
+def dinheiro_br(valor):
     numero = converter_valor_brasileiro(valor)
     if numero == 0:
         return ""
@@ -470,7 +599,6 @@ def formatar_valor_para_tela(valor):
 def login(usuario, senha):
     usuario = str(usuario).strip().lower()
     senha_hash = hash_senha(str(senha).strip())
-
     res = (
         supabase.table("usuarios")
         .select("*")
@@ -478,15 +606,11 @@ def login(usuario, senha):
         .eq("ativo", True)
         .execute()
     )
-
     if not res.data:
         return None
-
     user = res.data[0]
-
     if user.get("senha_hash") == senha_hash:
         return user
-
     return None
 
 
@@ -497,40 +621,31 @@ def carregar_tabelas():
         .eq("ativo", True)
         .execute()
     )
-
     tabelas = sorted(list(set([
         r.get("produto")
         for r in res.data
         if r.get("produto")
     ])))
-
     if not tabelas:
         tabelas = ["CLT PADRAO", "V8 ACIMA 36X", "PRESENÇA", "HUBBIE", "OUTROS BANCOS"]
-
     return tabelas
 
 
 def calcular_comissao_montante(df_filtrado):
     total_empresa = 0
-
     if df_filtrado.empty:
         return 0
-
     if "status" not in df_filtrado.columns or "tabela_banco" not in df_filtrado.columns:
         return 0
-
     df_pagas = df_filtrado[df_filtrado["status"] == "Pago"].copy()
-
     if df_pagas.empty:
         return 0
-
     for tabela in df_pagas["tabela_banco"].dropna().unique():
         total_tabela = (
             df_pagas[df_pagas["tabela_banco"] == tabela]["valor"]
             .fillna(0)
             .sum()
         )
-
         regras = (
             supabase.table("regras_comissao")
             .select("*")
@@ -539,18 +654,13 @@ def calcular_comissao_montante(df_filtrado):
             .order("valor_minimo", desc=True)
             .execute()
         )
-
         percentual = 0
-
         for regra in regras.data:
             valor_minimo = float(regra.get("valor_minimo") or 0)
-
             if float(total_tabela) >= valor_minimo:
                 percentual = float(regra.get("percentual_empresa") or 0)
                 break
-
         total_empresa += float(total_tabela) * (percentual / 100)
-
     return total_empresa
 
 
@@ -563,16 +673,12 @@ def calcular_percentual_empresa_venda(tabela_banco, valor):
         .order("valor_minimo", desc=True)
         .execute()
     )
-
     percentual = 0
-
     for regra in regras.data:
         valor_minimo = float(regra.get("valor_minimo") or 0)
-
         if float(valor) >= valor_minimo:
             percentual = float(regra.get("percentual_empresa") or 0)
             break
-
     return percentual
 
 
@@ -583,74 +689,54 @@ def preparar_dataframe_vendas():
         .order("id", desc=True)
         .execute()
     )
-
     df = pd.DataFrame(vendas.data)
-
     if df.empty:
         return df
-
     if "data" not in df.columns:
         df["data"] = None
-
     if "vendedor_id" not in df.columns:
         df["vendedor_id"] = None
-
     if "tabela_banco" not in df.columns:
         if "produto" in df.columns:
             df["tabela_banco"] = df["produto"]
         else:
             df["tabela_banco"] = ""
-
     if "valor" not in df.columns:
         df["valor"] = 0
-
     if "status" not in df.columns:
         df["status"] = "Pendente"
-
     if "conferido" not in df.columns:
         df["conferido"] = False
-
     if "alterado_vendedor" not in df.columns:
         df["alterado_vendedor"] = False
-
     df["data"] = pd.to_datetime(df["data"], errors="coerce")
     df["mes_num"] = df["data"].dt.month
     df["ano"] = df["data"].dt.year
-
     return df
 
 
 def destacar_linhas_pendentes(row, tipo_usuario):
-    """
-    Destaca propostas pendentes:
-    - Pendente recente: amarelo
-    - Pendente com mais de 1 hora: vermelho somente para admin
-    """
     try:
         status = str(row.get("status", "")).strip().lower()
         data_venda = row.get("data", None)
-
         if status != "pendente":
             return [""] * len(row)
-
         agora = pd.Timestamp.now()
-
         if pd.notna(data_venda):
             data_venda = pd.to_datetime(data_venda, errors="coerce")
             horas_pendente = (agora - data_venda).total_seconds() / 3600
         else:
             horas_pendente = 0
-
         if tipo_usuario == "admin" and horas_pendente >= 1:
             return ["background-color: #ffb3b3"] * len(row)
-
         return ["background-color: #fff3b0"] * len(row)
-
     except Exception:
         return [""] * len(row)
 
 
-
+# =========================
+# CHAT
+# =========================
 
 def carregar_usuarios_chat():
     try:
@@ -661,14 +747,8 @@ def carregar_usuarios_chat():
             .order("nome")
             .execute()
         )
-
         usuarios = res.data or []
-
-        return [
-            u for u in usuarios
-            if int(u.get("id")) != int(st.session_state.user_id)
-        ]
-
+        return [u for u in usuarios if int(u.get("id")) != int(st.session_state.user_id)]
     except Exception:
         return []
 
@@ -677,7 +757,6 @@ def carregar_mensagens_chat(destinatario_id, limite=80):
     try:
         meu_id = int(st.session_state.user_id)
         outro_id = int(destinatario_id)
-
         res = (
             supabase.table("chat_interno")
             .select("*")
@@ -685,35 +764,26 @@ def carregar_mensagens_chat(destinatario_id, limite=80):
             .limit(300)
             .execute()
         )
-
         todas = res.data or []
-
         mensagens = []
-
         for msg in todas:
             origem = msg.get("usuario_id")
             destino = msg.get("destinatario_id")
-
             try:
                 origem = int(origem) if origem is not None else None
                 destino = int(destino) if destino is not None else None
             except Exception:
                 origem = None
                 destino = None
-
-            # Mensagens privadas entre eu e o usuário escolhido.
             if (
                 (origem == meu_id and destino == outro_id)
                 or
                 (origem == outro_id and destino == meu_id)
             ):
                 mensagens.append(msg)
-
         mensagens = mensagens[-limite:]
         mensagens.reverse()
-
         return mensagens
-
     except Exception:
         return []
 
@@ -729,96 +799,54 @@ def enviar_mensagem_chat(usuario_id, destinatario_id, nome, tipo, mensagem):
     }).execute()
 
 
-
 def contar_mensagens_nao_lidas():
     try:
         if "chat_lido_em" not in st.session_state:
             st.session_state.chat_lido_em = str(datetime.now())
-
         res = (
             supabase.table("chat_interno")
             .select("*")
             .eq("destinatario_id", st.session_state.user_id)
             .execute()
         )
-
         mensagens = res.data or []
         ultima_leitura = pd.to_datetime(st.session_state.chat_lido_em, errors="coerce")
-
         total = 0
-
         for msg in mensagens:
             data_msg = pd.to_datetime(msg.get("criado_em"), errors="coerce")
-
             if pd.notna(data_msg) and pd.notna(ultima_leitura):
                 if data_msg > ultima_leitura:
                     total += 1
-
         return total
-
     except Exception:
         return 0
 
 
 def mostrar_chat_popup():
     nao_lidas = contar_mensagens_nao_lidas()
-
-    if nao_lidas > 0:
-        st.markdown("""
-        <style>
-            @keyframes piscarChat {
-                0% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.35; transform: scale(1.18); }
-                100% { opacity: 1; transform: scale(1); }
-            }
-
-            .bolinha-verde {
-                width: 11px;
-                height: 11px;
-                background: #22c55e;
-                border-radius: 999px;
-                animation: piscarChat 1s infinite;
-            }
-        </style>
-        """, unsafe_allow_html=True)
-
     col_spacer, col_chat = st.columns([8, 1.8])
-
     with col_chat:
         label_chat = f"🟢 💬 Chat ({nao_lidas})" if nao_lidas > 0 else "💬 Chat"
-
         try:
             chat_context = st.popover(label_chat, use_container_width=True)
         except Exception:
             chat_context = st.expander(label_chat, expanded=False)
-
     with chat_context:
         st.session_state.chat_lido_em = str(datetime.now())
-        st.markdown("### Chat interno")
-
+        st.markdown("### 💬 Chat Interno")
         usuarios_chat = carregar_usuarios_chat()
-
         if not usuarios_chat:
-            st.info("Nenhum outro usuário ativo encontrado.")
+            st.info("Nenhum outro usuário ativo.")
             return
-
         opcoes = {
             f"{u.get('nome', u.get('usuario'))} ({u.get('tipo', '')})": u
             for u in usuarios_chat
         }
-
-        escolhido_label = st.selectbox(
-            "Enviar mensagem para",
-            list(opcoes.keys())
-        )
-
+        escolhido_label = st.selectbox("Enviar para", list(opcoes.keys()))
         usuario_destino = opcoes[escolhido_label]
         destinatario_id = int(usuario_destino["id"])
-
         mensagens = carregar_mensagens_chat(destinatario_id, 80)
-
         chat_area = st.container(height=360)
-
         with chat_area:
             if not mensagens:
                 st.info("Nenhuma mensagem nessa conversa ainda.")
@@ -827,56 +855,28 @@ def mostrar_chat_popup():
                     nome_msg = msg.get("nome", "Usuário")
                     texto_msg = msg.get("mensagem", "")
                     data_msg = str(msg.get("criado_em", ""))[:16]
-
                     if int(msg.get("usuario_id")) == int(st.session_state.user_id):
                         st.markdown(
-                            f"""
-                            <div style="
-                                background:linear-gradient(135deg,#dcfce7,#bbf7d0);
-                                border:1px solid #86efac;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px 0 8px auto;
-                                max-width:88%;
-                                text-align:right;
-                                box-shadow:0 8px 20px rgba(34,197,94,0.10);
-                            ">
-                                <div style="font-size:12px;color:#166534;font-weight:700;">Você • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
+                            f"""<div style="background:linear-gradient(135deg,rgba(14,165,233,0.15),rgba(37,99,235,0.12));border:1px solid rgba(56,189,248,0.28);border-radius:14px;padding:10px 13px;margin:7px 0 7px auto;max-width:88%;text-align:right;box-shadow:0 6px 16px rgba(14,165,233,0.12);">
+                                <div style="font-size:11px;color:#38bdf8;font-weight:700;">Você • {data_msg}</div>
+                                <div style="font-size:14px;color:#e2f4ff;">{texto_msg}</div>
+                            </div>""",
                             unsafe_allow_html=True
                         )
                     else:
                         st.markdown(
-                            f"""
-                            <div style="
-                                background:#ffffff;
-                                border:1px solid #e5e7eb;
-                                border-radius:16px;
-                                padding:10px 12px;
-                                margin:8px auto 8px 0;
-                                max-width:88%;
-                                box-shadow:0 8px 20px rgba(15,23,42,0.06);
-                            ">
-                                <div style="font-size:12px;color:#64748b;font-weight:700;">{nome_msg} • {data_msg}</div>
-                                <div style="font-size:15px;color:#111827;">{texto_msg}</div>
-                            </div>
-                            """,
+                            f"""<div style="background:rgba(3,18,45,0.8);border:1px solid rgba(56,189,248,0.15);border-radius:14px;padding:10px 13px;margin:7px auto 7px 0;max-width:88%;box-shadow:0 6px 16px rgba(0,0,0,0.3);">
+                                <div style="font-size:11px;color:#7dd3fc;font-weight:700;">{nome_msg} • {data_msg}</div>
+                                <div style="font-size:14px;color:#cbd5e1;">{texto_msg}</div>
+                            </div>""",
                             unsafe_allow_html=True
                         )
-
         with st.form("form_chat_popup", clear_on_submit=True):
-            mensagem = st.text_input(
-                "Mensagem",
-                placeholder=f"Digite uma mensagem para {usuario_destino.get('nome', 'usuário')}..."
-            )
-
-            enviar = st.form_submit_button("Enviar")
-
+            mensagem = st.text_input("Mensagem", placeholder=f"Digite para {usuario_destino.get('nome', 'usuário')}...")
+            enviar = st.form_submit_button("Enviar ➤")
             if enviar:
                 if not mensagem.strip():
-                    st.error("Digite uma mensagem antes de enviar.")
+                    st.error("Digite uma mensagem.")
                 else:
                     enviar_mensagem_chat(
                         st.session_state.user_id,
@@ -888,109 +888,81 @@ def mostrar_chat_popup():
                     st.rerun()
 
 
+# =========================
+# SVG ICONS
+# =========================
 
 def icone_svg(nome):
     icones = {
-        "nova": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M7 3h7l4 4v14H7V3Z"/>
-            <path d="M14 3v5h5"/>
-            <path d="M9 14h6"/>
-            <path d="M12 11v6"/>
-        </svg>
-        """,
-        "painel": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M4 19V5"/>
-            <path d="M4 19h16"/>
-            <path d="M8 16v-5"/>
-            <path d="M12 16V8"/>
-            <path d="M16 16v-7"/>
-            <path d="M20 16v-3"/>
-        </svg>
-        """,
-        "usuarios": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
-            <circle cx="9.5" cy="7" r="4"/>
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-        """,
-        "comissoes": """
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 2v20"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>
-            <path d="M19 9l2-2-2-2"/>
-            <path d="M5 15l-2 2 2 2"/>
-        </svg>
-        """
+        "nova": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M7 3h7l4 4v14H7V3Z"/><path d="M14 3v5h5"/><path d="M9 14h6"/><path d="M12 11v6"/></svg>',
+        "painel": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-7"/><path d="M20 16v-3"/></svg>',
+        "usuarios": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+        "comissoes": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></svg>',
+        "sair": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
     }
     return icones.get(nome, "")
 
 
-def menu_lateral_v8():
+# =========================
+# MENU LATERAL
+# =========================
+
+def menu_lateral():
     if "menu_atual" not in st.session_state:
         st.session_state.menu_atual = "📋 Nova Venda"
 
     if st.session_state.tipo == "admin":
         opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
-            ("👥 Usuários", "usuarios", "Gestão"),
-            ("💰 Comissões", "comissoes", "Gestão"),
+            ("📋 Nova Venda", "nova", "OPERAÇÃO"),
+            ("📊 Painel", "painel", "OPERAÇÃO"),
+            ("👥 Usuários", "usuarios", "GESTÃO"),
+            ("💰 Comissões", "comissoes", "GESTÃO"),
         ]
     else:
         opcoes = [
-            ("📋 Nova Venda", "nova", "Operação"),
-            ("📊 Painel", "painel", "Operação"),
+            ("📋 Nova Venda", "nova", "OPERAÇÃO"),
+            ("📊 Painel", "painel", "OPERAÇÃO"),
         ]
 
     logo_path = achar_logo()
 
+    # Logo na sidebar
     try:
         if logo_path:
-            st.sidebar.markdown('<div class="sidebar-logo-v8">', unsafe_allow_html=True)
-            st.sidebar.image(str(logo_path), width=190)
+            st.sidebar.markdown('<div class="sidebar-logo-block">', unsafe_allow_html=True)
+            st.sidebar.image(str(logo_path), width=200)
             st.sidebar.markdown('</div>', unsafe_allow_html=True)
         else:
-            raise Exception("Logo inválido")
+            raise Exception()
     except Exception:
         st.sidebar.markdown(
-            """
-            <div class="sidebar-logo-v8">
-                <div class="sidebar-logo-icon-v8">O</div>
-                <div>
-                    <div class="sidebar-logo-title">OPERAX</div>
-                    <div class="sidebar-logo-sub">SALES</div>
-                </div>
-            </div>
-            """,
+            """<div class="sidebar-logo-text">
+                <div class="brand-name">OPERAX</div>
+                <div class="brand-sub">SALES</div>
+            </div>""",
             unsafe_allow_html=True
         )
 
+    # Card do usuário
     st.sidebar.markdown(
-        f"""
-        <div class="sidebar-user-v8">
-            {st.session_state.nome}
-        </div>
-        """,
+        f"""<div class="sidebar-user-card">
+            <div class="user-dot"></div>
+            <div>
+                <div class="user-name">{st.session_state.nome}</div>
+                <div class="user-status">● Online</div>
+            </div>
+        </div>""",
         unsafe_allow_html=True
     )
 
     grupo_atual = None
 
     for nome, icone_nome, grupo in opcoes:
-        nome_limpo = (
-            nome.replace("📋 ", "")
-            .replace("📊 ", "")
-            .replace("👥 ", "")
-            .replace("💰 ", "")
-        )
+        nome_limpo = nome.replace("📋 ", "").replace("📊 ", "").replace("👥 ", "").replace("💰 ", "")
 
         if grupo != grupo_atual:
             st.sidebar.markdown(
-                f'<div class="menu-label-v8">{grupo}</div>',
+                f'<div class="menu-section-label">{grupo}</div>',
                 unsafe_allow_html=True
             )
             grupo_atual = grupo
@@ -999,39 +971,74 @@ def menu_lateral_v8():
 
         if st.session_state.menu_atual == nome:
             st.sidebar.markdown(
-                f"""
-                <div class="menu-ativo-v8">
+                f"""<div class="menu-item-active">
                     {svg}
-                    <span>{nome_limpo}</span>
-                </div>
-                """,
+                    <span class="label">{nome_limpo}</span>
+                </div>""",
                 unsafe_allow_html=True
             )
         else:
-            col_icon, col_btn = st.sidebar.columns([0.23, 0.77])
-
+            col_icon, col_btn = st.sidebar.columns([0.22, 0.78])
             with col_icon:
-                st.markdown(
-                    f'<div class="menu-svg-v8">{svg}</div>',
-                    unsafe_allow_html=True
-                )
-
+                st.markdown(f'<div class="menu-item-icon">{svg}</div>', unsafe_allow_html=True)
             with col_btn:
-                if st.button(
-                    nome_limpo,
-                    key=f"menu_{nome}",
-                    use_container_width=True
-                ):
+                if st.button(nome_limpo, key=f"menu_{nome}", use_container_width=True):
                     st.session_state.menu_atual = nome
                     st.rerun()
 
     st.sidebar.markdown("---")
-
-    if st.sidebar.button("Sair  ↪", use_container_width=True):
-        st.session_state.clear()
-        st.rerun()
+    col_icon_s, col_btn_s = st.sidebar.columns([0.22, 0.78])
+    with col_icon_s:
+        st.markdown(f'<div class="menu-item-icon">{icone_svg("sair")}</div>', unsafe_allow_html=True)
+    with col_btn_s:
+        if st.button("Sair", key="menu_sair", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
 
     return st.session_state.menu_atual
+
+
+# =========================
+# CABEÇALHO PRINCIPAL
+# =========================
+
+def mostrar_cabecalho():
+    logo_path = achar_logo()
+
+    st.markdown('<div class="main-header">', unsafe_allow_html=True)
+    col_logo, col_texto = st.columns([2.2, 5.5])
+
+    with col_logo:
+        try:
+            if logo_path:
+                st.markdown('<div class="main-header-logo">', unsafe_allow_html=True)
+                st.image(str(logo_path), width=220)
+                st.markdown('</div>', unsafe_allow_html=True)
+            else:
+                raise Exception()
+        except Exception:
+            st.markdown(
+                """<div style="font-family:'Rajdhani',sans-serif;font-size:36px;font-weight:700;
+                    letter-spacing:0.1em;color:#ffffff;text-shadow:0 0 30px rgba(56,189,248,0.6);">
+                    OPERAX<span style="color:#38bdf8;"> SALES</span></div>""",
+                unsafe_allow_html=True
+            )
+
+    with col_texto:
+        st.markdown(
+            """<div class="main-header-text">
+                <div class="title-main">OPERAX <span class="accent">SALES</span></div>
+                <div class="subtitle">Sistema inteligente de vendas e operações financeiras</div>
+                <div class="header-pills">
+                    <span class="header-pill">⚡ Painel inteligente</span>
+                    <span class="header-pill">🔄 Atualização por ação</span>
+                    <span class="header-pill">👤 Controle por vendedor</span>
+                </div>
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =========================
@@ -1044,25 +1051,38 @@ if "logado" not in st.session_state:
     st.session_state.logado = False
 
 if not st.session_state.logado:
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
-
-    if st.button("Entrar"):
-        user = login(usuario, senha)
-
-        if user:
-            st.session_state.logado = True
-            st.session_state.user_id = user["id"]
-            st.session_state.usuario = user["usuario"]
-            st.session_state.nome = user["nome"]
-            st.session_state.tipo = user["tipo"]
-            st.rerun()
-        else:
-            st.error("Usuário ou senha inválidos")
+    col_center, col_form, col_right = st.columns([1, 2, 1])
+    with col_form:
+        st.markdown(
+            """<div style="background:rgba(3,18,45,0.90);border:1px solid rgba(56,189,248,0.22);
+                border-radius:20px;padding:32px;margin-top:10px;
+                box-shadow:0 0 0 1px rgba(56,189,248,0.08),0 24px 80px rgba(0,0,0,0.6);">
+                <div style="text-align:center;margin-bottom:24px;">
+                    <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;
+                        letter-spacing:0.12em;color:#e2f4ff;">ACESSO AO SISTEMA</div>
+                    <div style="font-size:12px;color:#38bdf8;letter-spacing:0.08em;margin-top:4px;">
+                        Informe suas credenciais
+                    </div>
+                </div>
+            </div>""",
+            unsafe_allow_html=True
+        )
+        usuario = st.text_input("Usuário", placeholder="Digite seu usuário")
+        senha = st.text_input("Senha", type="password", placeholder="••••••••")
+        if st.button("⚡  ENTRAR", use_container_width=True):
+            user = login(usuario, senha)
+            if user:
+                st.session_state.logado = True
+                st.session_state.user_id = user["id"]
+                st.session_state.usuario = user["usuario"]
+                st.session_state.nome = user["nome"]
+                st.session_state.tipo = user["tipo"]
+                st.rerun()
+            else:
+                st.error("Usuário ou senha inválidos.")
 
 else:
-    menu = menu_lateral_v8()
-
+    menu = menu_lateral()
     mostrar_chat_popup()
 
     if "mostrar_comissao_empresa" not in st.session_state:
@@ -1076,20 +1096,17 @@ else:
     # =========================
 
     if menu == "📋 Nova Venda":
-        st.header("📋 Cadastro de Venda")
+        st.markdown('<div class="page-title">📋 Cadastro de Venda</div>', unsafe_allow_html=True)
 
         if st.session_state.venda_sucesso_msg:
             st.success(st.session_state.venda_sucesso_msg)
             st.session_state.venda_sucesso_msg = ""
+
         tabelas = carregar_tabelas()
 
-        cliente = st.text_input("Cliente", key="novo_cliente")
+        cliente = st.text_input("Cliente", placeholder="Digite o nome do cliente...", key="novo_cliente")
 
-        cpf_digitado = st.text_input(
-            "CPF",
-            placeholder="Ex: 999.999.999-99",
-            key="novo_cpf"
-        )
+        cpf_digitado = st.text_input("CPF", placeholder="Ex: 999.999.999-99", key="novo_cpf")
         cpf = limpar_documento(cpf_digitado)
 
         if cpf_digitado:
@@ -1102,11 +1119,7 @@ else:
             else:
                 st.error("CPF inválido. Confira os números digitados.")
 
-        telefone_digitado = st.text_input(
-            "Telefone",
-            placeholder="Ex: (11) 99976-7867",
-            key="novo_telefone"
-        )
+        telefone_digitado = st.text_input("Telefone", placeholder="Ex: (11) 99976-7867", key="novo_telefone")
         telefone = limpar_documento(telefone_digitado)
 
         if telefone_digitado:
@@ -1119,13 +1132,9 @@ else:
             else:
                 st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
 
-        tabela_banco = st.selectbox("Tabela/Banco", tabelas)
+        tabela_banco = st.selectbox("Tabela / Banco", tabelas)
 
-        valor_digitado = st.text_input(
-            "Valor vendido",
-            placeholder="Ex: R$ 1.758,71",
-            key="novo_valor"
-        )
+        valor_digitado = st.text_input("Valor Vendido", placeholder="Ex: R$ 1.758,71", key="novo_valor")
         valor = converter_valor_brasileiro(valor_digitado)
 
         if valor_digitado:
@@ -1135,24 +1144,22 @@ else:
                 st.error("Valor inválido. Exemplo correto: R$ 1.758,71")
 
         status = st.selectbox("Status", ["Pendente", "Pago", "Cancelado"])
-
         observacao = st.text_area("Observação", key="nova_observacao")
 
-        if st.button("Salvar venda"):
+        if st.button("💾  Salvar Venda", use_container_width=True):
             cpf_ok = validar_cpf(cpf)
             telefone_ok = validar_telefone(telefone)
             valor_ok = valor > 0
 
             if not cpf_ok:
-                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
+                st.error("Corrija o CPF antes de salvar.")
             elif not telefone_ok:
-                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
+                st.error("Corrija o telefone antes de salvar.")
             elif not valor_ok:
                 st.error("Corrija o valor antes de salvar.")
             else:
                 perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
                 valor_empresa = float(valor) * (perc_empresa / 100)
-
                 dados = {
                     "data": str(datetime.now()),
                     "vendedor_id": st.session_state.user_id,
@@ -1172,15 +1179,11 @@ else:
                     "alterado_vendedor": False,
                     "observacao": observacao
                 }
-
                 supabase.table("vendas").insert(dados).execute()
-
-                st.session_state.venda_sucesso_msg = "Proposta cadastrada com sucesso!"
-
+                st.session_state.venda_sucesso_msg = "✅ Proposta cadastrada com sucesso!"
                 for campo in ["novo_cliente", "novo_cpf", "novo_telefone", "novo_valor", "nova_observacao"]:
                     if campo in st.session_state:
                         st.session_state[campo] = ""
-
                 st.rerun()
 
     # =========================
@@ -1188,74 +1191,40 @@ else:
     # =========================
 
     elif menu == "📊 Painel":
-        st.header("📊 Painel de Vendas")
+        st.markdown('<div class="page-title">📊 Painel de Vendas</div>', unsafe_allow_html=True)
         df = preparar_dataframe_vendas()
 
         if df.empty:
             st.warning("Nenhuma venda cadastrada.")
         else:
-            meses = {
-                1: "Janeiro",
-                2: "Fevereiro",
-                3: "Março",
-                4: "Abril",
-                5: "Maio",
-                6: "Junho",
-                7: "Julho",
-                8: "Agosto",
-                9: "Setembro",
-                10: "Outubro",
-                11: "Novembro",
-                12: "Dezembro"
-            }
+            meses = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril",
+                     5: "Maio", 6: "Junho", 7: "Julho", 8: "Agosto",
+                     9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"}
 
             st.subheader("🔎 Filtros")
-
             col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 
-            mes_nome = col_f1.selectbox(
-                "Mês",
-                list(meses.values()),
-                index=datetime.now().month - 1
-            )
+            mes_nome = col_f1.selectbox("Mês", list(meses.values()), index=datetime.now().month - 1)
 
-            anos = sorted(
-                df["ano"].dropna().unique().astype(int).tolist(),
-                reverse=True
-            )
-
+            anos = sorted(df["ano"].dropna().unique().astype(int).tolist(), reverse=True)
             if not anos:
                 anos = [datetime.now().year]
-
             ano_filtro = col_f2.selectbox("Ano", anos)
 
             dias = ["Todos"] + list(range(1, 32))
+            dia_filtro = col_f3.selectbox("Dia", dias)
 
-            dia_filtro = col_f3.selectbox(
-                "Dia",
-                dias
-            )
-
-            status_filtro = col_f4.selectbox(
-                "Status",
-                ["Todos", "Pago", "Pendente", "Cancelado"]
-            )
+            status_filtro = col_f4.selectbox("Status", ["Todos", "Pago", "Pendente", "Cancelado"])
 
             tabelas = carregar_tabelas()
-
-            tabela_filtro = st.selectbox(
-                "Tabela/Banco",
-                ["Todas"] + tabelas
-            )
+            tabela_filtro = st.selectbox("Tabela/Banco", ["Todas"] + tabelas)
 
             mes_num = [k for k, v in meses.items() if v == mes_nome][0]
-
             df = df[(df["mes_num"] == mes_num) & (df["ano"] == ano_filtro)]
 
             if dia_filtro != "Todos":
                 df = df[df["data"].dt.day == int(dia_filtro)]
 
-            # VENDEDOR VÊ SOMENTE AS PRÓPRIAS VENDAS PELO ID
             if st.session_state.tipo != "admin":
                 df = df[df["vendedor_id"] == st.session_state.user_id]
 
@@ -1267,12 +1236,7 @@ else:
 
             if st.session_state.tipo == "admin":
                 vendedores = sorted(df["vendedor"].dropna().unique().tolist())
-
-                vendedor_filtro = st.selectbox(
-                    "Vendedor",
-                    ["Todos"] + vendedores
-                )
-
+                vendedor_filtro = st.selectbox("Vendedor", ["Todos"] + vendedores)
                 if vendedor_filtro != "Todos":
                     df = df[df["vendedor"] == vendedor_filtro]
 
@@ -1280,84 +1244,50 @@ else:
             qtd = len(df)
 
             col1, col2, col3 = st.columns(3)
-
             col1.metric("💵 Total vendido", dinheiro(total_vendido))
             col2.metric("📋 Quantidade", qtd)
             col3.metric("🗓️ Mês", mes_nome)
 
             if st.session_state.tipo == "admin":
                 total_empresa = calcular_comissao_montante(df)
-
                 col_comissao_label, col_comissao_btn = st.columns([4, 1])
 
                 with col_comissao_btn:
-                    if st.button("👁️" if st.session_state.mostrar_comissao_empresa else "🙈", key="btn_ocultar_comissao"):
+                    if st.button(
+                        "👁️" if st.session_state.mostrar_comissao_empresa else "🙈",
+                        key="btn_ocultar_comissao"
+                    ):
                         st.session_state.mostrar_comissao_empresa = not st.session_state.mostrar_comissao_empresa
                         st.rerun()
 
-                valor_comissao_tela = (
-                    dinheiro(total_empresa)
-                    if st.session_state.mostrar_comissao_empresa
-                    else "R$ •••••"
-                )
+                with col_comissao_label:
+                    if st.session_state.mostrar_comissao_empresa:
+                        st.metric("🏦 Comissão empresa (pagas)", dinheiro(total_empresa))
+                    else:
+                        st.metric("🏦 Comissão empresa (pagas)", "R$ ****")
 
-                st.metric("🏦 Comissão empresa", valor_comissao_tela)
-
-                alteradas = df[df["alterado_vendedor"] == True]
-
-                if not alteradas.empty:
-                    st.warning(
-                        f"⚠️ Existem {len(alteradas)} proposta(s) alterada(s) pelo vendedor aguardando conferência."
-                    )
-
-            st.divider()
-            st.subheader("📄 Propostas")
-            st.caption("🟨 Pendente | 🟥 Pendente há mais de 1 hora no painel do admin")
-
-            if df.empty:
-                st.info("Nenhuma proposta encontrada.")
-            else:
+            if not df.empty:
                 if st.session_state.tipo == "admin":
                     colunas = [
-                        "id",
-                        "data",
-                        "vendedor",
-                        "cliente",
-                        "cpf",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "alterado_vendedor",
-                        "observacao",
-                        "observacao_admin",
-                        "observacao_alteracao"
+                        "id", "data", "vendedor", "cliente", "cpf", "telefone",
+                        "tabela_banco", "valor", "valor_comissao_empresa", "status",
+                        "conferido", "alterado_vendedor",
+                        "observacao", "observacao_admin", "observacao_alteracao"
                     ]
                 else:
                     colunas = [
-                        "id",
-                        "data",
-                        "cliente",
-                        "telefone",
-                        "tabela_banco",
-                        "valor",
-                        "status",
-                        "conferido",
-                        "observacao"
+                        "id", "data", "cliente", "telefone",
+                        "tabela_banco", "valor", "status", "conferido", "observacao"
                     ]
 
                 colunas = [c for c in colunas if c in df.columns]
-
                 df_visao = df[colunas].copy()
 
                 if "valor" in df_visao.columns:
                     df_visao["valor"] = df_visao["valor"].apply(dinheiro)
 
                 if "valor_comissao_empresa" in df_visao.columns:
-                    df_visao["valor_comissao_empresa"] = (
-                        df_visao["valor_comissao_empresa"].apply(dinheiro)
-                    )
+                    df_visao["valor_comissao_empresa"] = df_visao["valor_comissao_empresa"].apply(dinheiro)
 
                 st.dataframe(
                     df_visao.style.apply(
@@ -1368,14 +1298,10 @@ else:
                     use_container_width=True
                 )
 
-                # =========================
                 # AÇÕES RÁPIDAS ADMIN
-                # =========================
-
                 if st.session_state.tipo == "admin":
                     st.divider()
                     st.subheader("⚙️ Ações rápidas")
-
                     acoes_df = df[["id", "cliente", "valor", "status", "conferido", "alterado_vendedor"]].copy()
                     acoes_df["excluir"] = False
 
@@ -1387,47 +1313,35 @@ else:
                     )
 
                     col_a, col_b = st.columns(2)
-
                     with col_a:
                         if st.button("✅ Salvar conferências"):
                             for _, row in editado.iterrows():
                                 update = {"conferido": bool(row["conferido"])}
-
                                 if bool(row["conferido"]):
                                     update["alterado_vendedor"] = False
-
                                 supabase.table("vendas").update(update).eq("id", int(row["id"])).execute()
-
                             st.success("Conferências salvas!")
                             st.rerun()
 
                     with col_b:
                         confirmar_exclusao = st.checkbox("Confirmo que quero excluir as propostas marcadas")
-
                         if st.button("🗑️ Excluir propostas marcadas"):
                             if not confirmar_exclusao:
                                 st.error("Marque a confirmação antes de excluir.")
                             else:
                                 ids_excluir = editado[editado["excluir"] == True]["id"].tolist()
-
                                 if not ids_excluir:
-                                    st.warning("Nenhuma proposta marcada para excluir.")
+                                    st.warning("Nenhuma proposta marcada.")
                                 else:
                                     for venda_id in ids_excluir:
                                         supabase.table("vendas").delete().eq("id", int(venda_id)).execute()
-
                                     st.success(f"{len(ids_excluir)} proposta(s) excluída(s)!")
                                     st.rerun()
 
-                # =========================
                 # EDITAR PROPOSTA
-                # =========================
-
                 st.divider()
                 st.subheader("✏️ Editar proposta")
-
                 proposta_id = st.selectbox("Escolha a proposta", df["id"].tolist())
-
                 proposta = df[df["id"] == proposta_id].iloc[0]
 
                 bloqueada = (
@@ -1451,25 +1365,24 @@ else:
                             elif validar_cpf(cpf_edit_preview):
                                 st.success(f"CPF válido: {cpf_edit_preview}")
                             else:
-                                st.error("CPF inválido. Confira os números digitados.")
+                                st.error("CPF inválido.")
 
                         telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone", "") or ""))
                         telefone_edit_preview = limpar_documento(telefone_edit)
 
                         if telefone_edit:
                             if len(telefone_edit_preview) < 10:
-                                st.error("Telefone incompleto. Informe DDD + número.")
+                                st.error("Telefone incompleto.")
                             elif len(telefone_edit_preview) > 11:
                                 st.error(f"Telefone com números a mais: remova {len(telefone_edit_preview) - 11} número(s).")
                             elif validar_telefone(telefone_edit_preview):
                                 st.success(f"Telefone válido: {telefone_edit_preview}")
                             else:
-                                st.error("Telefone inválido. Use DDD + número. Exemplo: 11910721110.")
+                                st.error("Telefone inválido.")
 
                         tabelas_edit = carregar_tabelas()
                         tabela_atual = str(proposta.get("tabela_banco", "") or proposta.get("produto", "") or "")
                         tabela_index = tabelas_edit.index(tabela_atual) if tabela_atual in tabelas_edit else 0
-
                         tabela_edit = st.selectbox("Tabela/Banco", tabelas_edit, index=tabela_index)
 
                         valor_edit_texto = st.text_input(
@@ -1477,29 +1390,19 @@ else:
                             value=dinheiro(proposta.get("valor") or 0).replace("R$ ", ""),
                             placeholder="Ex: R$ 1.758,71"
                         )
-
                         valor_edit = converter_valor_brasileiro(valor_edit_texto)
-
                         if valor_edit_texto:
                             st.caption(f"Valor identificado: {dinheiro(valor_edit)}")
 
                         status_lista = ["Pendente", "Pago", "Cancelado"]
                         status_atual = str(proposta.get("status", "Pendente") or "Pendente")
                         status_index = status_lista.index(status_atual) if status_atual in status_lista else 0
-
                         status_edit = st.selectbox("Status", status_lista, index=status_index)
 
-                        observacao_edit = st.text_area(
-                            "Observação",
-                            value=str(proposta.get("observacao", "") or "")
-                        )
+                        observacao_edit = st.text_area("Observação", value=str(proposta.get("observacao", "") or ""))
 
                         if st.session_state.tipo == "admin":
-                            conferido_edit = st.checkbox(
-                                "✅ Conferido",
-                                value=bool(proposta.get("conferido", False))
-                            )
-
+                            conferido_edit = st.checkbox("✅ Conferido", value=bool(proposta.get("conferido", False)))
                             observacao_admin_edit = st.text_area(
                                 "Observação admin",
                                 value=str(proposta.get("observacao_admin", "") or "")
@@ -1510,16 +1413,16 @@ else:
                                 placeholder="Ex: corrigi valor, telefone ou status..."
                             )
 
-                        salvar_edit = st.form_submit_button("Salvar alterações")
+                        salvar_edit = st.form_submit_button("💾 Salvar alterações")
 
                         if salvar_edit:
                             cpf_edit_limpo = limpar_documento(cpf_edit)
                             telefone_edit_limpo = limpar_documento(telefone_edit)
 
                             if not validar_cpf(cpf_edit_limpo):
-                                st.error("Corrija o CPF antes de salvar. Ele precisa ser válido e ter 11 números.")
+                                st.error("Corrija o CPF antes de salvar.")
                             elif not validar_telefone(telefone_edit_limpo):
-                                st.error("Corrija o telefone antes de salvar. Informe DDD + número.")
+                                st.error("Corrija o telefone antes de salvar.")
                             elif valor_edit <= 0:
                                 st.error("Corrija o valor antes de salvar.")
                             else:
@@ -1527,17 +1430,17 @@ else:
                                 valor_empresa = float(valor_edit) * (perc_empresa / 100)
 
                                 dados_update = {
-                                "cliente": cliente_edit,
-                                "cpf": limpar_documento(cpf_edit),
-                                "telefone": limpar_documento(telefone_edit),
-                                "produto": tabela_edit,
-                                "tabela_banco": tabela_edit,
-                                "valor": valor_edit,
-                                "status": status_edit,
-                                "observacao": observacao_edit,
-                                "comissao_empresa": perc_empresa,
-                                "valor_comissao_empresa": valor_empresa
-                            }
+                                    "cliente": cliente_edit,
+                                    "cpf": limpar_documento(cpf_edit),
+                                    "telefone": limpar_documento(telefone_edit),
+                                    "produto": tabela_edit,
+                                    "tabela_banco": tabela_edit,
+                                    "valor": valor_edit,
+                                    "status": status_edit,
+                                    "observacao": observacao_edit,
+                                    "comissao_empresa": perc_empresa,
+                                    "valor_comissao_empresa": valor_empresa
+                                }
 
                                 if st.session_state.tipo == "admin":
                                     dados_update["conferido"] = conferido_edit
@@ -1550,17 +1453,15 @@ else:
                                     dados_update["conferido"] = False
 
                                 supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
-
                                 st.success("Proposta atualizada!")
                                 st.rerun()
-
 
     # =========================
     # USUÁRIOS
     # =========================
 
     elif menu == "👥 Usuários":
-        st.header("👥 Usuários")
+        st.markdown('<div class="page-title">👥 Usuários</div>', unsafe_allow_html=True)
         st.subheader("➕ Criar usuário")
 
         with st.form("novo_usuario"):
@@ -1568,7 +1469,6 @@ else:
             usuario = st.text_input("Usuário")
             senha = st.text_input("Senha", type="password")
             tipo = st.selectbox("Tipo", ["vendedor", "admin"])
-
             criar = st.form_submit_button("Criar usuário")
 
             if criar:
@@ -1582,7 +1482,6 @@ else:
                         "tipo": tipo,
                         "ativo": True
                     }
-
                     supabase.table("usuarios").insert(dados).execute()
                     st.success("Usuário criado!")
                     st.rerun()
@@ -1605,7 +1504,6 @@ else:
 
             tipo_atual = str(user.get("tipo", "vendedor") or "vendedor")
             tipo_index = 0 if tipo_atual == "vendedor" else 1
-
             novo_tipo = st.selectbox("Tipo", ["vendedor", "admin"], index=tipo_index)
 
             if st.button("Salvar usuário"):
@@ -1614,21 +1512,17 @@ else:
                     "usuario": novo_login.strip().lower(),
                     "tipo": novo_tipo
                 }).eq("id", int(user_id)).execute()
-
                 st.success("Usuário atualizado!")
                 st.rerun()
 
             st.divider()
             st.subheader("🔑 Alterar senha")
-
             nova_senha = st.text_input("Nova senha", type="password")
-
             if st.button("Alterar senha"):
                 if nova_senha:
                     supabase.table("usuarios").update({
                         "senha_hash": hash_senha(nova_senha)
                     }).eq("id", int(user_id)).execute()
-
                     st.success("Senha alterada!")
                     st.rerun()
                 else:
@@ -1636,7 +1530,6 @@ else:
 
             st.divider()
             st.subheader("✅ Ativar / Desativar")
-
             if st.button("Alterar status"):
                 if str(user.get("usuario", "")).lower() == "admin":
                     st.error("Não é permitido desativar o admin principal.")
@@ -1644,13 +1537,11 @@ else:
                     supabase.table("usuarios").update({
                         "ativo": not bool(user.get("ativo", True))
                     }).eq("id", int(user_id)).execute()
-
                     st.success("Status alterado!")
                     st.rerun()
 
             st.divider()
             st.subheader("🗑️ Excluir usuário")
-
             if st.button("Excluir usuário"):
                 if str(user.get("usuario", "")).lower() == "admin":
                     st.error("Não é permitido excluir o admin principal.")
@@ -1664,14 +1555,13 @@ else:
     # =========================
 
     elif menu == "💰 Comissões":
-        st.header("💰 Regras de Comissão")
+        st.markdown('<div class="page-title">💰 Regras de Comissão</div>', unsafe_allow_html=True)
         st.subheader("➕ Criar nova regra")
 
         with st.form("nova_regra"):
             produto = st.text_input("Tabela/Banco")
             valor_minimo = st.number_input("Valor mínimo", min_value=0.0, step=1000.0)
             percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
-
             salvar = st.form_submit_button("Salvar regra")
 
             if salvar:
@@ -1685,7 +1575,6 @@ else:
                         "percentual_vendedor": 0,
                         "ativo": True
                     }).execute()
-
                     st.success("Regra criada!")
                     st.rerun()
 
@@ -1696,7 +1585,6 @@ else:
             .order("valor_minimo")
             .execute()
         )
-
         df_regras = pd.DataFrame(regras.data)
 
         if df_regras.empty:
@@ -1714,19 +1602,14 @@ else:
             with st.form("editar_regra"):
                 produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto", "") or ""))
                 valor_minimo_edit = st.number_input(
-                    "Valor mínimo",
-                    min_value=0.0,
-                    step=1000.0,
+                    "Valor mínimo", min_value=0.0, step=1000.0,
                     value=float(regra.get("valor_minimo") or 0)
                 )
                 percentual_empresa_edit = st.number_input(
-                    "% empresa",
-                    min_value=0.0,
-                    step=0.01,
+                    "% empresa", min_value=0.0, step=0.01,
                     value=float(regra.get("percentual_empresa") or 0)
                 )
                 ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo", True)))
-
                 salvar_regra = st.form_submit_button("Salvar alterações")
 
                 if salvar_regra:
@@ -1737,15 +1620,12 @@ else:
                         "percentual_vendedor": 0,
                         "ativo": ativo_edit
                     }).eq("id", int(regra_id)).execute()
-
                     st.success("Regra atualizada!")
                     st.rerun()
 
             st.divider()
             st.subheader("🗑️ Excluir regra")
-
             confirmar = st.checkbox("Confirmo que quero excluir esta regra")
-
             if st.button("Excluir regra"):
                 if not confirmar:
                     st.error("Marque a confirmação.")
@@ -1753,5 +1633,3 @@ else:
                     supabase.table("regras_comissao").delete().eq("id", int(regra_id)).execute()
                     st.success("Regra excluída!")
                     st.rerun()
-
-        st.markdown("</div>", unsafe_allow_html=True)
