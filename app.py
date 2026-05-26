@@ -336,22 +336,22 @@ st.markdown("""
     }
 
     /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 code,
-    .menu-ativo-v8 div:not(:first-child),
-    .menu-ativo-v8 p {
-        display: none !important;
-    }
-
     .menu-ativo-v8 {
         min-height: 58px !important;
         overflow: hidden !important;
         white-space: nowrap !important;
+        background: linear-gradient(135deg,#2563eb,#0ea5e9) !important;
+        border: 1px solid rgba(56,189,248,.75) !important;
+    }
+
+    /* remove apenas conteúdo quebrado */
+    .menu-ativo-v8 pre,
+    .menu-ativo-v8 code {
+        display:none !important;
     }
 
     .menu-ativo-v8 * {
-        background: transparent !important;
-        box-shadow: none !important;
+        box-shadow:none !important;
     }
 
     .menu-ativo-v8 .menu-icon-safe {
@@ -823,22 +823,22 @@ def mostrar_chat_popup():
     }
 
     /* elimina qualquer bloco branco criado por HTML quebrado dentro do menu ativo */
-    .menu-ativo-v8 pre,
-    .menu-ativo-v8 code,
-    .menu-ativo-v8 div:not(:first-child),
-    .menu-ativo-v8 p {
-        display: none !important;
-    }
-
     .menu-ativo-v8 {
         min-height: 58px !important;
         overflow: hidden !important;
         white-space: nowrap !important;
+        background: linear-gradient(135deg,#2563eb,#0ea5e9) !important;
+        border: 1px solid rgba(56,189,248,.75) !important;
+    }
+
+    /* remove apenas conteúdo quebrado */
+    .menu-ativo-v8 pre,
+    .menu-ativo-v8 code {
+        display:none !important;
     }
 
     .menu-ativo-v8 * {
-        background: transparent !important;
-        box-shadow: none !important;
+        box-shadow:none !important;
     }
 
     .menu-ativo-v8 .menu-icon-safe {
@@ -969,10 +969,10 @@ def mostrar_chat_popup():
 
 def icone_svg(nome):
     icones = {
-        "nova": "▣",
-        "painel": "▥",
-        "usuarios": "◉",
-        "comissoes": "$",
+        "nova": "📋",
+        "painel": "📊",
+        "usuarios": "👥",
+        "comissoes": "💰",
     }
     return icones.get(nome, "•")
 
