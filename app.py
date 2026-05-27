@@ -2437,7 +2437,7 @@ else:
             with st.form("form_novo_custo", clear_on_submit=True):
                 col_n, col_cat, col_v, col_q = st.columns([2,1.5,1,0.8])
                 nome_c = col_n.text_input("Descrição", placeholder="Ex: Salário mínimo")
-                cat_c = col_cat.selectbox("Categoria", ["Pessoal","Estrutura","Marketing","Outros"])
+                cat_c = col_cat.selectbox("Categoria", ["Pessoal","DP","Estrutura","Marketing","Outros"])
                 val_c = col_v.number_input("Valor (R$)", min_value=0.0, step=100.0)
                 qtd_c = col_q.number_input("Qtd", min_value=1, max_value=20, step=1, value=1, help="Ex: 2 para dois salários")
                 if st.form_submit_button("➕ Adicionar custo", use_container_width=True):
@@ -2456,16 +2456,46 @@ else:
                 cat_atual = None
                 for c in custos:
                     cat = c.get("categoria","Outros")
+                    cat_label = "DP — Depart. Pessoal" if cat == "DP" else cat
                     if cat != cat_atual:
                         cat_atual = cat
-                        st.markdown(f'<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.10em;padding:8px 0 4px;">{cat}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.10em;padding:8px 0 4px;">{cat_label}</div>', unsafe_allow_html=True)
 
-                    col_desc, col_val, col_del = st.columns([3,1.5,0.5])
+                    col_desc, col_val, col_edit, col_del = st.columns([3,1.5,0.4,0.4])
                     col_desc.markdown(f'<div style="padding:8px 0;font-size:14px;color:#0f172a;">{c.get("nome","")}</div>', unsafe_allow_html=True)
                     col_val.markdown(f'<div style="padding:8px 0;font-size:14px;font-weight:700;color:#dc2626;">{dinheiro(c.get("valor",0))}</div>', unsafe_allow_html=True)
+
+                    if col_edit.button("✏️", key=f"edit_custo_{c['id']}"):
+                        st.session_state[f"editando_custo_{c['id']}"] = True
+
                     if col_del.button("✕", key=f"del_custo_{c['id']}"):
                         excluir_custo(c["id"])
                         st.rerun()
+
+                    if st.session_state.get(f"editando_custo_{c['id']}"):
+                        with st.form(f"form_edit_custo_{c['id']}"):
+                            ec1, ec2, ec3 = st.columns([2,1.5,1])
+                            novo_nome = ec1.text_input("Descrição", value=c.get("nome",""), key=f"en_{c['id']}")
+                            nova_cat  = ec2.selectbox("Categoria", ["Pessoal","DP","Estrutura","Marketing","Outros"],
+                                index=["Pessoal","DP","Estrutura","Marketing","Outros"].index(c.get("categoria","Outros")) if c.get("categoria","Outros") in ["Pessoal","DP","Estrutura","Marketing","Outros"] else 0,
+                                key=f"ec_{c['id']}")
+                            novo_val  = ec3.number_input("Valor", value=float(c.get("valor",0)), step=100.0, key=f"ev_{c['id']}")
+                            cs1, cs2 = st.columns(2)
+                            if cs1.form_submit_button("💾 Salvar"):
+                                try:
+                                    supabase.table("custos_operacionais").update({
+                                        "nome": novo_nome,
+                                        "categoria": nova_cat,
+                                        "valor": novo_val
+                                    }).eq("id", int(c["id"])).execute()
+                                    st.session_state[f"editando_custo_{c['id']}"] = False
+                                    st.success("Custo atualizado!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Erro: {e}")
+                            if cs2.form_submit_button("✕ Cancelar"):
+                                st.session_state[f"editando_custo_{c['id']}"] = False
+                                st.rerun()
             else:
                 st.info("Nenhum custo cadastrado ainda.")
 
