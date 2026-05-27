@@ -1079,6 +1079,13 @@ def icone_svg(nome):
             <path d="M12 19v3"/>
             <path d="M8 22h8"/>
         </svg>
+        """,
+        "metas": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+        </svg>
         """
     }
     return icones.get(nome, "")
@@ -1093,6 +1100,7 @@ def menu_lateral_v8():
             ("📋 Nova Venda", "nova", "Operação"),
             ("📊 Painel", "painel", "Operação"),
             ("🏆 Ranking", "ranking", "Operação"),
+            ("🎯 Metas", "metas", "Operação"),
             ("👥 Usuários", "usuarios", "Gestão"),
             ("💰 Comissões", "comissoes", "Gestão"),
         ]
@@ -1101,6 +1109,7 @@ def menu_lateral_v8():
             ("📋 Nova Venda", "nova", "Operação"),
             ("📊 Painel", "painel", "Operação"),
             ("🏆 Ranking", "ranking", "Operação"),
+            ("🎯 Metas", "metas", "Operação"),
         ]
 
     logo_path = achar_logo()
@@ -1152,6 +1161,7 @@ def menu_lateral_v8():
             .replace("👥 ", "")
             .replace("💰 ", "")
             .replace("🏆 ", "")
+            .replace("🎯 ", "")
         )
 
         if grupo != grupo_atual:
@@ -2024,6 +2034,171 @@ else:
                         <div style="font-size:11px;color:#94a3b8;margin-top:4px;">{int(row["contratos_pagos"])} de {int(row["contratos"])} contratos pagos</div>
                     </div>
                     """, unsafe_allow_html=True)
+
+    elif menu == "🎯 Metas":
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Metas & Bônus</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Carrega metas do supabase
+        def carregar_metas():
+            try:
+                res = supabase.table("metas_bonus").select("*").order("ordem").execute()
+                if res.data:
+                    return res.data
+            except Exception:
+                pass
+            return [
+                {"ordem":1,"meta_valor":117000,"bonus_valor":300},
+                {"ordem":2,"meta_valor":150000,"bonus_valor":600},
+                {"ordem":3,"meta_valor":200000,"bonus_valor":1000},
+                {"ordem":4,"meta_valor":250000,"bonus_valor":1500},
+            ]
+
+        def salvar_metas(metas):
+            try:
+                supabase.table("metas_bonus").delete().neq("ordem",0).execute()
+                for m in metas:
+                    supabase.table("metas_bonus").insert(m).execute()
+                return True
+            except Exception:
+                return False
+
+        metas = carregar_metas()
+
+        # ADMIN: edita as metas
+        if st.session_state.tipo == "admin":
+            st.markdown("""<div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:20px;margin-bottom:24px;">
+            <div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px;">⚙️ Configurar metas</div>
+            </div>""", unsafe_allow_html=True)
+
+            novas_metas = []
+            cols_header = st.columns([1,2,2])
+            cols_header[0].markdown("**Nível**")
+            cols_header[1].markdown("**Meta (R$)**")
+            cols_header[2].markdown("**Bônus (R$)**")
+
+            for i, m in enumerate(metas):
+                col_n, col_m, col_b = st.columns([1,2,2])
+                estrelas = "⭐" * (i+1)
+                col_n.markdown(f"<div style='padding:8px 0;font-weight:700;font-size:15px;'>{estrelas}</div>", unsafe_allow_html=True)
+                meta_v = col_m.number_input(f"meta_{i}", value=float(m["meta_valor"]), min_value=0.0, step=1000.0, label_visibility="collapsed", key=f"meta_val_{i}")
+                bonus_v = col_b.number_input(f"bonus_{i}", value=float(m["bonus_valor"]), min_value=0.0, step=100.0, label_visibility="collapsed", key=f"bonus_val_{i}")
+                novas_metas.append({"ordem":i+1,"meta_valor":meta_v,"bonus_valor":bonus_v})
+
+            if st.button("💾 Salvar metas", use_container_width=True):
+                if salvar_metas(novas_metas):
+                    st.success("Metas salvas com sucesso!")
+                    st.rerun()
+                else:
+                    st.error("Erro ao salvar. Verifique se a tabela metas_bonus existe no Supabase.")
+
+            st.divider()
+
+        # TODOS: visualização do progresso
+        df_metas = preparar_dataframe_vendas()
+        if not df_metas.empty:
+            meses_mt = {1:"Janeiro",2:"Fevereiro",3:"Março",4:"Abril",5:"Maio",6:"Junho",
+                        7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+            col_m1, col_m2 = st.columns(2)
+            mes_mt = col_m1.selectbox("Mês", list(meses_mt.values()), index=datetime.now().month-1, key="metas_mes")
+            anos_mt = sorted(df_metas["ano"].dropna().unique().astype(int).tolist(), reverse=True)
+            ano_mt = col_m2.selectbox("Ano", anos_mt if anos_mt else [datetime.now().year], key="metas_ano")
+            mes_num_mt = [k for k,v in meses_mt.items() if v == mes_mt][0]
+            df_metas = df_metas[(df_metas["mes_num"]==mes_num_mt)&(df_metas["ano"]==ano_mt)]
+
+            # Filtra por vendedor se nao for admin
+            if st.session_state.tipo != "admin":
+                df_metas = df_metas[df_metas["vendedor_id"]==st.session_state.user_id]
+
+            vendedores_mt = df_metas["vendedor"].dropna().unique().tolist() if st.session_state.tipo=="admin" else [st.session_state.usuario]
+
+            for vend in vendedores_mt:
+                df_v = df_metas[df_metas["vendedor"]==vend]
+                total_vend = df_v["valor"].fillna(0).sum()
+                total_pago_v = df_v[df_v["status"]=="Pago"]["valor"].fillna(0).sum()
+
+                # Calcula bonus atingido
+                bonus_atingido = 0
+                meta_atingida = 0
+                proxima_meta = metas[0]["meta_valor"] if metas else 0
+                for m in metas:
+                    if total_pago_v >= m["meta_valor"]:
+                        bonus_atingido = m["bonus_valor"]
+                        meta_atingida = m["meta_valor"]
+                for i,m in enumerate(metas):
+                    if total_pago_v < m["meta_valor"]:
+                        proxima_meta = m["meta_valor"]
+                        break
+
+                pct_prog = min(int((total_pago_v / proxima_meta)*100), 100) if proxima_meta > 0 else 100
+                falta = max(proxima_meta - total_pago_v, 0)
+
+                if pct_prog >= 80:
+                    bar_color = "#22c55e"
+                elif pct_prog >= 40:
+                    bar_color = "#f59e0b"
+                else:
+                    bar_color = "#0ea5e9"
+
+                iniciais_v = "".join([p[0].upper() for p in vend.split()[:2]])
+
+                st.markdown(f"""
+                <div style="background:#ffffff;border:1px solid rgba(14,165,233,0.25);border-radius:18px;padding:20px 24px;margin-bottom:16px;box-shadow:0 4px 16px rgba(14,165,233,0.08);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0ea5e9);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:15px;">{iniciais_v}</div>
+                            <div>
+                                <div style="font-size:16px;font-weight:800;color:#0f172a;">{vend}</div>
+                                <div style="font-size:12px;color:#64748b;">Pago: {dinheiro(total_pago_v)} &nbsp;|&nbsp; Vendido: {dinheiro(total_vend)}</div>
+                            </div>
+                        </div>
+                        {'<div style="background:#dcfce7;border-radius:10px;padding:6px 14px;"><span style="font-size:13px;font-weight:700;color:#16a34a;">+' + dinheiro(bonus_atingido) + ' bônus</span></div>' if bonus_atingido > 0 else '<div style="background:#f1f5f9;border-radius:10px;padding:6px 14px;"><span style="font-size:13px;color:#64748b;">Sem bônus ainda</span></div>'}
+                    </div>
+                    <div style="margin-bottom:6px;">
+                        <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:5px;">
+                            <span>Progresso para próxima meta</span>
+                            <span>{pct_prog}%</span>
+                        </div>
+                        <div style="background:#f1f5f9;border-radius:999px;height:10px;overflow:hidden;">
+                            <div style="width:{pct_prog}%;height:100%;background:{bar_color};border-radius:999px;"></div>
+                        </div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:4px;">{'Meta atingida! 🎉' if falta == 0 else f'Faltam {dinheiro(falta)} para a próxima meta'}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Cards das metas com estrelas
+                cols_metas = st.columns(len(metas))
+                for i, m in enumerate(metas):
+                    atingida = total_pago_v >= m["meta_valor"]
+                    estrelas_on = "⭐" * (i+1)
+                    estrelas_off = "☆" * (i+1)
+                    with cols_metas[i]:
+                        if atingida:
+                            st.markdown(f"""
+                            <div style="background:#fefce8;border:2px solid #facc15;border-radius:14px;padding:12px;text-align:center;box-shadow:0 0 12px rgba(250,204,21,0.35);">
+                                <div style="font-size:20px;margin-bottom:4px;">{estrelas_on}</div>
+                                <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.06em;">Meta {i+1}</div>
+                                <div style="font-size:12px;color:#64748b;margin:3px 0;">{dinheiro(m['meta_valor'])}</div>
+                                <div style="font-size:13px;font-weight:700;color:#16a34a;">+{dinheiro(m['bonus_valor'])} ✓</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"""
+                            <div style="background:#f8fafc;border:0.5px solid #e2e8f0;border-radius:14px;padding:12px;text-align:center;">
+                                <div style="font-size:20px;margin-bottom:4px;opacity:0.25;">{estrelas_off}</div>
+                                <div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.06em;">Meta {i+1}</div>
+                                <div style="font-size:12px;color:#94a3b8;margin:3px 0;">{dinheiro(m['meta_valor'])}</div>
+                                <div style="font-size:12px;color:#94a3b8;">+{dinheiro(m['bonus_valor'])}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
 
     elif menu == "👥 Usuários":
         st.markdown("""
