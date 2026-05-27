@@ -478,6 +478,10 @@ hr { border-color: rgba(14,165,233,0.25) !important; }
 .stCaption, small { color: #0369a1 !important; opacity: 1; }
 
 header { background: transparent !important; }
+    /* Remove "Press Enter to submit form" */
+    .stForm [data-testid="InputInstructions"] { display: none !important; }
+    small[data-testid="InputInstructions"] { display: none !important; }
+    [data-testid="InputInstructions"] { display: none !important; }
 
 /* SCROLLBAR */
 ::-webkit-scrollbar { width: 5px; }
