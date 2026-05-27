@@ -2431,14 +2431,17 @@ else:
             st.markdown('<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">📋 Lançar custo</div>', unsafe_allow_html=True)
 
             with st.form("form_novo_custo", clear_on_submit=True):
-                col_n, col_cat, col_v = st.columns([2,1.5,1])
-                nome_c = col_n.text_input("Descrição", placeholder="Ex: Aluguel")
+                col_n, col_cat, col_v, col_q = st.columns([2,1.5,1,0.8])
+                nome_c = col_n.text_input("Descrição", placeholder="Ex: Salário mínimo")
                 cat_c = col_cat.selectbox("Categoria", ["Pessoal","Estrutura","Marketing","Outros"])
                 val_c = col_v.number_input("Valor (R$)", min_value=0.0, step=100.0)
+                qtd_c = col_q.number_input("Qtd", min_value=1, max_value=20, step=1, value=1, help="Ex: 2 para dois salários")
                 if st.form_submit_button("➕ Adicionar custo", use_container_width=True):
                     if nome_c and val_c > 0:
-                        if salvar_custo(nome_c, cat_c, val_c):
-                            st.success("Custo adicionado!")
+                        nome_final = f"{nome_c} (x{qtd_c})" if qtd_c > 1 else nome_c
+                        valor_final = val_c * qtd_c
+                        if salvar_custo(nome_final, cat_c, valor_final):
+                            st.success(f"Adicionado: {nome_final} = {dinheiro(valor_final)}")
                             st.rerun()
                     else:
                         st.error("Preencha descrição e valor.")
