@@ -1086,6 +1086,11 @@ def icone_svg(nome):
             <circle cx="12" cy="12" r="6"/>
             <circle cx="12" cy="12" r="2"/>
         </svg>
+        """,
+        "custos": """
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M3 9h18M3 15h18M9 3v18M15 3v18M3 3h18v18H3z"/>
+        </svg>
         """
     }
     return icones.get(nome, "")
@@ -1103,6 +1108,7 @@ def menu_lateral_v8():
             ("🎯 Metas", "metas", "Operação"),
             ("👥 Usuários", "usuarios", "Gestão"),
             ("💰 Comissões", "comissoes", "Gestão"),
+            ("🏢 Custos", "custos", "Gestão"),
         ]
     else:
         opcoes = [
@@ -1162,6 +1168,7 @@ def menu_lateral_v8():
             .replace("💰 ", "")
             .replace("🏆 ", "")
             .replace("🎯 ", "")
+            .replace("🏢 ", "")
         )
 
         if grupo != grupo_atual:
@@ -2340,6 +2347,154 @@ else:
     # =========================
     # COMISSÕES
     # =========================
+
+    elif menu == "🏢 Custos":
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><path d="M3 9h18M3 15h18M9 3v18M15 3v18M3 3h18v18H3z"/></svg>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Custos Operacionais</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        def carregar_custos():
+            try:
+                res = supabase.table("custos_operacionais").select("*").order("categoria").order("id").execute()
+                return res.data or []
+            except Exception:
+                return []
+
+        def salvar_custo(nome, categoria, valor):
+            try:
+                supabase.table("custos_operacionais").insert({
+                    "nome": nome, "categoria": categoria,
+                    "valor": valor, "mes": datetime.now().month,
+                    "ano": datetime.now().year
+                }).execute()
+                return True
+            except Exception:
+                return False
+
+        def excluir_custo(cid):
+            try:
+                supabase.table("custos_operacionais").delete().eq("id", int(cid)).execute()
+                return True
+            except Exception:
+                return False
+
+        # Comissao atual do mes
+        df_c = preparar_dataframe_vendas()
+        mes_atual = datetime.now().month
+        ano_atual = datetime.now().year
+        df_c = df_c[(df_c["mes_num"]==mes_atual)&(df_c["ano"]==ano_atual)]
+        comissao_mes = df_c[df_c["status"]=="Pago"]["valor_comissao_empresa"].fillna(0).sum()
+        if comissao_mes == 0:
+            comissao_mes = df_c[df_c["status"]=="Pago"]["valor"].fillna(0).sum() * 0.038
+
+        custos = carregar_custos()
+        total_custos = sum(float(c.get("valor",0)) for c in custos)
+        resultado = comissao_mes - total_custos
+        taxa_media = 3.8
+        vol_necessario = total_custos / (taxa_media/100) if taxa_media > 0 else 0
+        pct_cobertura = min(int((comissao_mes/total_custos*100)) if total_custos > 0 else 0, 100)
+
+        # KPIs
+        col_k1, col_k2, col_k3, col_k4 = st.columns(4)
+        col_k1.metric("💸 Total custos", dinheiro(total_custos))
+        col_k2.metric("💰 Comissão atual", dinheiro(comissao_mes))
+        col_k3.metric("🎯 Volume necessário", f"R$ {round(vol_necessario/1000)}k")
+        col_k4.metric("📊 Resultado", dinheiro(resultado), delta=f"{pct_cobertura}% coberto")
+
+        # Barra de cobertura
+        bar_color = "#22c55e" if pct_cobertura >= 100 else "#0ea5e9" if pct_cobertura >= 70 else "#ef4444"
+        st.markdown(f"""
+        <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.25);border-radius:14px;padding:16px 20px;margin:10px 0 20px;">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:#64748b;margin-bottom:8px;">
+                <span>Cobertura dos custos pela comissão</span>
+                <span style="font-weight:700;color:{'#16a34a' if pct_cobertura>=100 else '#0ea5e9' if pct_cobertura>=70 else '#dc2626'};">{pct_cobertura}%</span>
+            </div>
+            <div style="background:#f1f5f9;border-radius:999px;height:12px;overflow:hidden;">
+                <div style="width:{pct_cobertura}%;height:100%;background:{bar_color};border-radius:999px;"></div>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-top:5px;">
+                <span>R$ 0</span>
+                <span>{"Superávit: " + dinheiro(resultado) if resultado >= 0 else "Faltam: " + dinheiro(abs(resultado))}</span>
+                <span>{dinheiro(total_custos)}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_left, col_right = st.columns([1.6, 1])
+
+        with col_left:
+            st.markdown('<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">📋 Lançar custo</div>', unsafe_allow_html=True)
+
+            with st.form("form_novo_custo", clear_on_submit=True):
+                col_n, col_cat, col_v = st.columns([2,1.5,1])
+                nome_c = col_n.text_input("Descrição", placeholder="Ex: Aluguel")
+                cat_c = col_cat.selectbox("Categoria", ["Pessoal","Estrutura","Marketing","Outros"])
+                val_c = col_v.number_input("Valor (R$)", min_value=0.0, step=100.0)
+                if st.form_submit_button("➕ Adicionar custo", use_container_width=True):
+                    if nome_c and val_c > 0:
+                        if salvar_custo(nome_c, cat_c, val_c):
+                            st.success("Custo adicionado!")
+                            st.rerun()
+                    else:
+                        st.error("Preencha descrição e valor.")
+
+            if custos:
+                st.markdown('<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin:16px 0 10px;">📊 Custos cadastrados</div>', unsafe_allow_html=True)
+
+                cat_atual = None
+                for c in custos:
+                    cat = c.get("categoria","Outros")
+                    if cat != cat_atual:
+                        cat_atual = cat
+                        st.markdown(f'<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.10em;padding:8px 0 4px;">{cat}</div>', unsafe_allow_html=True)
+
+                    col_desc, col_val, col_del = st.columns([3,1.5,0.5])
+                    col_desc.markdown(f'<div style="padding:8px 0;font-size:14px;color:#0f172a;">{c.get("nome","")}</div>', unsafe_allow_html=True)
+                    col_val.markdown(f'<div style="padding:8px 0;font-size:14px;font-weight:700;color:#dc2626;">{dinheiro(c.get("valor",0))}</div>', unsafe_allow_html=True)
+                    if col_del.button("✕", key=f"del_custo_{c['id']}"):
+                        excluir_custo(c["id"])
+                        st.rerun()
+            else:
+                st.info("Nenhum custo cadastrado ainda.")
+
+        with col_right:
+            st.markdown('<div style="font-size:13px;font-weight:700;color:#0ea5e9;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px;">📈 Distribuição</div>', unsafe_allow_html=True)
+
+            if custos:
+                cats_total = {}
+                for c in custos:
+                    cat = c.get("categoria","Outros")
+                    cats_total[cat] = cats_total.get(cat,0) + float(c.get("valor",0))
+
+                for cat, val in sorted(cats_total.items(), key=lambda x: -x[1]):
+                    pct = int((val/total_custos*100)) if total_custos > 0 else 0
+                    cores = {"Pessoal":"#0ea5e9","Estrutura":"#1d9e75","Marketing":"#ba7517","Outros":"#888780"}
+                    cor = cores.get(cat,"#0ea5e9")
+                    st.markdown(f"""
+                    <div style="margin-bottom:12px;">
+                        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+                            <span style="color:#0f172a;font-weight:500;">{cat}</span>
+                            <span style="color:#64748b;">{dinheiro(val)} ({pct}%)</span>
+                        </div>
+                        <div style="background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                            <div style="width:{pct}%;height:100%;background:{cor};border-radius:999px;"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                st.divider()
+                st.markdown(f'<div style="font-size:12px;color:#64748b;margin-bottom:4px;">Volume para break-even</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:20px;font-weight:800;color:#0f172a;">{dinheiro(vol_necessario)}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:12px;color:#94a3b8;">à taxa média de {taxa_media}%</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:12px;color:#64748b;margin:10px 0 2px;">Por vendedora (2)</div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="font-size:18px;font-weight:700;color:#0ea5e9;">{dinheiro(vol_necessario/2)}</div>', unsafe_allow_html=True)
+            else:
+                st.info("Adicione custos para ver a distribuição.")
 
     elif menu == "💰 Comissões":
         st.markdown("""
