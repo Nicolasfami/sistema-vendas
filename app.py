@@ -1170,80 +1170,7 @@ else:
     elif menu == "💬 WhatsApp":
         RAILWAY = "https://operax-whatsapp-production.up.railway.app"
 
-        # ── CSS do WhatsApp ──────────────────────────────────────────
-        st.markdown("""
-        <style>
-        .wp-wrap { background:#dff0fb; border-radius:16px; padding:0; overflow:hidden; }
-        .wp-header { background:#071828; padding:12px 20px; border-radius:16px 16px 0 0;
-            display:flex; align-items:center; gap:12px; border-bottom:1px solid rgba(56,189,248,0.15); }
-        .wp-logo { width:32px;height:32px;border-radius:9px;
-            background:radial-gradient(circle at 38% 35%,#bfdbfe 0%,#3b82f6 28%,#1d4ed8 56%,#030a1a 88%);
-            display:inline-flex;align-items:center;justify-content:center;font-size:16px;
-            box-shadow:0 0 14px rgba(56,189,248,0.65); }
-        .wp-title { font-family:'Orbitron',sans-serif;font-size:15px;font-weight:800;
-            color:#e0f2fe;letter-spacing:.08em; }
-        .wp-title span { color:#38bdf8; }
-        .wp-badge-ok  { display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;
-            border:1px solid #86efac;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#166534; }
-        .wp-badge-err { display:inline-flex;align-items:center;gap:6px;background:#fef2f2;
-            border:1px solid #fca5a5;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#991b1b; }
-        .dot-green { width:8px;height:8px;background:#22c55e;border-radius:50%;
-            box-shadow:0 0 6px #22c55e;display:inline-block; }
-
-        /* CONVERSAS */
-        .conv-item { padding:10px 14px;border-radius:10px;cursor:pointer;
-            border:1px solid rgba(56,189,248,0.10);background:#0a1e32;
-            margin-bottom:5px;transition:.15s; }
-        .conv-item:hover { border-color:rgba(56,189,248,0.35);background:#0d2444; }
-        .conv-item.ativo { border-left:3px solid #38bdf8;background:rgba(56,189,248,0.14);
-            border-color:rgba(56,189,248,0.40); }
-        .conv-nome { font-size:13px;font-weight:700;color:#7dd3fc; }
-        .conv-prev { font-size:11px;color:rgba(148,185,210,0.60);
-            white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-        .badge-nr { background:#38bdf8;color:#020c1e;font-size:10px;font-weight:800;
-            border-radius:999px;padding:1px 7px;float:right; }
-        .tag-proposta { font-size:10px;padding:2px 7px;border-radius:5px;font-weight:700; }
-        .tag-pend { background:rgba(250,204,21,0.15);color:#facc15;border:1px solid rgba(250,204,21,0.30); }
-        .tag-pago { background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.30); }
-        .tag-agass { background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.30); }
-        .tag-agpag { background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.30); }
-
-        /* MENSAGENS */
-        .msg-deles { background:rgba(255,255,255,0.90);border:1px solid rgba(14,165,233,0.18);
-            border-radius:3px 14px 14px 14px;padding:9px 13px;max-width:80%;
-            font-size:13px;color:#0c2a4a;margin-bottom:6px;display:inline-block; }
-        .msg-minha { background:linear-gradient(135deg,#1d4ed8,#0ea5e9);
-            border-radius:14px 3px 14px 14px;padding:9px 13px;max-width:80%;
-            font-size:13px;color:#fff;margin-bottom:6px;display:inline-block;float:right; }
-        .msg-ts { font-size:10px;opacity:.60;margin-top:3px; }
-        .msg-row-deles { text-align:left;overflow:hidden;margin-bottom:2px; }
-        .msg-row-minha { text-align:right;overflow:hidden;margin-bottom:2px; }
-        .chat-area { background:#dff0fb;border-radius:12px;padding:14px 16px;
-            min-height:300px;max-height:360px;overflow-y:auto; }
-
-        /* PROPOSTA CARD */
-        .prop-card { background:#0a1e32;border:1px solid rgba(56,189,248,0.25);
-            border-radius:12px;padding:14px; }
-        .prop-field-label { font-size:10px;font-weight:700;color:rgba(125,211,252,0.65);
-            letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px; }
-        .prop-field-value { font-size:13px;font-weight:600;color:#e0f2fe;margin-bottom:8px; }
-        .prop-valor { font-size:16px;font-weight:800;color:#4ade80; }
-        .sync-badge { background:rgba(74,222,128,0.12);border:1px solid rgba(74,222,128,0.30);
-            border-radius:7px;padding:5px 10px;font-size:11px;font-weight:700;color:#4ade80;
-            text-align:center;margin-top:8px; }
-
-        /* STATUS CHIPS */
-        .status-chip { display:inline-flex;align-items:center;gap:5px;
-            padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700; }
-        .chip-pend { background:rgba(250,204,21,0.15);color:#facc15;border:1px solid rgba(250,204,21,0.30); }
-        .chip-pago { background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.30); }
-        .chip-agass { background:rgba(167,139,250,0.15);color:#a78bfa;border:1px solid rgba(167,139,250,0.30); }
-        .chip-agpag { background:rgba(56,189,248,0.15);color:#38bdf8;border:1px solid rgba(56,189,248,0.30); }
-        .chip-canc  { background:rgba(248,113,113,0.15);color:#f87171;border:1px solid rgba(248,113,113,0.30); }
-        </style>
-        """, unsafe_allow_html=True)
-
-        # ── Funções WhatsApp ─────────────────────────────────────────
+        # Verifica status
         def wp_status_check():
             try:
                 r = _req.get(f"{RAILWAY}/status", timeout=4)
@@ -1251,448 +1178,80 @@ else:
             except Exception:
                 return {}
 
-        def wp_enviar(telefone, mensagem):
-            try:
-                phone = re.sub(r"\D","",str(telefone))
-                if not phone.startswith("55"): phone = "55"+phone
-                r = _req.post(f"{RAILWAY}/send",
-                    json={"to": phone, "message": mensagem}, timeout=10)
-                return r.status_code == 200
-            except Exception:
-                return False
-
-        def wp_conversas():
-            try:
-                res = supabase.table("whatsapp_conversas").select("*")\
-                    .order("ultima_atualizacao", desc=True).execute()
-                return res.data or []
-            except Exception:
-                return []
-
-        def wp_mensagens(telefone):
-            try:
-                res = supabase.table("whatsapp_mensagens").select("*")\
-                    .eq("telefone", telefone).order("timestamp").limit(100).execute()
-                return res.data or []
-            except Exception:
-                return []
-
-        def wp_respostas():
-            try:
-                res = supabase.table("whatsapp_respostas_rapidas").select("*").order("id").execute()
-                return res.data or []
-            except Exception:
-                return []
-
-        def wp_salvar_enviada(telefone, texto):
-            try:
-                supabase.table("whatsapp_mensagens").insert({
-                    "telefone": telefone, "conteudo": texto,
-                    "de_mim": True, "timestamp": str(datetime.now())
-                }).execute()
-                supabase.table("whatsapp_conversas").upsert({
-                    "telefone": telefone, "ultimo_msg": texto,
-                    "ultima_atualizacao": str(datetime.now()), "nao_lidas": 0
-                }, on_conflict="telefone").execute()
-            except Exception:
-                pass
-
-        def buscar_venda_cliente(telefone):
-            """Busca a venda mais recente pelo telefone"""
-            try:
-                tel = re.sub(r"\D","",str(telefone))
-                res = supabase.table("vendas").select("*")\
-                    .eq("telefone", tel).order("id", desc=True).limit(1).execute()
-                return res.data[0] if res.data else None
-            except Exception:
-                return None
-
-        def status_chip_html(status):
-            mapa = {
-                "Pendente":           ("chip-pend", "🟡"),
-                "Aguardando Pagamento":("chip-agpag","🔵"),
-                "Aguardando Assinatura":("chip-agass","🟣"),
-                "Pago":               ("chip-pago", "🟢"),
-                "Cancelado":          ("chip-canc", "🔴"),
-            }
-            cls, icone = mapa.get(status, ("chip-pend","⚪"))
-            return f'''<span class="status-chip {cls}">{icone} {status}</span>'''
-
-        def tag_conv_html(venda):
-            if not venda: return ""
-            s = venda.get("status","")
-            v = dinheiro(venda.get("valor",0))
-            if s == "Pago":
-                return f'''<span class="tag-proposta tag-pago">✅ Pago: {v}</span>'''
-            elif s == "Aguardando Assinatura":
-                return f'''<span class="tag-proposta tag-agass">🟣 Ag. Assinatura: {v}</span>'''
-            elif s == "Aguardando Pagamento":
-                return f'''<span class="tag-proposta tag-agpag">🔵 Ag. Pgto: {v}</span>'''
-            else:
-                return f'''<span class="tag-proposta tag-pend">📄 {s}: {v}</span>'''
-
-        # ── Header ───────────────────────────────────────────────────
-        st.markdown('''
-        <div class="wp-header">
-            <div class="wp-logo">🌀</div>
-            <span class="wp-title">OPERAX <span>CHAT</span></span>
-        </div>''', unsafe_allow_html=True)
-
-        # Status servidor
         st_wp = wp_status_check()
         conectado = st_wp.get("status") == "connected" or st_wp.get("connected") is True
+
+        st.markdown("""
+        <style>
+        .wp-page { background: linear-gradient(160deg,#020b18 0%,#030f22 60%,#020b18 100%);
+            border-radius:20px; padding:50px 40px; text-align:center;
+            border:1px solid rgba(56,189,248,0.20); min-height:400px;
+            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; }
+        .wp-big-logo { font-size:80px; filter:drop-shadow(0 0 28px rgba(56,189,248,0.80)); }
+        .wp-big-title { font-family:'Orbitron',sans-serif; font-size:28px; font-weight:900;
+            color:#fff; letter-spacing:.08em; }
+        .wp-big-title span { color:#38bdf8; }
+        .wp-big-sub { color:rgba(148,185,210,0.70); font-size:14px; max-width:480px; line-height:1.7; }
+        .wp-open-btn { display:inline-flex; align-items:center; gap:10px;
+            background:linear-gradient(135deg,#1d4ed8,#0ea5e9);
+            color:#fff; font-size:16px; font-weight:700; padding:16px 36px;
+            border-radius:14px; text-decoration:none; letter-spacing:.03em;
+            box-shadow:0 0 32px rgba(14,165,233,0.50); transition:.2s; }
+        .wp-open-btn:hover { box-shadow:0 0 48px rgba(56,189,248,0.75); }
+        .wp-conn-btn { display:inline-flex; align-items:center; gap:8px;
+            background:rgba(56,189,248,0.10); color:#7dd3fc; font-size:13px;
+            font-weight:700; padding:10px 22px; border-radius:10px;
+            text-decoration:none; border:1px solid rgba(56,189,248,0.30); }
+        .wp-badge-ok  { display:inline-flex;align-items:center;gap:6px;background:#f0fdf4;
+            border:1px solid #86efac;border-radius:8px;padding:5px 14px;
+            font-size:13px;font-weight:700;color:#166534; }
+        .wp-badge-err { display:inline-flex;align-items:center;gap:6px;background:#fef2f2;
+            border:1px solid #fca5a5;border-radius:8px;padding:5px 14px;
+            font-size:13px;font-weight:700;color:#991b1b; }
+        .dot-g { width:9px;height:9px;background:#22c55e;border-radius:50%;
+            box-shadow:0 0 8px #22c55e;display:inline-block; }
+        .wp-features { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-top:10px; }
+        .wp-feat { background:rgba(56,189,248,0.07); border:1px solid rgba(56,189,248,0.15);
+            border-radius:10px; padding:10px 16px; font-size:12px; color:#7dd3fc; font-weight:600; }
+        </style>
+        """, unsafe_allow_html=True)
+
+        chat_url = f"{RAILWAY}/chat"
+        qr_url   = f"{RAILWAY}/qr"
+
         if conectado:
-            st.markdown('''<div style="margin:8px 0;"><span class="wp-badge-ok">
-                <span class="dot-green"></span>WhatsApp conectado ✓</span></div>''',
-                unsafe_allow_html=True)
+            badge = '''<span class="wp-badge-ok"><span class="dot-g"></span>WhatsApp conectado ✓</span>'''
+            botao_extra = ""
         else:
-            qr_url = f"{RAILWAY}/qr"
-            st.markdown(f'''<div style="margin:8px 0;"><span class="wp-badge-err">
-                ⚠️ Desconectado —
-                <a href="{qr_url}" target="_blank" style="color:#1d4ed8;font-weight:700;">
-                Conectar aqui →</a></span></div>''', unsafe_allow_html=True)
+            badge = '''<span class="wp-badge-err">⚠️ WhatsApp desconectado</span>'''
+            botao_extra = f'''<a href="{qr_url}" target="_blank" class="wp-conn-btn">
+                🔑 Conectar WhatsApp</a>'''
 
-        # ── Layout 3 colunas ─────────────────────────────────────────
-        col_conv, col_chat, col_painel = st.columns([1.1, 2.4, 1.5])
-
-        # ════════════════════════════════════════════════════════════
-        # COLUNA 1 — CONVERSAS
-        # ════════════════════════════════════════════════════════════
-        with col_conv:
-            st.markdown('''<div style="font-size:11px;font-weight:700;color:#38bdf8;
-                letter-spacing:.10em;text-transform:uppercase;
-                margin-bottom:8px;">💬 Conversas</div>''', unsafe_allow_html=True)
-
-            conversas = wp_conversas()
-
-            # inicializa telefone ativo
-            if "wp_tel" not in st.session_state and conversas:
-                st.session_state.wp_tel = conversas[0]["telefone"]
-
-            if not conversas:
-                st.markdown('''<div style="background:#0a1e32;border:1px dashed
-                    rgba(56,189,248,0.20);border-radius:10px;padding:14px;
-                    text-align:center;color:rgba(148,185,210,0.55);font-size:12px;">
-                    Aguardando mensagens...</div>''', unsafe_allow_html=True)
-            else:
-                for c in conversas:
-                    tel   = c.get("telefone","")
-                    nome  = c.get("nome") or tel
-                    prev  = str(c.get("ultimo_msg",""))[:28]
-                    nao_l = int(c.get("nao_lidas",0))
-                    ativo = tel == st.session_state.get("wp_tel","")
-
-                    # busca venda para mostrar tag
-                    venda_conv = buscar_venda_cliente(tel)
-                    tag_html = tag_conv_html(venda_conv)
-                    badge = f'''<span class="badge-nr">{nao_l}</span>''' if nao_l > 0 else ""
-                    cls_ativo = "conv-item ativo" if ativo else "conv-item"
-
-                    st.markdown(f'''
-                    <div class="{cls_ativo}">
-                        {badge}
-                        <div class="conv-nome">{nome}</div>
-                        <div class="conv-prev">{prev}</div>
-                        {tag_html}
-                    </div>''', unsafe_allow_html=True)
-
-                    if st.button("▶", key=f"sel_{tel}", use_container_width=True):
-                        st.session_state.wp_tel = tel
-                        st.session_state.wp_painel_aba = "proposta"
-                        try:
-                            supabase.table("whatsapp_conversas")\
-                                .update({"nao_lidas":0}).eq("telefone",tel).execute()
-                        except Exception:
-                            pass
-                        st.rerun()
-
-            st.markdown("---")
-            st.markdown('''<div style="font-size:11px;font-weight:700;color:#38bdf8;
-                margin-bottom:5px;">Nova conversa</div>''', unsafe_allow_html=True)
-            novo_tel = st.text_input("Telefone", placeholder="11999999999",
-                key="wp_novo_tel", label_visibility="collapsed")
-            if st.button("Iniciar", use_container_width=True, key="btn_wp_novo"):
-                t = re.sub(r"\D","",novo_tel)
-                if len(t) >= 10:
-                    try:
-                        supabase.table("whatsapp_conversas").upsert({
-                            "telefone":t, "ultimo_msg":"",
-                            "ultima_atualizacao":str(datetime.now()), "nao_lidas":0
-                        }, on_conflict="telefone").execute()
-                    except Exception:
-                        pass
-                    st.session_state.wp_tel = t
-                    st.rerun()
-                else:
-                    st.error("Número inválido")
-
-        # ════════════════════════════════════════════════════════════
-        # COLUNA 2 — CHAT
-        # ════════════════════════════════════════════════════════════
-        with col_chat:
-            tel_ativo = st.session_state.get("wp_tel","")
-            conv_ativa = next((c for c in conversas if c.get("telefone")==tel_ativo), None) if conversas else None
-            nome_ativo = (conv_ativa.get("nome") or tel_ativo) if conv_ativa else "Selecione uma conversa"
-            iniciais = "".join([p[0].upper() for p in nome_ativo.split()[:2]]) if nome_ativo else "?"
-
-            # Header do chat
-            st.markdown(f'''
-            <div style="background:#071828;border:1px solid rgba(56,189,248,0.18);
-                border-radius:12px;padding:11px 15px;margin-bottom:10px;
-                display:flex;align-items:center;gap:10px;">
-                <div style="width:36px;height:36px;border-radius:50%;
-                    background:linear-gradient(135deg,#1d4ed8,#0ea5e9);
-                    display:flex;align-items:center;justify-content:center;
-                    color:#fff;font-weight:800;font-size:13px;flex-shrink:0;">{iniciais}</div>
-                <div>
-                    <div style="font-size:13px;font-weight:700;color:#e0f2fe;">{nome_ativo}</div>
-                    <div style="font-size:11px;color:#38bdf8;">{tel_ativo}</div>
-                </div>
+        st.markdown(f'''
+        <div class="wp-page">
+            <div class="wp-big-logo">🌀</div>
+            <div class="wp-big-title">OPERAX <span>CHAT</span></div>
+            <div>{badge}</div>
+            <div class="wp-big-sub">
+                Chat com seus clientes em tempo real via WhatsApp.<br>
+                Propostas vinculadas automaticamente. Edite e sincronize com o Painel de Vendas.
             </div>
-            ''', unsafe_allow_html=True)
+            <a href="{chat_url}" target="_blank" class="wp-open-btn">
+                💬 Abrir Chat WhatsApp ↗
+            </a>
+            {botao_extra}
+            <div class="wp-features">
+                <span class="wp-feat">💬 Chat em tempo real</span>
+                <span class="wp-feat">📄 Propostas vinculadas</span>
+                <span class="wp-feat">⚡ Respostas rápidas</span>
+                <span class="wp-feat">🔄 Sync com Painel</span>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
 
-            if tel_ativo:
-                msgs = wp_mensagens(tel_ativo)
+        if st.button("🔄 Verificar conexão", key="btn_wp_check"):
+            st.rerun()
 
-                # Área de mensagens
-                msgs_html = '''<div class="chat-area">''' 
-                if not msgs:
-                    msgs_html += '''<div style="text-align:center;color:rgba(14,80,130,0.55);
-                        padding:30px 0;font-size:13px;">Nenhuma mensagem ainda.<br>
-                        Envie a primeira mensagem!</div>'''
-                else:
-                    for msg in msgs:
-                        texto = msg.get("conteudo","")
-                        de_mim = bool(msg.get("de_mim",False))
-                        ts = str(msg.get("timestamp",""))[:16]
-                        if de_mim:
-                            msgs_html += f'''<div class="msg-row-minha">
-                                <span class="msg-minha">{texto}
-                                    <div class="msg-ts" style="color:rgba(255,255,255,0.60);">✓✓ {ts}</div>
-                                </span></div>'''
-                        else:
-                            msgs_html += f'''<div class="msg-row-deles">
-                                <span class="msg-deles">{texto}
-                                    <div class="msg-ts">{ts}</div>
-                                </span></div>'''
-                msgs_html += "</div>"
-                st.markdown(msgs_html, unsafe_allow_html=True)
-
-                # Campo + envio
-                prefill = st.session_state.pop("wp_prefill","") if "wp_prefill" in st.session_state else ""
-                col_in, col_btn, col_ref = st.columns([5, 0.9, 0.9])
-                with col_in:
-                    msg_txt = st.text_input("", value=prefill,
-                        placeholder="Digite uma mensagem...",
-                        key=f"wp_inp_{tel_ativo}", label_visibility="collapsed")
-                with col_btn:
-                    if st.button("📤", key="btn_wp_send", use_container_width=True):
-                        if msg_txt.strip():
-                            ok = wp_enviar(tel_ativo, msg_txt.strip())
-                            if ok:
-                                wp_salvar_enviada(tel_ativo, msg_txt.strip())
-                                st.rerun()
-                            else:
-                                st.error("Erro ao enviar")
-                with col_ref:
-                    if st.button("🔄", key="btn_wp_ref", use_container_width=True):
-                        st.rerun()
-            else:
-                st.info("Selecione uma conversa à esquerda.")
-
-        # ════════════════════════════════════════════════════════════
-        # COLUNA 3 — PAINEL (RESPOSTAS + PROPOSTA)
-        # ════════════════════════════════════════════════════════════
-        with col_painel:
-            if "wp_painel_aba" not in st.session_state:
-                st.session_state.wp_painel_aba = "respostas"
-
-            aba_col1, aba_col2 = st.columns(2)
-            with aba_col1:
-                if st.button("⚡ Respostas", use_container_width=True,
-                    key="aba_resp",
-                    type="primary" if st.session_state.wp_painel_aba=="respostas" else "secondary"):
-                    st.session_state.wp_painel_aba = "respostas"
-                    st.rerun()
-            with aba_col2:
-                if st.button("📄 Proposta", use_container_width=True,
-                    key="aba_prop",
-                    type="primary" if st.session_state.wp_painel_aba=="proposta" else "secondary"):
-                    st.session_state.wp_painel_aba = "proposta"
-                    st.rerun()
-
-            # ── ABA RESPOSTAS RÁPIDAS ──
-            if st.session_state.wp_painel_aba == "respostas":
-                respostas_rr = wp_respostas()
-                for rr in respostas_rr:
-                    col_rb, col_rx = st.columns([5,1])
-                    with col_rb:
-                        if st.button(f"💬 {rr.get('titulo','')}", key=f"rr_{rr['id']}",
-                            use_container_width=True):
-                            st.session_state.wp_prefill = rr.get("texto","")
-                            st.rerun()
-                    with col_rx:
-                        if st.button("✕", key=f"delrr_{rr['id']}"):
-                            try:
-                                supabase.table("whatsapp_respostas_rapidas")\
-                                    .delete().eq("id",int(rr["id"])).execute()
-                                st.rerun()
-                            except Exception:
-                                pass
-                with st.expander("➕ Nova resposta rápida"):
-                    tit = st.text_input("Título", key="rr_tit")
-                    txt = st.text_area("Texto", key="rr_txt", height=70)
-                    if st.button("Salvar resposta", use_container_width=True, key="btn_rr_save"):
-                        if tit and txt:
-                            supabase.table("whatsapp_respostas_rapidas")\
-                                .insert({"titulo":tit,"texto":txt}).execute()
-                            st.rerun()
-
-            # ── ABA PROPOSTA ──
-            elif st.session_state.wp_painel_aba == "proposta":
-                tel_ativo = st.session_state.get("wp_tel","")
-
-                if not tel_ativo:
-                    st.info("Selecione uma conversa primeiro.")
-                else:
-                    venda = buscar_venda_cliente(tel_ativo)
-
-                    if "wp_editando" not in st.session_state:
-                        st.session_state.wp_editando = False
-
-                    # ── MODO VISUALIZAÇÃO ──
-                    if not st.session_state.wp_editando:
-                        if venda:
-                            status_html = status_chip_html(venda.get("status",""))
-                            st.markdown(f'''
-                            <div class="prop-card">
-                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                                    <span style="font-size:12px;font-weight:700;color:#38bdf8;letter-spacing:.06em;">📄 PROPOSTA ATIVA</span>
-                                    <span style="font-size:10px;color:#4ade80;display:flex;align-items:center;gap:4px;">🔄 Supabase</span>
-                                </div>
-                                <div class="prop-field-label">Cliente</div>
-                                <div class="prop-field-value">{venda.get("cliente","—")}</div>
-                                <div class="prop-field-label">Tabela/Banco</div>
-                                <div class="prop-field-value">{venda.get("tabela_banco","—")}</div>
-                                <div class="prop-field-label">Valor</div>
-                                <div class="prop-valor">{dinheiro(venda.get("valor",0))}</div>
-                                <div class="prop-field-label" style="margin-top:8px;">Status</div>
-                                <div style="margin-top:3px;">{status_html}</div>
-                            </div>
-                            ''', unsafe_allow_html=True)
-
-                            if venda.get("observacao"):
-                                st.caption(f"📝 {venda['observacao']}")
-
-                            if st.button("✏️ Editar proposta", use_container_width=True, key="btn_wp_editar"):
-                                st.session_state.wp_editando = True
-                                st.rerun()
-                        else:
-                            st.markdown('''
-                            <div style="background:#0a1e32;border:1px dashed rgba(56,189,248,0.22);
-                                border-radius:12px;padding:16px;text-align:center;margin-bottom:10px;">
-                                <div style="font-size:22px;margin-bottom:6px;">📋</div>
-                                <div style="font-size:12px;color:rgba(148,185,210,0.60);line-height:1.6;">
-                                    Nenhuma proposta<br>cadastrada para este cliente.
-                                </div>
-                            </div>''', unsafe_allow_html=True)
-
-                            # Cadastro novo
-                            st.markdown('''<div style="font-size:11px;font-weight:700;color:#38bdf8;
-                                letter-spacing:.08em;text-transform:uppercase;
-                                margin-bottom:6px;">+ Cadastrar venda</div>''', unsafe_allow_html=True)
-
-                            tabelas_wp = carregar_tabelas()
-                            cli_wp  = st.text_input("Cliente", key="wp_cli_new")
-                            cpf_wp  = st.text_input("CPF", key="wp_cpf_new")
-                            tab_wp  = st.selectbox("Tabela", tabelas_wp, key="wp_tab_new")
-                            val_wp  = st.text_input("Valor", placeholder="5.000,00", key="wp_val_new")
-                            val_num = converter_valor_brasileiro(val_wp)
-                            st_wp2  = st.selectbox("Status",
-                                ["Pendente","Aguardando Pagamento","Aguardando Assinatura","Pago","Cancelado"],
-                                key="wp_st_new")
-                            if st.button("💾 Salvar venda", use_container_width=True, key="btn_wp_nova_venda"):
-                                cpf_l = limpar_documento(cpf_wp)
-                                if not cli_wp: st.error("Preencha o cliente")
-                                elif not validar_cpf(cpf_l): st.error("CPF inválido")
-                                elif val_num <= 0: st.error("Valor inválido")
-                                else:
-                                    perc = calcular_percentual_empresa_venda(tab_wp, val_num)
-                                    supabase.table("vendas").insert({
-                                        "data": str(datetime.now()),
-                                        "vendedor_id": st.session_state.user_id,
-                                        "vendedor": st.session_state.usuario,
-                                        "cliente": cli_wp,
-                                        "cpf": cpf_l,
-                                        "telefone": re.sub(r"\D","",tel_ativo),
-                                        "produto": tab_wp, "tabela_banco": tab_wp,
-                                        "valor": val_num, "status": st_wp2,
-                                        "percentual_comissao":0, "valor_comissao":0,
-                                        "comissao_empresa": perc,
-                                        "valor_comissao_empresa": val_num*(perc/100),
-                                        "conferido":False, "alterado_vendedor":False,
-                                    }).execute()
-                                    st.success("✅ Venda cadastrada! Aparece no Painel agora.")
-                                    st.rerun()
-
-                    # ── MODO EDIÇÃO ──
-                    else:
-                        st.markdown('''<div style="font-size:11px;font-weight:700;color:#38bdf8;
-                            letter-spacing:.08em;text-transform:uppercase;
-                            margin-bottom:8px;">✏️ EDITAR PROPOSTA</div>''', unsafe_allow_html=True)
-
-                        tabelas_edit = carregar_tabelas()
-                        tab_atual = venda.get("tabela_banco","") if venda else ""
-                        tab_idx = tabelas_edit.index(tab_atual) if tab_atual in tabelas_edit else 0
-
-                        cli_e  = st.text_input("Cliente",
-                            value=venda.get("cliente","") if venda else "", key="wp_cli_edit")
-                        tab_e  = st.selectbox("Tabela", tabelas_edit, index=tab_idx, key="wp_tab_edit")
-                        val_e  = st.text_input("Valor",
-                            value=dinheiro(venda.get("valor",0)).replace("R$ ","") if venda else "",
-                            key="wp_val_edit")
-                        val_num_e = converter_valor_brasileiro(val_e)
-
-                        st_lista = ["Pendente","Aguardando Pagamento","Aguardando Assinatura","Pago","Cancelado"]
-                        st_atual = venda.get("status","Pendente") if venda else "Pendente"
-                        st_idx = st_lista.index(st_atual) if st_atual in st_lista else 0
-                        st_e = st.selectbox("Status", st_lista, index=st_idx, key="wp_st_edit")
-
-                        obs_e = st.text_area("Observação",
-                            value=venda.get("observacao","") if venda else "",
-                            key="wp_obs_edit", height=60)
-
-                        col_s, col_c = st.columns(2)
-                        with col_s:
-                            if st.button("💾 Salvar", use_container_width=True, key="btn_wp_save_edit"):
-                                if venda and val_num_e > 0:
-                                    perc = calcular_percentual_empresa_venda(tab_e, val_num_e)
-                                    supabase.table("vendas").update({
-                                        "cliente": cli_e,
-                                        "tabela_banco": tab_e,
-                                        "produto": tab_e,
-                                        "valor": val_num_e,
-                                        "status": st_e,
-                                        "observacao": obs_e,
-                                        "comissao_empresa": perc,
-                                        "valor_comissao_empresa": val_num_e*(perc/100),
-                                    }).eq("id", int(venda["id"])).execute()
-                                    st.success("✅ Atualizado no Painel!")
-                                    st.session_state.wp_editando = False
-                                    st.rerun()
-                                else:
-                                    st.error("Valor inválido")
-                        with col_c:
-                            if st.button("Cancelar", use_container_width=True, key="btn_wp_cancel_edit"):
-                                st.session_state.wp_editando = False
-                                st.rerun()
-
-                        st.markdown('''<div style="background:rgba(56,189,248,0.08);
-                            border:1px solid rgba(56,189,248,0.20);border-radius:8px;
-                            padding:7px 10px;font-size:11px;color:#7dd3fc;margin-top:6px;
-                            text-align:center;">
-                            💡 Salvar aqui atualiza direto o Painel de Vendas
-                        </div>''', unsafe_allow_html=True)
 
     elif menu == "💰 Comissões":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Regras de Comissão</span>', unsafe_allow_html=True)
