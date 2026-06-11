@@ -953,6 +953,123 @@ else:
 
     elif menu == "💰 Comissoes":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Regras de Comissao</span>', unsafe_allow_html=True)
+
+        # ── PAINEL DE PREVISÃO DE PAGAMENTO ─────────────────────────────
+        st.markdown("### 📅 Previsão de Recebimento de Comissões")
+
+        def dias_uteis_apos(data_inicio, dias):
+            from datetime import timedelta
+            atual = pd.Timestamp(data_inicio)
+            contados = 0
+            while contados < dias:
+                atual += timedelta(days=1)
+                if atual.weekday() < 5:
+                    contados += 1
+            return atual
+
+        def carregar_prazos():
+            try:
+                res = supabase.table("prazos_pagamento").select("*").execute()
+                return {r["tabela_banco"]: r["dias_uteis"] for r in (res.data or [])}
+            except Exception:
+                return {}
+
+        def salvar_prazo(tabela, dias):
+            try:
+                existing = supabase.table("prazos_pagamento").select("*").eq("tabela_banco", tabela).execute()
+                if existing.data:
+                    supabase.table("prazos_pagamento").update({"dias_uteis": dias}).eq("tabela_banco", tabela).execute()
+                else:
+                    supabase.table("prazos_pagamento").insert({"tabela_banco": tabela, "dias_uteis": dias}).execute()
+                return True
+            except Exception:
+                return False
+
+        tabelas_ativas = carregar_tabelas()
+        prazos = carregar_prazos()
+
+        with st.expander("⚙️ Configurar prazos por banco", expanded=False):
+            st.markdown("Configure quantos **dias úteis** cada banco leva para pagar:")
+            with st.form("form_prazos"):
+                novos_prazos = {}
+                cols = st.columns(3)
+                for i, tab in enumerate(tabelas_ativas):
+                    prazo_atual = prazos.get(tab, 4)
+                    novos_prazos[tab] = cols[i % 3].number_input(tab, min_value=1, max_value=60, value=int(prazo_atual), step=1, key=f"prazo_{tab}")
+                if st.form_submit_button("💾 Salvar prazos", use_container_width=True):
+                    for tab, dias in novos_prazos.items():
+                        salvar_prazo(tab, dias)
+                    st.success("Prazos salvos!"); st.rerun()
+
+        df_prev = preparar_dataframe_vendas()
+        if not df_prev.empty:
+            df_pagas = df_prev[df_prev["status"] == "Pago"].copy()
+            if df_pagas.empty:
+                st.info("Nenhum contrato com status Pago ainda.")
+            else:
+                prazos_atuais = carregar_prazos()
+                previsoes = []
+                for _, row in df_pagas.iterrows():
+                    tabela = row.get("tabela_banco") or row.get("produto") or "?"
+                    dias = prazos_atuais.get(tabela, 4)
+                    data_venda = row.get("data")
+                    if pd.notna(data_venda):
+                        data_prev = dias_uteis_apos(data_venda, dias)
+                        hoje = pd.Timestamp.now().normalize()
+                        diff = (data_prev.normalize() - hoje).days
+                        if diff < 0:
+                            status_prev = "✅ Ja deveria ter pago"
+                            cor = "#f0fdf4"; borda = "#86efac"
+                        elif diff == 0:
+                            status_prev = "🔥 Paga HOJE!"
+                            cor = "#fefce8"; borda = "#facc15"
+                        elif diff <= 2:
+                            status_prev = f"⚡ Em {diff} dia(s)"
+                            cor = "#eff6ff"; borda = "#93c5fd"
+                        else:
+                            status_prev = f"🗓️ Em {diff} dias"
+                            cor = "#f8fafc"; borda = "#e2e8f0"
+                        valor_com = float(row.get("valor_comissao_empresa") or 0)
+                        if valor_com == 0:
+                            perc = calcular_percentual_empresa_venda(tabela, float(row.get("valor", 0)))
+                            valor_com = float(row.get("valor", 0)) * (perc / 100)
+                        previsoes.append({
+                            "data_venda": data_venda, "data_previsao": data_prev, "diff": diff,
+                            "cliente": row.get("cliente", ""), "vendedor": row.get("vendedor", ""),
+                            "tabela": tabela, "valor": float(row.get("valor", 0)),
+                            "comissao": valor_com, "dias_prazo": dias,
+                            "status_prev": status_prev, "cor": cor, "borda": borda,
+                        })
+                if previsoes:
+                    previsoes.sort(key=lambda x: x["diff"])
+                    total_previsto = sum(p["comissao"] for p in previsoes)
+                    a_receber_7d = sum(p["comissao"] for p in previsoes if 0 <= p["diff"] <= 7)
+                    vencidos = sum(p["comissao"] for p in previsoes if p["diff"] < 0)
+                    k1, k2, k3 = st.columns(3)
+                    k1.metric("💰 Total a receber", dinheiro(total_previsto))
+                    k2.metric("⚡ Proximos 7 dias", dinheiro(a_receber_7d))
+                    k3.metric("⚠️ Atrasados", dinheiro(vencidos))
+                    st.divider()
+                    for p in previsoes:
+                        st.markdown(f"""
+                        <div style="background:{p['cor']};border:1.5px solid {p['borda']};border-radius:14px;padding:14px 18px;margin-bottom:10px;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+                                <div>
+                                    <div style="font-size:14px;font-weight:800;color:#0f172a;">{p['cliente']}</div>
+                                    <div style="font-size:12px;color:#64748b;">{p['vendedor']} • {p['tabela']} • {p['dias_prazo']} dias uteis</div>
+                                    <div style="font-size:12px;color:#64748b;">Venda: {str(p['data_venda'])[:10]} → Previsao: <b>{str(p['data_previsao'])[:10]}</b></div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:18px;font-weight:900;color:#0f172a;">{dinheiro(p['comissao'])}</div>
+                                    <div style="font-size:12px;color:#64748b;">de {dinheiro(p['valor'])}</div>
+                                    <div style="font-size:13px;font-weight:700;">{p['status_prev']}</div>
+                                </div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+        st.divider()
+        st.markdown("### ⚙️ Regras de Comissao")
         with st.form("nova_regra"):
             produto = st.text_input("Tabela/Banco")
             valor_minimo = st.number_input("Valor minimo", min_value=0.0, step=1000.0)
