@@ -446,7 +446,7 @@ if not st.session_state.logado:
     .stButton > button { background:linear-gradient(90deg,#1848cc,#0ea5e9) !important;border:none !important;border-radius:12px !important;color:#fff !important;font-size:16px !important;font-weight:700 !important;height:52px !important;margin-top:6px !important; }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown('<div class="l-icon"><img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png" style="width:70px;height:70px;object-fit:cover;border-radius:16px;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="l-icon"><img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png" style="width:140px;height:140px;object-fit:contain;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-title">OPERAX <b>SALES</b></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-sub">Sistema inteligente de vendas e operacoes financeiras</div>', unsafe_allow_html=True)
 
