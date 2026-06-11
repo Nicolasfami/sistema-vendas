@@ -10,6 +10,23 @@ import io
 
 st.set_page_config(page_title="OPERAX SALES", layout="wide", page_icon="🌀")
 
+# ============================================================
+# PWA - INSTALA O APP NO CELULAR
+# ============================================================
+st.markdown("""
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OPERAX">
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js');
+        }
+    </script>
+""", unsafe_allow_html=True)
+
 SUPABASE_URL = "https://ynxpowhzhnwqazdxshch.supabase.co"
 SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 
@@ -209,7 +226,6 @@ def preparar_dataframe_vendas():
 
 def destacar_linhas_pendentes(row, tipo_usuario):
     try:
-        # Usar nome traduzido ou original
         status_key = "Status" if "Status" in row.index else "status"
         status = str(row.get(status_key,"")).strip().lower()
         data_key = "Data" if "Data" in row.index else "data"
@@ -618,8 +634,6 @@ else:
                 colunas = [c for c in colunas if c in df.columns]
                 df_visao = df[colunas].copy()
                 if "valor" in df_visao.columns: df_visao["valor"] = df_visao["valor"].apply(dinheiro)
-
-                # ── NOVO: Traduzir colunas para portugues ──────────────────────────
                 traducao_cols = {
                     "id": "ID", "data": "Data", "vendedor": "Vendedor",
                     "cliente": "Cliente", "cpf": "CPF", "telefone": "Telefone",
@@ -629,10 +643,7 @@ else:
                     "observacao_alteracao": "Obs Alteracao"
                 }
                 df_visao = df_visao.rename(columns=traducao_cols)
-
                 st.dataframe(df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1), use_container_width=True)
-
-                # ── NOVO: Botao exportar Excel ─────────────────────────────────────
                 buf = io.BytesIO()
                 df_export = df_visao.copy()
                 with pd.ExcelWriter(buf, engine="openpyxl") as writer:
@@ -647,7 +658,6 @@ else:
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                         use_container_width=True
                     )
-
                 if st.session_state.tipo=="admin":
                     st.divider()
                     acoes_df = df[["id","cliente","valor","status","conferido","alterado_vendedor"]].copy()
