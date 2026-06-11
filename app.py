@@ -436,7 +436,7 @@ if not st.session_state.logado:
     [data-testid="stSidebar"] { display:none !important; }
     header[data-testid="stHeader"] { display:none !important; }
     .block-container { max-width: 420px !important; margin: 0 auto !important; padding: 40px 36px 36px !important; margin-top: calc(50vh - 320px) !important; background: rgba(7,18,48,0.96) !important; border: 1px solid rgba(56,189,248,0.28) !important; border-radius: 24px !important; box-shadow: 0 0 0 1px rgba(56,189,248,0.07), 0 0 60px rgba(14,165,233,0.18), 0 28px 80px rgba(0,0,0,0.85) !important; }
-    .l-icon { width:88px;height:88px;border-radius:20px;margin:0 auto 18px auto;background:radial-gradient(circle at 38% 35%,#bfdbfe 0%,#3b82f6 28%,#1d4ed8 56%,#030a1a 88%);display:flex;align-items:center;justify-content:center;font-size:44px;box-shadow:0 0 0 2px rgba(56,189,248,0.45),0 0 28px rgba(56,189,248,0.85),0 0 55px rgba(14,165,233,0.45); }
+    .l-icon { width:88px;height:88px;border-radius:20px;margin:0 auto 18px auto;background:transparent;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px rgba(56,189,248,0.45),0 0 28px rgba(56,189,248,0.85),0 0 55px rgba(14,165,233,0.45); }
     .l-title { font-family:Orbitron,sans-serif;font-size:24px;font-weight:900;letter-spacing:0.06em;color:#ffffff !important;margin-bottom:6px;text-align:center; }
     .l-title b { color:#38bdf8 !important; }
     .l-sub { color:#ffffff !important;font-size:13px;opacity:0.85;margin-bottom:28px;text-align:center; }
