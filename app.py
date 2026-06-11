@@ -102,11 +102,11 @@ def achar_logo():
     return None
 
 def mostrar_cabecalho():
-    logo_b64 = "https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png"
+    logo_url = "https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png"
     st.markdown(f"""
         <div class="crm-hero">
             <div style="display:flex;align-items:center;gap:22px;">
-                <img src="{logo_b64}" style="width:72px;height:72px;border-radius:20px;flex-shrink:0;object-fit:cover;box-shadow:0 0 28px rgba(56,189,248,0.70);">
+                <img src="{logo_url}" style="width:72px;height:72px;border-radius:20px;flex-shrink:0;object-fit:cover;box-shadow:0 0 28px rgba(56,189,248,0.70);">
                 <div>
                     <h1 class="crm-title">OPERAX <span>SALES</span></h1>
                     <p class="crm-subtitle">Sistema inteligente de vendas e operações financeiras</p>
@@ -446,7 +446,7 @@ if not st.session_state.logado:
     .stButton > button { background:linear-gradient(90deg,#1848cc,#0ea5e9) !important;border:none !important;border-radius:12px !important;color:#fff !important;font-size:16px !important;font-weight:700 !important;height:52px !important;margin-top:6px !important; }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown('<div class="l-icon">🌀</div>', unsafe_allow_html=True)
+    st.markdown('<div class="l-icon"><img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png" style="width:70px;height:70px;object-fit:cover;border-radius:16px;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-title">OPERAX <b>SALES</b></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-sub">Sistema inteligente de vendas e operacoes financeiras</div>', unsafe_allow_html=True)
 
