@@ -436,7 +436,7 @@ if not st.session_state.logado:
     [data-testid="stSidebar"] { display:none !important; }
     header[data-testid="stHeader"] { display:none !important; }
     .block-container { max-width: 420px !important; margin: 0 auto !important; padding: 40px 36px 36px !important; margin-top: calc(50vh - 320px) !important; background: rgba(7,18,48,0.96) !important; border: 1px solid rgba(56,189,248,0.28) !important; border-radius: 24px !important; box-shadow: 0 0 0 1px rgba(56,189,248,0.07), 0 0 60px rgba(14,165,233,0.18), 0 28px 80px rgba(0,0,0,0.85) !important; }
-    .l-icon { width:88px;height:88px;margin:0 auto 18px auto;background:transparent;display:flex;align-items:center;justify-content:center; }
+    .l-icon { width:220px;height:220px;margin:0 auto 18px auto;background:transparent;display:flex;align-items:center;justify-content:center; }
     .l-title { font-family:Orbitron,sans-serif;font-size:24px;font-weight:900;letter-spacing:0.06em;color:#ffffff !important;margin-bottom:6px;text-align:center; }
     .l-title b { color:#38bdf8 !important; }
     .l-sub { color:#ffffff !important;font-size:13px;opacity:0.85;margin-bottom:28px;text-align:center; }
@@ -446,7 +446,7 @@ if not st.session_state.logado:
     .stButton > button { background:linear-gradient(90deg,#1848cc,#0ea5e9) !important;border:none !important;border-radius:12px !important;color:#fff !important;font-size:16px !important;font-weight:700 !important;height:52px !important;margin-top:6px !important; }
     </style>""", unsafe_allow_html=True)
 
-    st.markdown('<div class="l-icon"><img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png" style="width:900px;height:900px;object-fit:contain;"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="l-icon"><img src="https://raw.githubusercontent.com/Nicolasfami/sistema-vendas/main/logo_sem_escrita.png" style="width:220px;height:220px;object-fit:contain;"></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-title">OPERAX <b>SALES</b></div>', unsafe_allow_html=True)
     st.markdown('<div class="l-sub">Sistema inteligente de vendas e operacoes financeiras</div>', unsafe_allow_html=True)
 
