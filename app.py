@@ -1099,16 +1099,19 @@ else:
                     if gtipo == "dias":
                         data_prev = dias_uteis_apos(data_venda, gdias)
                     else:
-                        # Paga na proxima ocorrencia do dia da semana configurado
+                        # Paga na segunda da SEMANA SEGUINTE à semana da venda
+                        # Semana = Seg a Sab. Qualquer venda da semana X paga na Segunda da semana X+1
                         from datetime import timedelta
-                        alvo = dia_semana_map.get(gdiasem, 0)
-                        d = pd.Timestamp(data_venda) + timedelta(days=1)
-                        while d.weekday() != alvo:
-                            d += timedelta(days=1)
-                        # Se a venda foi feita depois do inicio da semana, paga na proxima semana
-                        if pd.Timestamp(data_venda).weekday() >= alvo:
-                            d += timedelta(days=7)
-                        data_prev = d
+                        alvo = dia_semana_map.get(gdiasem, 0)  # 0=Seg, 1=Ter...
+                        dv = pd.Timestamp(data_venda)
+                        # Semana = Seg a Dom. Achar a Segunda da semana atual
+                        # weekday(): 0=Seg, 6=Dom
+                        dias_ate_seg = dv.weekday()  # 0 se já é segunda, 6 se domingo
+                        seg_atual = dv - timedelta(days=dias_ate_seg)
+                        # Paga na Segunda da próxima semana
+                        seg_prox = seg_atual + timedelta(days=7)
+                        # Ajustar para o dia configurado dentro dessa próxima semana
+                        data_prev = seg_prox + timedelta(days=alvo)
                     key = str(data_prev.date())
                     valor_com = float(row.get("valor_comissao_empresa") or 0)
                     if valor_com == 0:
