@@ -993,18 +993,20 @@ else:
                 return True
             except Exception: return False
 
-        # Novo grupo
         dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
+
+        # Controle de tipo fora do form para atualizar dinamicamente
+        tipo_novo = st.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo_sel")
+
         with st.form("form_novo_grupo"):
             col_ng1, col_ng2 = st.columns([2, 2])
             nome_grupo = col_ng1.text_input("Nome do grupo", placeholder="Ex: 3RN CAPITAL")
-            tipo_novo = col_ng2.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo")
             if tipo_novo == "Dias úteis após a venda":
-                dias_grupo = st.number_input("Dias úteis", min_value=1, max_value=60, value=4, step=1, key="dias_novo")
+                dias_grupo = col_ng2.number_input("Dias úteis após a venda", min_value=1, max_value=60, value=4, step=1, key="dias_novo")
                 dia_sem_novo = "Segunda"
             else:
                 dias_grupo = 0
-                dia_sem_novo = st.selectbox("Dia de pagamento", dias_semana_opts, key="diasem_novo")
+                dia_sem_novo = col_ng2.selectbox("Dia fixo de pagamento", dias_semana_opts, key="diasem_novo")
             if st.form_submit_button("➕ Criar grupo", use_container_width=True):
                 if not nome_grupo.strip():
                     st.error("Digite o nome do grupo.")
@@ -1016,7 +1018,6 @@ else:
         grupos = carregar_grupos()
         todas_tabelas = carregar_tabelas()
 
-        dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
         for grupo in grupos:
             gid = grupo["id"]
             gnome = grupo["nome"]
@@ -1026,20 +1027,23 @@ else:
             tabelas_do_grupo = carregar_tabelas_grupo(gid)
             qtd = len(tabelas_do_grupo)
             resumo = f"{gdias} dias úteis" if gtipo=="dias" else f"Toda {gdiasem}"
+
             with st.expander(f"🏦 {gnome} — {qtd} tabela(s) • {resumo}"):
+                # Tipo fora do form para atualizar dinamicamente
+                tipo_edit = st.selectbox("Tipo de pagamento",
+                    ["Dias úteis após a venda","Dia fixo da semana"],
+                    index=0 if gtipo=="dias" else 1,
+                    key=f"tipo_sel_{gid}")
+
                 with st.form(f"form_grupo_{gid}"):
-                    col_t1, col_t2 = st.columns(2)
-                    tipo_edit = col_t1.selectbox("Tipo de pagamento",
-                        ["Dias úteis após a venda","Dia fixo da semana"],
-                        index=0 if gtipo=="dias" else 1,
-                        key=f"tipo_{gid}")
                     if tipo_edit == "Dias úteis após a venda":
-                        novo_dias = col_t2.number_input("Dias úteis", min_value=1, max_value=60, value=gdias if gdias>0 else 4, step=1, key=f"dias_{gid}")
+                        novo_dias = st.number_input("Dias úteis após a venda", min_value=1, max_value=60, value=gdias if gdias>0 else 4, step=1, key=f"dias_{gid}")
                         novo_diasem = gdiasem
                     else:
                         novo_dias = 0
                         idx_sem = dias_semana_opts.index(gdiasem) if gdiasem in dias_semana_opts else 0
-                        novo_diasem = col_t2.selectbox("Dia de pagamento", dias_semana_opts, index=idx_sem, key=f"diasem_{gid}")
+                        novo_diasem = st.selectbox("Dia fixo de pagamento (paga o produzido na semana anterior)", dias_semana_opts, index=idx_sem, key=f"diasem_{gid}")
+
                     st.markdown("**Selecione as tabelas/comissões deste grupo:**")
                     cols_tab = st.columns(2)
                     selecionadas = []
