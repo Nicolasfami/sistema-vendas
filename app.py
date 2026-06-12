@@ -967,15 +967,15 @@ else:
                 return [r["tabela_banco"] for r in (res.data or [])]
             except Exception: return []
 
-        def salvar_grupo(nome, dias):
+        def salvar_grupo(nome, dias, tipo, dia_sem):
             try:
-                supabase.table("grupos_banco").insert({"nome": nome.strip().upper(), "dias_uteis": dias}).execute()
+                supabase.table("grupos_banco").insert({"nome": nome.strip().upper(), "dias_uteis": dias, "tipo_pagamento": tipo, "dia_semana": dia_sem}).execute()
                 return True
             except Exception: return False
 
-        def atualizar_grupo(grupo_id, dias):
+        def atualizar_grupo(grupo_id, dias, tipo, dia_sem):
             try:
-                supabase.table("grupos_banco").update({"dias_uteis": dias}).eq("id", grupo_id).execute()
+                supabase.table("grupos_banco").update({"dias_uteis": dias, "tipo_pagamento": tipo, "dia_semana": dia_sem}).eq("id", grupo_id).execute()
                 return True
             except Exception: return False
 
@@ -994,15 +994,21 @@ else:
             except Exception: return False
 
         # Novo grupo
+        dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
         with st.form("form_novo_grupo"):
-            col_ng1, col_ng2, col_ng3 = st.columns([3, 1, 1])
+            col_ng1, col_ng2 = st.columns([2, 2])
             nome_grupo = col_ng1.text_input("Nome do grupo", placeholder="Ex: 3RN CAPITAL")
-            dias_grupo = col_ng2.number_input("Dias úteis", min_value=1, max_value=60, value=4, step=1)
-            col_ng3.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+            tipo_novo = col_ng2.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo")
+            if tipo_novo == "Dias úteis após a venda":
+                dias_grupo = st.number_input("Dias úteis", min_value=1, max_value=60, value=4, step=1, key="dias_novo")
+                dia_sem_novo = "Segunda"
+            else:
+                dias_grupo = 0
+                dia_sem_novo = st.selectbox("Dia de pagamento", dias_semana_opts, key="diasem_novo")
             if st.form_submit_button("➕ Criar grupo", use_container_width=True):
                 if not nome_grupo.strip():
                     st.error("Digite o nome do grupo.")
-                elif salvar_grupo(nome_grupo, dias_grupo):
+                elif salvar_grupo(nome_grupo, dias_grupo, "dias" if tipo_novo=="Dias úteis após a venda" else "semana", dia_sem_novo):
                     st.success("Grupo criado!"); st.rerun()
                 else:
                     st.error("Erro ao criar grupo.")
@@ -1010,17 +1016,30 @@ else:
         grupos = carregar_grupos()
         todas_tabelas = carregar_tabelas()
 
+        dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
         for grupo in grupos:
             gid = grupo["id"]
             gnome = grupo["nome"]
-            gdias = grupo["dias_uteis"]
+            gdias = int(grupo.get("dias_uteis") or 0)
+            gtipo = grupo.get("tipo_pagamento") or "dias"
+            gdiasem = grupo.get("dia_semana") or "Segunda"
             tabelas_do_grupo = carregar_tabelas_grupo(gid)
             qtd = len(tabelas_do_grupo)
-
-            with st.expander(f"🏦 {gnome} — {qtd} tabela(s) • {gdias} dias úteis"):
+            resumo = f"{gdias} dias úteis" if gtipo=="dias" else f"Toda {gdiasem}"
+            with st.expander(f"🏦 {gnome} — {qtd} tabela(s) • {resumo}"):
                 with st.form(f"form_grupo_{gid}"):
-                    st.markdown(f"**Dias úteis para {gnome}:**")
-                    novo_dias = st.number_input("Dias úteis", min_value=1, max_value=60, value=int(gdias), step=1, key=f"dias_{gid}")
+                    col_t1, col_t2 = st.columns(2)
+                    tipo_edit = col_t1.selectbox("Tipo de pagamento",
+                        ["Dias úteis após a venda","Dia fixo da semana"],
+                        index=0 if gtipo=="dias" else 1,
+                        key=f"tipo_{gid}")
+                    if tipo_edit == "Dias úteis após a venda":
+                        novo_dias = col_t2.number_input("Dias úteis", min_value=1, max_value=60, value=gdias if gdias>0 else 4, step=1, key=f"dias_{gid}")
+                        novo_diasem = gdiasem
+                    else:
+                        novo_dias = 0
+                        idx_sem = dias_semana_opts.index(gdiasem) if gdiasem in dias_semana_opts else 0
+                        novo_diasem = col_t2.selectbox("Dia de pagamento", dias_semana_opts, index=idx_sem, key=f"diasem_{gid}")
                     st.markdown("**Selecione as tabelas/comissões deste grupo:**")
                     cols_tab = st.columns(2)
                     selecionadas = []
@@ -1030,7 +1049,7 @@ else:
                             selecionadas.append(tab)
                     col_s1, col_s2 = st.columns(2)
                     if col_s1.form_submit_button("💾 Salvar", use_container_width=True):
-                        atualizar_grupo(gid, novo_dias)
+                        atualizar_grupo(gid, novo_dias, "dias" if tipo_edit=="Dias úteis após a venda" else "semana", novo_diasem)
                         salvar_tabelas_grupo(gid, selecionadas)
                         st.success("Grupo atualizado!"); st.rerun()
                     if col_s2.form_submit_button("🗑️ Excluir grupo", use_container_width=True):
@@ -1059,17 +1078,33 @@ else:
             df_pagas_cal = df_cal[df_cal["status"] == "Pago"].copy()
             eventos_cal = {}
 
+            dia_semana_map = {"Segunda":0,"Terca":1,"Quarta":2,"Quinta":3,"Sexta":4}
+
             for grupo in grupos_cal:
                 gid = grupo["id"]
                 gnome = grupo["nome"]
-                gdias = int(grupo["dias_uteis"])
+                gdias = int(grupo.get("dias_uteis") or 0)
+                gtipo = grupo.get("tipo_pagamento") or "dias"
+                gdiasem = grupo.get("dia_semana") or "Segunda"
                 tabs_grupo = carregar_tabelas_grupo(gid)
                 df_grupo = df_pagas_cal[df_pagas_cal["tabela_banco"].isin(tabs_grupo)]
 
                 for _, row in df_grupo.iterrows():
                     data_venda = row.get("data")
                     if pd.isna(data_venda): continue
-                    data_prev = dias_uteis_apos(data_venda, gdias)
+                    if gtipo == "dias":
+                        data_prev = dias_uteis_apos(data_venda, gdias)
+                    else:
+                        # Paga na proxima ocorrencia do dia da semana configurado
+                        from datetime import timedelta
+                        alvo = dia_semana_map.get(gdiasem, 0)
+                        d = pd.Timestamp(data_venda) + timedelta(days=1)
+                        while d.weekday() != alvo:
+                            d += timedelta(days=1)
+                        # Se a venda foi feita depois do inicio da semana, paga na proxima semana
+                        if pd.Timestamp(data_venda).weekday() >= alvo:
+                            d += timedelta(days=7)
+                        data_prev = d
                     key = str(data_prev.date())
                     valor_com = float(row.get("valor_comissao_empresa") or 0)
                     if valor_com == 0:
