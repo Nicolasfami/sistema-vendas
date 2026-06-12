@@ -995,9 +995,6 @@ else:
 
         dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
 
-        # Tabelas livres (não vinculadas a nenhum grupo)
-        tabelas_livres = [t for t in todas_tabelas if t not in tabelas_ja_usadas]
-
         # Controle de tipo fora do form para atualizar dinamicamente
         tipo_novo = st.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo_sel")
 
@@ -1044,6 +1041,9 @@ else:
             tabs = carregar_tabelas_grupo(g["id"])
             tabelas_por_grupo[g["id"]] = tabs
             tabelas_ja_usadas.update(tabs)
+
+        # Tabelas livres (não vinculadas a nenhum grupo)
+        tabelas_livres = [t for t in todas_tabelas if t not in tabelas_ja_usadas]
 
         for grupo in grupos:
             gid = grupo["id"]
