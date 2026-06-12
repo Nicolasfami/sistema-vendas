@@ -953,9 +953,94 @@ else:
 
     elif menu == "💰 Comissoes":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Regras de Comissao</span>', unsafe_allow_html=True)
+        st.markdown("### 🏦 Grupos de Bancos")
 
-        # ── PAINEL DE PREVISÃO DE PAGAMENTO ─────────────────────────────
-        st.markdown("### 📅 Previsão de Recebimento de Comissões")
+        def carregar_grupos():
+            try:
+                res = supabase.table("grupos_banco").select("*").order("nome").execute()
+                return res.data or []
+            except Exception: return []
+
+        def carregar_tabelas_grupo(grupo_id):
+            try:
+                res = supabase.table("grupos_banco_tabelas").select("*").eq("grupo_id", grupo_id).execute()
+                return [r["tabela_banco"] for r in (res.data or [])]
+            except Exception: return []
+
+        def salvar_grupo(nome, dias):
+            try:
+                supabase.table("grupos_banco").insert({"nome": nome.strip().upper(), "dias_uteis": dias}).execute()
+                return True
+            except Exception: return False
+
+        def atualizar_grupo(grupo_id, dias):
+            try:
+                supabase.table("grupos_banco").update({"dias_uteis": dias}).eq("id", grupo_id).execute()
+                return True
+            except Exception: return False
+
+        def salvar_tabelas_grupo(grupo_id, tabelas):
+            try:
+                supabase.table("grupos_banco_tabelas").delete().eq("grupo_id", grupo_id).execute()
+                for tab in tabelas:
+                    supabase.table("grupos_banco_tabelas").insert({"grupo_id": grupo_id, "tabela_banco": tab}).execute()
+                return True
+            except Exception: return False
+
+        def excluir_grupo(grupo_id):
+            try:
+                supabase.table("grupos_banco").delete().eq("id", grupo_id).execute()
+                return True
+            except Exception: return False
+
+        # Novo grupo
+        with st.form("form_novo_grupo"):
+            col_ng1, col_ng2, col_ng3 = st.columns([3, 1, 1])
+            nome_grupo = col_ng1.text_input("Nome do grupo", placeholder="Ex: 3RN CAPITAL")
+            dias_grupo = col_ng2.number_input("Dias úteis", min_value=1, max_value=60, value=4, step=1)
+            col_ng3.markdown("<div style='margin-top:28px'></div>", unsafe_allow_html=True)
+            if st.form_submit_button("➕ Criar grupo", use_container_width=True):
+                if not nome_grupo.strip():
+                    st.error("Digite o nome do grupo.")
+                elif salvar_grupo(nome_grupo, dias_grupo):
+                    st.success("Grupo criado!"); st.rerun()
+                else:
+                    st.error("Erro ao criar grupo.")
+
+        grupos = carregar_grupos()
+        todas_tabelas = carregar_tabelas()
+
+        for grupo in grupos:
+            gid = grupo["id"]
+            gnome = grupo["nome"]
+            gdias = grupo["dias_uteis"]
+            tabelas_do_grupo = carregar_tabelas_grupo(gid)
+            qtd = len(tabelas_do_grupo)
+
+            with st.expander(f"🏦 {gnome} — {qtd} tabela(s) • {gdias} dias úteis"):
+                with st.form(f"form_grupo_{gid}"):
+                    st.markdown(f"**Dias úteis para {gnome}:**")
+                    novo_dias = st.number_input("Dias úteis", min_value=1, max_value=60, value=int(gdias), step=1, key=f"dias_{gid}")
+                    st.markdown("**Selecione as tabelas/comissões deste grupo:**")
+                    cols_tab = st.columns(2)
+                    selecionadas = []
+                    for i, tab in enumerate(todas_tabelas):
+                        checked = tab in tabelas_do_grupo
+                        if cols_tab[i % 2].checkbox(tab, value=checked, key=f"tab_{gid}_{i}"):
+                            selecionadas.append(tab)
+                    col_s1, col_s2 = st.columns(2)
+                    if col_s1.form_submit_button("💾 Salvar", use_container_width=True):
+                        atualizar_grupo(gid, novo_dias)
+                        salvar_tabelas_grupo(gid, selecionadas)
+                        st.success("Grupo atualizado!"); st.rerun()
+                    if col_s2.form_submit_button("🗑️ Excluir grupo", use_container_width=True):
+                        excluir_grupo(gid)
+                        st.success("Grupo excluído!"); st.rerun()
+
+        st.divider()
+
+        # ── CALENDÁRIO DE PREVISÃO ──────────────────────────────────────
+        st.markdown("### 📅 Calendário de Previsão de Comissões")
 
         def dias_uteis_apos(data_inicio, dias):
             from datetime import timedelta
@@ -967,106 +1052,107 @@ else:
                     contados += 1
             return atual
 
-        def carregar_prazos():
-            try:
-                res = supabase.table("prazos_pagamento").select("*").execute()
-                return {r["tabela_banco"]: r["dias_uteis"] for r in (res.data or [])}
-            except Exception:
-                return {}
+        df_cal = preparar_dataframe_vendas()
+        grupos_cal = carregar_grupos()
 
-        def salvar_prazo(tabela, dias):
-            try:
-                existing = supabase.table("prazos_pagamento").select("*").eq("tabela_banco", tabela).execute()
-                if existing.data:
-                    supabase.table("prazos_pagamento").update({"dias_uteis": dias}).eq("tabela_banco", tabela).execute()
-                else:
-                    supabase.table("prazos_pagamento").insert({"tabela_banco": tabela, "dias_uteis": dias}).execute()
-                return True
-            except Exception:
-                return False
+        if not df_cal.empty and grupos_cal:
+            df_pagas_cal = df_cal[df_cal["status"] == "Pago"].copy()
+            eventos_cal = {}
 
-        tabelas_ativas = carregar_tabelas()
-        prazos = carregar_prazos()
+            for grupo in grupos_cal:
+                gid = grupo["id"]
+                gnome = grupo["nome"]
+                gdias = int(grupo["dias_uteis"])
+                tabs_grupo = carregar_tabelas_grupo(gid)
+                df_grupo = df_pagas_cal[df_pagas_cal["tabela_banco"].isin(tabs_grupo)]
 
-        with st.expander("⚙️ Configurar prazos por banco", expanded=False):
-            st.markdown("Configure quantos **dias úteis** cada banco leva para pagar:")
-            with st.form("form_prazos"):
-                novos_prazos = {}
-                cols = st.columns(3)
-                for i, tab in enumerate(tabelas_ativas):
-                    prazo_atual = prazos.get(tab, 4)
-                    novos_prazos[tab] = cols[i % 3].number_input(tab, min_value=1, max_value=60, value=int(prazo_atual), step=1, key=f"prazo_{tab}")
-                if st.form_submit_button("💾 Salvar prazos", use_container_width=True):
-                    for tab, dias in novos_prazos.items():
-                        salvar_prazo(tab, dias)
-                    st.success("Prazos salvos!"); st.rerun()
-
-        df_prev = preparar_dataframe_vendas()
-        if not df_prev.empty:
-            df_pagas = df_prev[df_prev["status"] == "Pago"].copy()
-            if df_pagas.empty:
-                st.info("Nenhum contrato com status Pago ainda.")
-            else:
-                prazos_atuais = carregar_prazos()
-                previsoes = []
-                for _, row in df_pagas.iterrows():
-                    tabela = row.get("tabela_banco") or row.get("produto") or "?"
-                    dias = prazos_atuais.get(tabela, 4)
+                for _, row in df_grupo.iterrows():
                     data_venda = row.get("data")
-                    if pd.notna(data_venda):
-                        data_prev = dias_uteis_apos(data_venda, dias)
-                        hoje = pd.Timestamp.now().normalize()
-                        diff = (data_prev.normalize() - hoje).days
-                        if diff < 0:
-                            status_prev = "✅ Ja deveria ter pago"
-                            cor = "#f0fdf4"; borda = "#86efac"
-                        elif diff == 0:
-                            status_prev = "🔥 Paga HOJE!"
-                            cor = "#fefce8"; borda = "#facc15"
-                        elif diff <= 2:
-                            status_prev = f"⚡ Em {diff} dia(s)"
-                            cor = "#eff6ff"; borda = "#93c5fd"
-                        else:
-                            status_prev = f"🗓️ Em {diff} dias"
-                            cor = "#f8fafc"; borda = "#e2e8f0"
-                        valor_com = float(row.get("valor_comissao_empresa") or 0)
-                        if valor_com == 0:
-                            perc = calcular_percentual_empresa_venda(tabela, float(row.get("valor", 0)))
-                            valor_com = float(row.get("valor", 0)) * (perc / 100)
-                        previsoes.append({
-                            "data_venda": data_venda, "data_previsao": data_prev, "diff": diff,
-                            "cliente": row.get("cliente", ""), "vendedor": row.get("vendedor", ""),
-                            "tabela": tabela, "valor": float(row.get("valor", 0)),
-                            "comissao": valor_com, "dias_prazo": dias,
-                            "status_prev": status_prev, "cor": cor, "borda": borda,
-                        })
-                if previsoes:
-                    previsoes.sort(key=lambda x: x["diff"])
-                    total_previsto = sum(p["comissao"] for p in previsoes)
-                    a_receber_7d = sum(p["comissao"] for p in previsoes if 0 <= p["diff"] <= 7)
-                    vencidos = sum(p["comissao"] for p in previsoes if p["diff"] < 0)
-                    k1, k2, k3 = st.columns(3)
-                    k1.metric("💰 Total a receber", dinheiro(total_previsto))
-                    k2.metric("⚡ Proximos 7 dias", dinheiro(a_receber_7d))
-                    k3.metric("⚠️ Atrasados", dinheiro(vencidos))
-                    st.divider()
-                    for p in previsoes:
-                        st.markdown(f"""
-                        <div style="background:{p['cor']};border:1.5px solid {p['borda']};border-radius:14px;padding:14px 18px;margin-bottom:10px;">
-                            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-                                <div>
-                                    <div style="font-size:14px;font-weight:800;color:#0f172a;">{p['cliente']}</div>
-                                    <div style="font-size:12px;color:#64748b;">{p['vendedor']} • {p['tabela']} • {p['dias_prazo']} dias uteis</div>
-                                    <div style="font-size:12px;color:#64748b;">Venda: {str(p['data_venda'])[:10]} → Previsao: <b>{str(p['data_previsao'])[:10]}</b></div>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:18px;font-weight:900;color:#0f172a;">{dinheiro(p['comissao'])}</div>
-                                    <div style="font-size:12px;color:#64748b;">de {dinheiro(p['valor'])}</div>
-                                    <div style="font-size:13px;font-weight:700;">{p['status_prev']}</div>
-                                </div>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                    if pd.isna(data_venda): continue
+                    data_prev = dias_uteis_apos(data_venda, gdias)
+                    key = str(data_prev.date())
+                    valor_com = float(row.get("valor_comissao_empresa") or 0)
+                    if valor_com == 0:
+                        perc = calcular_percentual_empresa_venda(row.get("tabela_banco",""), float(row.get("valor",0)))
+                        valor_com = float(row.get("valor",0)) * (perc/100)
+                    if key not in eventos_cal:
+                        eventos_cal[key] = {}
+                    if gnome not in eventos_cal[key]:
+                        eventos_cal[key][gnome] = 0
+                    eventos_cal[key][gnome] += valor_com
+
+            # Montar calendário HTML
+            hoje = pd.Timestamp.now()
+            mes_atual = hoje.month
+            ano_atual = hoje.year
+
+            meses_cal = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",
+                        7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+
+            col_cm1, col_cm2 = st.columns(2)
+            mes_cal = col_cm1.selectbox("Mês", list(meses_cal.values()), index=mes_atual-1, key="cal_mes")
+            anos_cal = sorted(df_cal["ano"].dropna().unique().astype(int).tolist(), reverse=True)
+            ano_cal = col_cm2.selectbox("Ano", anos_cal if anos_cal else [ano_atual], key="cal_ano")
+            mes_num_cal = [k for k,v in meses_cal.items() if v==mes_cal][0]
+
+            import calendar
+            primeiro_dia = calendar.weekday(ano_cal, mes_num_cal, 1)
+            primeiro_dia = (primeiro_dia + 1) % 7
+            dias_no_mes = calendar.monthrange(ano_cal, mes_num_cal)[1]
+
+            total_mes_cal = sum(sum(g.values()) for k,g in eventos_cal.items() if k.startswith(f"{ano_cal}-{str(mes_num_cal).zfill(2)}"))
+            total_7d = 0
+            total_atrasado = 0
+            for k, gvals in eventos_cal.items():
+                d = pd.Timestamp(k)
+                diff = (d.normalize() - hoje.normalize()).days
+                val = sum(gvals.values())
+                if diff < 0: total_atrasado += val
+                elif diff <= 7: total_7d += val
+
+            k1, k2, k3 = st.columns(3)
+            k1.metric("💰 Total no mês", dinheiro(total_mes_cal))
+            k2.metric("⚡ Próximos 7 dias", dinheiro(total_7d))
+            k3.metric("⚠️ Atrasados", dinheiro(total_atrasado))
+
+            cores_grupos = ["#E6F1FB","#EEEDFE","#E1F5EE","#FAEEDA","#FCEBEB","#EAF3DE"]
+            cores_texto  = ["#185FA5","#3C3489","#0F6E56","#854F0B","#A32D2D","#3B6D11"]
+            mapa_cores = {}
+            for i, g in enumerate(grupos_cal):
+                mapa_cores[g["nome"]] = (cores_grupos[i % len(cores_grupos)], cores_texto[i % len(cores_texto)])
+
+            dias_semana = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"]
+            header_html = "".join([f'<div style="text-align:center;font-size:11px;color:#64748b;padding:4px 0;">{d}</div>' for d in dias_semana])
+            cells_html = ""
+            for _ in range(primeiro_dia):
+                cells_html += '<div></div>'
+            for d in range(1, dias_no_mes+1):
+                key = f"{ano_cal}-{str(mes_num_cal).zfill(2)}-{str(d).zfill(2)}"
+                is_hoje = (d == hoje.day and mes_num_cal == hoje.month and ano_cal == hoje.year)
+                is_weekend = (d + primeiro_dia - 1) % 7 in [0, 6]
+                grupos_dia = eventos_cal.get(key, {})
+                total_dia = sum(grupos_dia.values())
+
+                border = "2px solid #378ADD" if is_hoje else "0.5px solid #e2e8f0"
+                bg = "#ffffff" if grupos_dia else "#f8fafc"
+                opacity = "opacity:0.5;" if is_weekend else ""
+
+                inner = f'<div style="font-size:11px;color:#64748b;margin-bottom:3px;">{d}</div>'
+                for gnome, val in grupos_dia.items():
+                    bg_c, txt_c = mapa_cores.get(gnome, ("#f1f5f9","#64748b"))
+                    inner += f'<div style="font-size:9px;font-weight:600;background:{bg_c};color:{txt_c};border-radius:3px;padding:1px 4px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">{gnome[:10]}: {dinheiro(val).replace("R$ ","R$")}</div>'
+                if total_dia > 0:
+                    inner += f'<div style="font-size:9px;font-weight:700;color:#0f172a;border-top:0.5px solid #e2e8f0;padding-top:2px;margin-top:2px;">Total: {dinheiro(total_dia).replace("R$ ","R$")}</div>'
+
+                cells_html += f'<div style="background:{bg};border:{border};border-radius:8px;padding:5px;min-height:70px;{opacity}">{inner}</div>'
+
+            st.markdown(f"""
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;">{header_html}</div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;">{cells_html}</div>
+            """, unsafe_allow_html=True)
+
+        elif not grupos_cal:
+            st.info("Crie grupos de bancos acima para ver o calendário.")
 
         st.divider()
         st.markdown("### ⚙️ Regras de Comissao")
