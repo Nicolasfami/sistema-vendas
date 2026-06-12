@@ -995,6 +995,20 @@ else:
 
         dias_semana_opts = ["Segunda","Terca","Quarta","Quinta","Sexta"]
 
+        grupos = carregar_grupos()
+        todas_tabelas = carregar_tabelas()
+
+        # Mapear quais tabelas já estão em algum grupo
+        tabelas_ja_usadas = set()
+        tabelas_por_grupo = {}
+        for g in grupos:
+            tabs = carregar_tabelas_grupo(g["id"])
+            tabelas_por_grupo[g["id"]] = tabs
+            tabelas_ja_usadas.update(tabs)
+
+        # Tabelas livres (não vinculadas a nenhum grupo)
+        tabelas_livres = [t for t in todas_tabelas if t not in tabelas_ja_usadas]
+
         # Controle de tipo fora do form para atualizar dinamicamente
         tipo_novo = st.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo_sel")
 
@@ -1021,29 +1035,11 @@ else:
                 if not nome_grupo.strip():
                     st.error("Digite o nome do grupo.")
                 else:
-                    gid_novo = salvar_grupo(nome_grupo, dias_grupo, "dias" if tipo_novo=="Dias úteis após a venda" else "semana", dia_sem_novo)
-                    if gid_novo:
-                        # Buscar id do grupo recém criado
-                        res_g = supabase.table("grupos_banco").select("id").eq("nome", nome_grupo.strip().upper()).execute()
-                        if res_g.data and selecionadas_novo:
-                            salvar_tabelas_grupo(res_g.data[0]["id"], selecionadas_novo)
-                        st.success("Grupo criado!"); st.rerun()
-                    else:
-                        st.error("Erro ao criar grupo.")
-
-        grupos = carregar_grupos()
-        todas_tabelas = carregar_tabelas()
-
-        # Mapear quais tabelas já estão em algum grupo
-        tabelas_ja_usadas = set()
-        tabelas_por_grupo = {}
-        for g in grupos:
-            tabs = carregar_tabelas_grupo(g["id"])
-            tabelas_por_grupo[g["id"]] = tabs
-            tabelas_ja_usadas.update(tabs)
-
-        # Tabelas livres (não vinculadas a nenhum grupo)
-        tabelas_livres = [t for t in todas_tabelas if t not in tabelas_ja_usadas]
+                    salvar_grupo(nome_grupo, dias_grupo, "dias" if tipo_novo=="Dias úteis após a venda" else "semana", dia_sem_novo)
+                    res_g = supabase.table("grupos_banco").select("id").eq("nome", nome_grupo.strip().upper()).execute()
+                    if res_g.data and selecionadas_novo:
+                        salvar_tabelas_grupo(res_g.data[0]["id"], selecionadas_novo)
+                    st.success("Grupo criado!"); st.rerun()
 
         for grupo in grupos:
             gid = grupo["id"]
