@@ -1237,21 +1237,38 @@ else:
         if df_regras.empty:
             st.warning("Nenhuma regra cadastrada.")
         else:
-            st.dataframe(df_regras, use_container_width=True)
+            # ── TABELA RÁPIDA COM ATIVO/INATIVO ──────────────────────────
+            st.markdown("**Ativar / Inativar tabelas rapidamente:**")
+            df_edit = df_regras[["id","produto","valor_minimo","percentual_empresa","ativo"]].copy()
+            df_edit = df_edit.rename(columns={"produto":"Tabela/Banco","valor_minimo":"Valor Minimo","percentual_empresa":"% Empresa","ativo":"Ativo"})
+            editado = st.data_editor(
+                df_edit,
+                use_container_width=True,
+                hide_index=True,
+                disabled=["id","Tabela/Banco","Valor Minimo","% Empresa"],
+                column_config={"Ativo": st.column_config.CheckboxColumn("Ativo", help="Desmarque para inativar")}
+            )
+            if st.button("💾 Salvar alterações de ativo/inativo", use_container_width=True, key="btn_salvar_ativo"):
+                for _, row in editado.iterrows():
+                    supabase.table("regras_comissao").update({"ativo": bool(row["Ativo"])}).eq("id", int(row["id"])).execute()
+                st.success("Alterações salvas!"); st.rerun()
+
             st.divider()
-            regra_id = st.selectbox("ID da regra", df_regras["id"].tolist())
+            st.markdown("**Editar regra individualmente:**")
+            regra_id = st.selectbox("Selecionar regra", df_regras["id"].tolist(),
+                format_func=lambda x: df_regras[df_regras["id"]==x].iloc[0]["produto"])
             regra = df_regras[df_regras["id"]==regra_id].iloc[0]
             with st.form("editar_regra"):
                 produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto","") or ""))
                 vm_edit = st.number_input("Valor minimo", min_value=0.0, step=1000.0, value=float(regra.get("valor_minimo") or 0))
                 pe_edit = st.number_input("% empresa", min_value=0.0, step=0.01, value=float(regra.get("percentual_empresa") or 0))
                 ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo",True)))
-                if st.form_submit_button("Salvar alteracoes"):
+                if st.form_submit_button("💾 Salvar alteracoes"):
                     supabase.table("regras_comissao").update({"produto":produto_edit.strip().upper(),"valor_minimo":vm_edit,"percentual_empresa":pe_edit,"percentual_vendedor":0,"ativo":ativo_edit}).eq("id",int(regra_id)).execute()
                     st.success("Regra atualizada!"); st.rerun()
             st.divider()
             confirmar_r = st.checkbox("Confirmo que quero excluir esta regra")
-            if st.button("Excluir regra"):
+            if st.button("🗑️ Excluir regra"):
                 if not confirmar_r: st.error("Marque a confirmacao.")
                 else:
                     supabase.table("regras_comissao").delete().eq("id",int(regra_id)).execute()
