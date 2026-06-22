@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import requests as _req
 from supabase import create_client
@@ -91,8 +92,6 @@ small[data-testid="InputInstructions"] { display: none !important; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: rgba(2,12,30,0.5); }
 ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.25); border-radius: 3px; }
-.rank-contratos-btn button { background: rgba(99,102,241,0.10) !important; border: 1.5px dashed rgba(99,102,241,0.55) !important; color: #4f46e5 !important; font-size: 18px !important; font-weight: 800 !important; padding: 4px 10px !important; box-shadow: none !important; border-radius: 10px !important; min-height: 0 !important; height: auto !important; }
-.rank-contratos-btn button:hover { background: rgba(99,102,241,0.18) !important; transform: none !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,61 +127,107 @@ def dinheiro(valor):
     except Exception:
         return "R$ 0,00"
 
-def gerar_svg_pizza(labels, valores, cores, total_contratos):
+
+
+def gerar_svg_pizza_bancos(labels, valores, cores, titulo="Contratos por banco"):
     total = sum(valores)
     if total <= 0:
-        return "<div></div>"
-    cx, cy, r = 110, 110, 95
-    fatias_svg = []
-    legendas_svg = []
+        return '<div style="font-family:Inter,Arial;padding:18px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#64748b;text-align:center;">Nenhum dado para montar o gráfico.</div>'
+
+    cx, cy, r = 130, 130, 105
     angulo_atual = -90.0
+    fatias = []
+    legendas = []
+
     for i, (label, val) in enumerate(zip(labels, valores)):
         fracao = val / total
         angulo_fatia = fracao * 360.0
         angulo_fim = angulo_atual + angulo_fatia
-
-        x1 = cx + r * math.cos(math.radians(angulo_atual))
-        y1 = cy + r * math.sin(math.radians(angulo_atual))
-        x2 = cx + r * math.cos(math.radians(angulo_fim))
-        y2 = cy + r * math.sin(math.radians(angulo_fim))
-        large_arc = 1 if angulo_fatia > 180 else 0
         cor = cores[i % len(cores)]
 
         if len(valores) == 1:
-            path = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{cor}" stroke="#ffffff" stroke-width="2"/>'
+            fatias.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{cor}" stroke="#ffffff" stroke-width="3"/>')
+            lx, ly = cx, cy
         else:
-            path = f'<path d="M{cx},{cy} L{x1:.2f},{y1:.2f} A{r},{r} 0 {large_arc} 1 {x2:.2f},{y2:.2f} Z" fill="{cor}" stroke="#ffffff" stroke-width="2"/>'
-        fatias_svg.append(path)
+            x1 = cx + r * math.cos(math.radians(angulo_atual))
+            y1 = cy + r * math.sin(math.radians(angulo_atual))
+            x2 = cx + r * math.cos(math.radians(angulo_fim))
+            y2 = cy + r * math.sin(math.radians(angulo_fim))
+            large_arc = 1 if angulo_fatia > 180 else 0
+            fatias.append(f'<path d="M{cx},{cy} L{x1:.2f},{y1:.2f} A{r},{r} 0 {large_arc} 1 {x2:.2f},{y2:.2f} Z" fill="{cor}" stroke="#ffffff" stroke-width="3"/>')
+            ang_meio = math.radians((angulo_atual + angulo_fim) / 2)
+            lx = cx + (r * 0.62) * math.cos(ang_meio)
+            ly = cy + (r * 0.62) * math.sin(ang_meio)
 
-        ang_meio = math.radians((angulo_atual + angulo_fim) / 2)
-        label_r = r * 0.66
-        lx = cx + label_r * math.cos(ang_meio)
-        ly = cy + label_r * math.sin(ang_meio)
-        if fracao > 0.035:
-            fatias_svg.append(f'<text x="{lx:.2f}" y="{ly:.2f}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#ffffff" font-family="Inter, sans-serif">{int(val)}</text>')
+        if fracao >= 0.045:
+            fatias.append(f'<text x="{lx:.2f}" y="{ly:.2f}" text-anchor="middle" dominant-baseline="middle" font-size="16" font-weight="800" fill="#ffffff" font-family="Inter,Arial">{int(val)}</text>')
 
-        pct = round(fracao*100,1)
-        legendas_svg.append(f'''
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <div style="width:11px;height:11px;border-radius:3px;background:{cor};flex-shrink:0;"></div>
-            <span style="font-size:12px;color:#0f172a;font-weight:600;flex:1;">{label}</span>
-            <span style="font-size:12px;color:#64748b;font-weight:700;">{pct}%</span>
-        </div>''')
-
+        pct = fracao * 100
+        label_safe = str(label).replace("<", "&lt;").replace(">", "&gt;")
+        legendas.append(f'<div class="legend-row"><span class="legend-color" style="background:{cor};"></span><span class="legend-name">{label_safe}</span><span class="legend-value">{int(val)} • {pct:.1f}%</span></div>')
         angulo_atual = angulo_fim
 
-    svg = f'''
-    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;">
-        <svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-            {''.join(fatias_svg)}
-        </svg>
-        <div style="min-width:160px;">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">{total_contratos} contrato(s) no total</div>
-            {''.join(legendas_svg)}
+    fatias_html = ''.join(fatias)
+    legendas_html = ''.join(legendas)
+    return f'''
+    <html>
+    <head>
+        <style>
+            body {{ margin:0; font-family: Inter, Arial, sans-serif; background: transparent; }}
+            .wrap {{ background:#ffffff; border:1.5px solid rgba(14,165,233,0.28); border-radius:18px; padding:18px; box-shadow:0 8px 28px rgba(15,23,42,0.06); }}
+            .title {{ font-size:15px; font-weight:900; color:#0f172a; margin-bottom:12px; }}
+            .content {{ display:flex; align-items:center; gap:20px; flex-wrap:wrap; }}
+            .chart {{ width:260px; min-width:260px; }}
+            .legend {{ flex:1; min-width:240px; }}
+            .legend-row {{ display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #eef2f7; }}
+            .legend-color {{ width:12px; height:12px; border-radius:4px; flex-shrink:0; }}
+            .legend-name {{ flex:1; font-size:13px; font-weight:750; color:#0f172a; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }}
+            .legend-value {{ font-size:12px; color:#64748b; font-weight:800; }}
+            .total {{ margin-top:10px; font-size:12px; color:#0369a1; font-weight:900; text-transform:uppercase; letter-spacing:.06em; }}
+        </style>
+    </head>
+    <body>
+        <div class="wrap">
+            <div class="title">{titulo}</div>
+            <div class="content">
+                <div class="chart"><svg width="260" height="260" viewBox="0 0 260 260" xmlns="http://www.w3.org/2000/svg">{fatias_html}</svg></div>
+                <div class="legend">{legendas_html}<div class="total">Total: {int(total)} contrato(s)</div></div>
+            </div>
         </div>
-    </div>
+    </body>
+    </html>
     '''
-    return svg
+
+
+def renderizar_pizza_bancos(df_base, titulo="Contratos por banco"):
+    if df_base.empty or "tabela_banco" not in df_base.columns:
+        st.info("Nenhum dado de banco/tabela para mostrar.")
+        return
+
+    df_tmp = df_base.copy()
+    df_tmp = df_tmp[df_tmp["tabela_banco"].notna()]
+    df_tmp["tabela_banco"] = df_tmp["tabela_banco"].astype(str).str.strip()
+    df_tmp = df_tmp[df_tmp["tabela_banco"] != ""]
+
+    if df_tmp.empty:
+        st.info("Nenhum dado de banco/tabela para mostrar.")
+        return
+
+    resumo = df_tmp.groupby("tabela_banco").agg(
+        contratos=("id", "count"),
+        valor_total=("valor", "sum")
+    ).reset_index().sort_values(["contratos", "valor_total"], ascending=False)
+
+    cores = ["#0ea5e9", "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#a855f7", "#14b8a6", "#ec4899", "#84cc16", "#f97316", "#06b6d4", "#8b5cf6"]
+    labels = resumo["tabela_banco"].tolist()
+    valores = resumo["contratos"].astype(int).tolist()
+    html = gerar_svg_pizza_bancos(labels, valores, cores, titulo=titulo)
+    components.html(html, height=340, scrolling=False)
+
+    tabela = resumo.rename(columns={"tabela_banco":"Banco/Tabela", "contratos":"Contratos", "valor_total":"Valor produzido"})
+    tabela["Valor produzido"] = tabela["Valor produzido"].apply(dinheiro)
+    st.dataframe(tabela, use_container_width=True, hide_index=True)
+
 
 def limpar_documento(valor):
     return re.sub(r"\D","",str(valor or ""))
@@ -839,75 +884,28 @@ else:
                 grp = grp.sort_values("total_pago", ascending=False).reset_index(drop=True)
                 grp.index += 1
                 medalhas = {1:"🥇",2:"🥈",3:"🥉"}
-
-                cores_pizza = ["#0ea5e9","#6366f1","#22c55e","#f59e0b","#ef4444","#a855f7","#14b8a6","#ec4899","#84cc16","#f97316"]
-
                 for i,row in grp.iterrows():
                     medalha = medalhas.get(i,f"#{i}")
                     pct_bar = min(int(row["pct_pagos"]),100)
                     bar_color = "#22c55e" if pct_bar>=70 else "#f59e0b" if pct_bar>=40 else "#ef4444"
-                    vendedor_nome = row["vendedor"]
-
                     st.markdown(f"""
-                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px 16px 0 0;padding:18px 22px 4px;">
+                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:18px 22px;margin-bottom:12px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                             <div style="display:flex;align-items:center;gap:14px;">
                                 <span style="font-size:28px;">{medalha}</span>
                                 <div>
-                                    <div style="font-size:16px;font-weight:800;color:#0f172a;">{vendedor_nome}</div>
+                                    <div style="font-size:16px;font-weight:800;color:#0f172a;">{row["vendedor"]}</div>
                                     <div style="font-size:12px;color:#64748b;">Ticket medio: {dinheiro(row["ticket_medio"])}</div>
                                 </div>
                             </div>
-                            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;">
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#0ea5e9;">TOTAL VENDIDO</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{dinheiro(row["total_vendido"])}</div></div>
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#22c55e;">TOTAL PAGO</div><div style="font-size:18px;font-weight:800;color:#16a34a;">{dinheiro(row["total_pago"])}</div></div>
-                                <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#6366f1;">CONTRATOS</div></div>
+                                <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#6366f1;">CONTRATOS</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{int(row["contratos"])}</div></div>
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#f59e0b;">% PAGOS</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{row["pct_pagos"]}%</div></div>
                             </div>
                         </div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    # Linha com o botão de contratos clicável posicionado no lugar certo + popup
-                    col_vazio, col_contratos_btn = st.columns([5.3,1])
-                    with col_contratos_btn:
-                        st.markdown('<div class="rank-contratos-btn">', unsafe_allow_html=True)
-                        pop = st.popover(f"{int(row['contratos'])}", use_container_width=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        with pop:
-                            st.markdown(f"**📋 Contratos de {vendedor_nome} por Banco/Tabela**")
-                            df_vend = df_rank[df_rank["vendedor"]==vendedor_nome].copy()
-                            if "tabela_banco" not in df_vend.columns or df_vend["tabela_banco"].dropna().empty:
-                                st.info("Nenhuma informacao de banco/tabela disponivel para estas vendas.")
-                            else:
-                                resumo_banco = df_vend.groupby("tabela_banco").agg(
-                                    qtd=("id","count"),
-                                    valor_total=("valor","sum")
-                                ).reset_index().sort_values("qtd", ascending=False)
-                                resumo_banco = resumo_banco[resumo_banco["tabela_banco"].notna()]
-                                if resumo_banco.empty:
-                                    st.info("Nenhuma informacao de banco/tabela disponivel para estas vendas.")
-                                else:
-                                    labels = resumo_banco["tabela_banco"].tolist()
-                                    valores_qtd = resumo_banco["qtd"].tolist()
-                                    cores_uso = (cores_pizza * ((len(labels)//len(cores_pizza))+1))[:len(labels)]
-
-                                    svg_pizza = gerar_svg_pizza(labels, valores_qtd, cores_uso, int(row['contratos']))
-                                    st.markdown(svg_pizza, unsafe_allow_html=True)
-
-                                    st.markdown("---")
-                                    for _, rb in resumo_banco.iterrows():
-                                        st.markdown(f"""
-                                        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;">
-                                            <span style="font-weight:700;color:#0f172a;font-size:13px;">{rb['tabela_banco']}</span>
-                                            <span style="font-size:12px;color:#64748b;">{int(rb['qtd'])} contrato(s)</span>
-                                            <span style="font-weight:700;color:#16a34a;font-size:13px;">{dinheiro(rb['valor_total'])}</span>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-
-                    st.markdown(f"""
-                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-top:none;border-radius:0 0 16px 16px;padding:0 22px 18px;margin-bottom:12px;margin-top:-14px;">
-                        <div style="background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                        <div style="margin-top:14px;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
                             <div style="width:{pct_bar}%;height:100%;background:{bar_color};border-radius:999px;"></div>
                         </div>
                     </div>
@@ -1059,6 +1057,38 @@ else:
 
     elif menu == "💰 Comissoes":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Regras de Comissao</span>', unsafe_allow_html=True)
+
+        st.markdown("### 📊 Produção por banco/tabela")
+        df_pizza_com = preparar_dataframe_vendas()
+        if df_pizza_com.empty:
+            st.info("Nenhuma venda cadastrada para montar o gráfico.")
+        else:
+            meses_pc = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
+            col_pc1, col_pc2, col_pc3, col_pc4 = st.columns(4)
+            mes_pc = col_pc1.selectbox("Mês do gráfico", list(meses_pc.values()), index=datetime.now().month-1, key="pizza_mes")
+            anos_pc = sorted(df_pizza_com["ano"].dropna().unique().astype(int).tolist(), reverse=True)
+            ano_pc = col_pc2.selectbox("Ano do gráfico", anos_pc if anos_pc else [datetime.now().year], key="pizza_ano")
+            status_pc = col_pc3.selectbox("Status do gráfico", ["Todos", "Pago", "Pendente", "Aguardando Pagamento", "Aguardando Assinatura", "Cancelado"], index=0, key="pizza_status")
+            vendedores_pc = sorted(df_pizza_com["vendedor"].dropna().unique().tolist())
+            vendedor_pc = col_pc4.selectbox("Vendedor", ["Geral"] + vendedores_pc, key="pizza_vendedor")
+
+            mes_num_pc = [k for k, v in meses_pc.items() if v == mes_pc][0]
+            df_pizza_com = df_pizza_com[(df_pizza_com["mes_num"] == mes_num_pc) & (df_pizza_com["ano"] == ano_pc)]
+            if status_pc != "Todos":
+                df_pizza_com = df_pizza_com[df_pizza_com["status"] == status_pc]
+            if vendedor_pc != "Geral":
+                df_pizza_com = df_pizza_com[df_pizza_com["vendedor"] == vendedor_pc]
+
+            total_contratos_pc = len(df_pizza_com)
+            total_valor_pc = df_pizza_com["valor"].fillna(0).sum() if not df_pizza_com.empty else 0
+            mpc1, mpc2 = st.columns(2)
+            mpc1.metric("📋 Contratos no gráfico", total_contratos_pc)
+            mpc2.metric("💰 Valor produzido", dinheiro(total_valor_pc))
+
+            titulo_pizza = f"{vendedor_pc} • {mes_pc}/{ano_pc}"
+            renderizar_pizza_bancos(df_pizza_com, titulo=titulo_pizza)
+
+        st.divider()
         st.markdown("### 🏦 Grupos de Bancos")
 
         def carregar_grupos():
