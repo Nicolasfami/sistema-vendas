@@ -312,7 +312,7 @@ def preparar_dataframe_vendas():
     vendas = supabase.table("vendas").select("*").order("id",desc=True).execute()
     df = pd.DataFrame(vendas.data)
     if df.empty: return df
-    for col in ["data","vendedor_id","tabela_banco","valor","status","conferido","alterado_vendedor"]:
+    for col in ["data","vendedor_id","vendedor","tabela_banco","valor","status","conferido","alterado_vendedor","ultima_alteracao_em","ultima_alteracao_por","ultima_alteracao_resumo"]:
         if col not in df.columns:
             if col=="tabela_banco" and "produto" in df.columns:
                 df["tabela_banco"] = df["produto"]
@@ -733,7 +733,7 @@ else:
                 st.info("Nenhuma proposta encontrada.")
             else:
                 if st.session_state.tipo=="admin":
-                    colunas = ["id","data","vendedor","cliente","cpf","telefone","tabela_banco","valor","status","conferido","alterado_vendedor","observacao","observacao_admin","observacao_alteracao"]
+                    colunas = ["id","data","vendedor","cliente","cpf","telefone","tabela_banco","valor","status","conferido","alterado_vendedor","ultima_alteracao_em","ultima_alteracao_por","ultima_alteracao_resumo","observacao","observacao_admin","observacao_alteracao"]
                 else:
                     colunas = ["id","data","cliente","telefone","tabela_banco","valor","status","conferido","observacao"]
                 colunas = [c for c in colunas if c in df.columns]
@@ -745,7 +745,10 @@ else:
                     "tabela_banco": "Tabela/Banco", "valor": "Valor", "status": "Status",
                     "conferido": "Conferido", "alterado_vendedor": "Alterado",
                     "observacao": "Observacao", "observacao_admin": "Obs Admin",
-                    "observacao_alteracao": "Obs Alteracao"
+                    "observacao_alteracao": "Obs Alteracao",
+                    "ultima_alteracao_em": "Ultima Alteracao Em",
+                    "ultima_alteracao_por": "Ultima Alteracao Por",
+                    "ultima_alteracao_resumo": "Ultima Alteracao"
                 }
                 df_visao = df_visao.rename(columns=traducao_cols)
                 st.dataframe(df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1), use_container_width=True)
@@ -792,48 +795,216 @@ else:
                 proposta_id = st.selectbox("Editar proposta (ID)", df["id"].tolist())
                 proposta = df[df["id"]==proposta_id].iloc[0]
                 bloqueada = (st.session_state.tipo!="admin" and bool(proposta.get("conferido",False)) is True)
+
                 if bloqueada:
                     st.warning("🔒 Proposta conferida — nao pode editar.")
                 else:
+                    st.markdown("### ✏️ Editar proposta")
+
+                    if st.session_state.tipo == "admin":
+                        st.caption("Gestão/Admin pode alterar data, vendedor, cliente, CPF, telefone, tabela, valor, status e observações.")
+                    else:
+                        st.caption("Vendedor pode editar somente propostas não conferidas.")
+
                     with st.form("editar_proposta"):
+                        # DATA DO CONTRATO EDITÁVEL SOMENTE PELA GESTÃO/ADMIN
+                        # Esta é a mesma coluna "data" usada nos filtros do painel.
+                        data_original = pd.to_datetime(proposta.get("data"), errors="coerce")
+                        if pd.isna(data_original):
+                            data_original = pd.Timestamp.now()
+
+                        if st.session_state.tipo == "admin":
+                            col_data_edit, col_hora_edit = st.columns([1, 1])
+                            data_contrato_edit = col_data_edit.date_input(
+                                "Data do contrato",
+                                value=data_original.date(),
+                                key=f"data_contrato_edit_{proposta_id}"
+                            )
+                            hora_contrato_edit = col_hora_edit.time_input(
+                                "Hora do contrato",
+                                value=data_original.time().replace(microsecond=0),
+                                key=f"hora_contrato_edit_{proposta_id}"
+                            )
+
+                            # TROCAR VENDEDOR SOMENTE ADMIN
+                            try:
+                                usuarios_res = supabase.table("usuarios").select("id,nome,usuario,tipo,ativo").eq("ativo", True).order("nome").execute()
+                                usuarios_lista = usuarios_res.data or []
+                            except Exception:
+                                usuarios_lista = []
+
+                            usuarios_vendedores = []
+                            for u in usuarios_lista:
+                                tipo_u = str(u.get("tipo","")).lower()
+                                if tipo_u in ["vendedor", "admin"]:
+                                    usuarios_vendedores.append(u)
+
+                            if not usuarios_vendedores:
+                                usuarios_vendedores = [{
+                                    "id": proposta.get("vendedor_id"),
+                                    "nome": str(proposta.get("vendedor","") or "Vendedor"),
+                                    "usuario": str(proposta.get("vendedor","") or "")
+                                }]
+
+                            vendedor_atual_id = proposta.get("vendedor_id")
+                            try:
+                                vendedor_atual_id_int = int(vendedor_atual_id)
+                            except Exception:
+                                vendedor_atual_id_int = None
+
+                            index_vendedor = 0
+                            for i, u in enumerate(usuarios_vendedores):
+                                try:
+                                    if int(u.get("id")) == vendedor_atual_id_int:
+                                        index_vendedor = i
+                                        break
+                                except Exception:
+                                    pass
+
+                            vendedor_escolhido = st.selectbox(
+                                "Vendedor responsável",
+                                usuarios_vendedores,
+                                index=index_vendedor,
+                                format_func=lambda u: f"{u.get('nome', u.get('usuario',''))} ({u.get('usuario','')})",
+                                key=f"vendedor_edit_{proposta_id}"
+                            )
+
+                        else:
+                            st.text_input(
+                                "Data do contrato",
+                                value=data_original.strftime("%d/%m/%Y %H:%M"),
+                                disabled=True
+                            )
+                            st.text_input(
+                                "Vendedor responsável",
+                                value=str(proposta.get("vendedor","") or ""),
+                                disabled=True
+                            )
+                            data_contrato_edit = data_original.date()
+                            hora_contrato_edit = data_original.time().replace(microsecond=0)
+                            vendedor_escolhido = {
+                                "id": proposta.get("vendedor_id"),
+                                "usuario": proposta.get("vendedor"),
+                                "nome": proposta.get("vendedor")
+                            }
+
                         cliente_edit = st.text_input("Cliente", value=str(proposta.get("cliente","") or ""))
                         cpf_edit = st.text_input("CPF", value=str(proposta.get("cpf","") or ""))
                         telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone","") or ""))
+
                         tabelas_edit = carregar_tabelas()
                         tabela_atual = str(proposta.get("tabela_banco","") or proposta.get("produto","") or "")
                         tabela_index = tabelas_edit.index(tabela_atual) if tabela_atual in tabelas_edit else 0
                         tabela_edit = st.selectbox("Tabela/Banco", tabelas_edit, index=tabela_index)
+
                         valor_edit_texto = st.text_input("Valor", value=dinheiro(proposta.get("valor") or 0).replace("R$ ",""))
                         valor_edit = converter_valor_brasileiro(valor_edit_texto)
+
                         status_lista = ["Pendente","Aguardando Pagamento","Aguardando Assinatura","Pago","Cancelado"]
                         status_atual = str(proposta.get("status","Pendente") or "Pendente")
                         status_index = status_lista.index(status_atual) if status_atual in status_lista else 0
                         status_edit = st.selectbox("Status", status_lista, index=status_index)
+
                         observacao_edit = st.text_area("Observacao", value=str(proposta.get("observacao","") or ""))
+
                         if st.session_state.tipo=="admin":
                             conferido_edit = st.checkbox("✅ Conferido", value=bool(proposta.get("conferido",False)))
                             obs_admin_edit = st.text_area("Observacao admin", value=str(proposta.get("observacao_admin","") or ""))
                         else:
                             obs_alt_edit = st.text_area("Motivo da alteracao", placeholder="Ex: corrigi valor...")
+
+                        ultima_em = proposta.get("ultima_alteracao_em", "")
+                        ultima_por = proposta.get("ultima_alteracao_por", "")
+                        ultima_resumo = proposta.get("ultima_alteracao_resumo", "")
+                        if ultima_em or ultima_por or ultima_resumo:
+                            st.info(f"Última alteração: {ultima_em} | Por: {ultima_por} | {ultima_resumo}")
+
                         if st.form_submit_button("Salvar alteracoes"):
                             cpf_l = limpar_documento(cpf_edit)
                             tel_l = limpar_documento(telefone_edit)
-                            if not validar_cpf(cpf_l): st.error("CPF invalido.")
-                            elif not validar_telefone(tel_l): st.error("Telefone invalido.")
-                            elif valor_edit<=0: st.error("Valor invalido.")
+
+                            if not validar_cpf(cpf_l):
+                                st.error("CPF invalido.")
+                            elif not validar_telefone(tel_l):
+                                st.error("Telefone invalido.")
+                            elif valor_edit<=0:
+                                st.error("Valor invalido.")
                             else:
                                 perc = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
-                                dados_update = {"cliente":cliente_edit,"cpf":cpf_l,"telefone":tel_l,"produto":tabela_edit,"tabela_banco":tabela_edit,"valor":valor_edit,"status":status_edit,"observacao":observacao_edit,"comissao_empresa":perc,"valor_comissao_empresa":valor_edit*(perc/100)}
+
+                                dados_update = {
+                                    "cliente": cliente_edit,
+                                    "cpf": cpf_l,
+                                    "telefone": tel_l,
+                                    "produto": tabela_edit,
+                                    "tabela_banco": tabela_edit,
+                                    "valor": valor_edit,
+                                    "status": status_edit,
+                                    "observacao": observacao_edit,
+                                    "comissao_empresa": perc,
+                                    "valor_comissao_empresa": valor_edit*(perc/100)
+                                }
+
+                                resumo_mudancas = []
+
+                                def mudou(campo, antigo, novo):
+                                    antigo_s = "" if pd.isna(antigo) else str(antigo)
+                                    novo_s = "" if novo is None else str(novo)
+                                    if antigo_s != novo_s:
+                                        resumo_mudancas.append(f"{campo}: {antigo_s} -> {novo_s}")
+
+                                mudou("Cliente", proposta.get("cliente",""), cliente_edit)
+                                mudou("CPF", proposta.get("cpf",""), cpf_l)
+                                mudou("Telefone", proposta.get("telefone",""), tel_l)
+                                mudou("Tabela/Banco", proposta.get("tabela_banco",""), tabela_edit)
+                                mudou("Valor", proposta.get("valor",""), valor_edit)
+                                mudou("Status", proposta.get("status",""), status_edit)
+
                                 if st.session_state.tipo=="admin":
-                                    dados_update["conferido"]=conferido_edit
-                                    dados_update["alterado_vendedor"]=False
-                                    dados_update["observacao_admin"]=obs_admin_edit
+                                    nova_data_contrato = datetime.combine(data_contrato_edit, hora_contrato_edit)
+                                    data_antiga_txt = data_original.strftime("%Y-%m-%d %H:%M:%S")
+                                    data_nova_txt = nova_data_contrato.strftime("%Y-%m-%d %H:%M:%S")
+                                    if data_antiga_txt != data_nova_txt:
+                                        resumo_mudancas.append(f"Data: {data_antiga_txt} -> {data_nova_txt}")
+
+                                    vendedor_id_novo = vendedor_escolhido.get("id")
+                                    vendedor_usuario_novo = vendedor_escolhido.get("usuario") or vendedor_escolhido.get("nome") or ""
+
+                                    try:
+                                        vendedor_id_novo = int(vendedor_id_novo)
+                                    except Exception:
+                                        vendedor_id_novo = proposta.get("vendedor_id")
+
+                                    if str(proposta.get("vendedor_id","")) != str(vendedor_id_novo):
+                                        resumo_mudancas.append(f"Vendedor: {proposta.get('vendedor','')} -> {vendedor_usuario_novo}")
+
+                                    dados_update["data"] = str(nova_data_contrato)
+                                    dados_update["vendedor_id"] = vendedor_id_novo
+                                    dados_update["vendedor"] = vendedor_usuario_novo
+                                    dados_update["conferido"] = conferido_edit
+                                    dados_update["alterado_vendedor"] = False
+                                    dados_update["observacao_admin"] = obs_admin_edit
                                 else:
-                                    dados_update["alterado_vendedor"]=True
-                                    dados_update["data_alteracao_vendedor"]=str(datetime.now())
-                                    dados_update["observacao_alteracao"]=obs_alt_edit
-                                    dados_update["conferido"]=False
-                                supabase.table("vendas").update(dados_update).eq("id",int(proposta_id)).execute()
+                                    dados_update["alterado_vendedor"] = True
+                                    dados_update["data_alteracao_vendedor"] = str(datetime.now())
+                                    dados_update["observacao_alteracao"] = obs_alt_edit
+                                    dados_update["conferido"] = False
+
+                                agora_alteracao = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                usuario_alteracao = str(st.session_state.get("nome", st.session_state.get("usuario","")))
+                                resumo_final = "; ".join(resumo_mudancas[:12]) if resumo_mudancas else "Sem mudança relevante detectada"
+
+                                # Tenta salvar auditoria; se as colunas não existirem, salva sem derrubar.
+                                dados_update_com_auditoria = dict(dados_update)
+                                dados_update_com_auditoria["ultima_alteracao_em"] = agora_alteracao
+                                dados_update_com_auditoria["ultima_alteracao_por"] = usuario_alteracao
+                                dados_update_com_auditoria["ultima_alteracao_resumo"] = resumo_final
+
+                                try:
+                                    supabase.table("vendas").update(dados_update_com_auditoria).eq("id", int(proposta_id)).execute()
+                                except Exception:
+                                    supabase.table("vendas").update(dados_update).eq("id", int(proposta_id)).execute()
+
                                 st.success("Proposta atualizada!")
                                 st.rerun()
 
@@ -1359,23 +1530,65 @@ else:
 
         st.divider()
         st.markdown("### ⚙️ Regras de Comissao")
-        with st.form("nova_regra"):
-            produto = st.text_input("Tabela/Banco")
-            valor_minimo = st.number_input("Valor minimo", min_value=0.0, step=1000.0)
-            percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
-            if st.form_submit_button("Salvar regra"):
-                if not produto: st.error("Preencha o nome da tabela/banco.")
-                else:
-                    supabase.table("regras_comissao").insert({"produto":produto.strip().upper(),"valor_minimo":valor_minimo,"percentual_empresa":percentual_empresa,"percentual_vendedor":0,"ativo":True}).execute()
-                    st.success("Regra criada!"); st.rerun()
+
+        # ADICIONAR NOVA COMISSÃO NO MESMO LOCAL
+        with st.expander("➕ Adicionar nova comissão", expanded=False):
+            with st.form("nova_regra_rapida", clear_on_submit=True):
+                col_nova1, col_nova2, col_nova3, col_nova4 = st.columns([3, 1.3, 1.3, 1])
+
+                produto_novo = col_nova1.text_input(
+                    "Tabela/Banco",
+                    placeholder="Ex: 3RN CAPITAL - FGL 23 (36X)"
+                )
+
+                valor_minimo_novo = col_nova2.number_input(
+                    "Valor mínimo",
+                    min_value=0.0,
+                    step=1000.0,
+                    value=0.0
+                )
+
+                percentual_empresa_novo = col_nova3.number_input(
+                    "% Empresa",
+                    min_value=0.0,
+                    max_value=100.0,
+                    step=0.01,
+                    value=0.0,
+                    format="%.2f"
+                )
+
+                ativo_novo = col_nova4.checkbox("Ativo", value=True)
+
+                salvar_nova = st.form_submit_button(
+                    "➕ Adicionar comissão",
+                    use_container_width=True
+                )
+
+                if salvar_nova:
+                    nome_novo = str(produto_novo or "").strip().upper()
+
+                    if not nome_novo:
+                        st.error("Digite o nome da Tabela/Banco.")
+                    else:
+                        supabase.table("regras_comissao").insert({
+                            "produto": nome_novo,
+                            "valor_minimo": valor_minimo_novo,
+                            "percentual_empresa": percentual_empresa_novo,
+                            "percentual_vendedor": 0,
+                            "ativo": ativo_novo
+                        }).execute()
+
+                        st.success("Comissão adicionada!")
+                        st.rerun()
+
         regras = supabase.table("regras_comissao").select("*").order("produto").order("valor_minimo").execute()
         df_regras = pd.DataFrame(regras.data)
+
         if df_regras.empty:
             st.warning("Nenhuma regra cadastrada.")
         else:
-            # ── TABELA RÁPIDA EDITÁVEL ──────────────────────────
             st.markdown("**Editar tabelas rapidamente:**")
-            st.caption("Você pode alterar o nome da Tabela/Banco, o % Empresa e marcar/desmarcar Ativo direto aqui.")
+            st.caption("Edite direto na tabela: Tabela/Banco, Valor Mínimo, % Empresa e Ativo.")
 
             df_edit = df_regras[["id","produto","valor_minimo","percentual_empresa","ativo"]].copy()
             df_edit = df_edit.rename(columns={
@@ -1389,12 +1602,19 @@ else:
                 df_edit,
                 use_container_width=True,
                 hide_index=True,
-                disabled=["id", "Valor Minimo"],
+                disabled=["id"],
                 column_config={
                     "Tabela/Banco": st.column_config.TextColumn(
                         "Tabela/Banco",
                         help="Edite o nome da tabela/banco aqui",
                         required=True
+                    ),
+                    "Valor Minimo": st.column_config.NumberColumn(
+                        "Valor Minimo",
+                        help="Valor mínimo para essa regra. Normalmente pode ficar 0.",
+                        min_value=0.0,
+                        step=1000.0,
+                        format="%.2f"
                     ),
                     "% Empresa": st.column_config.NumberColumn(
                         "% Empresa",
@@ -1411,7 +1631,19 @@ else:
                 }
             )
 
-            if st.button("💾 Salvar alterações da tabela", use_container_width=True, key="btn_salvar_ativo"):
+            col_salvar_tab, col_info_tab = st.columns([1.2, 2.8])
+
+            with col_salvar_tab:
+                salvar_tabela = st.button(
+                    "💾 Salvar alterações da tabela",
+                    use_container_width=True,
+                    key="btn_salvar_tabela_comissao"
+                )
+
+            with col_info_tab:
+                st.caption("Dica: após editar uma célula, clique em Salvar alterações da tabela.")
+
+            if salvar_tabela:
                 for _, row in editado.iterrows():
                     nome_tabela = str(row["Tabela/Banco"] or "").strip().upper()
 
@@ -1420,12 +1652,18 @@ else:
                     except Exception:
                         percentual_empresa_edit = converter_valor_brasileiro(row["% Empresa"])
 
+                    try:
+                        valor_minimo_edit = float(row["Valor Minimo"] or 0)
+                    except Exception:
+                        valor_minimo_edit = converter_valor_brasileiro(row["Valor Minimo"])
+
                     if not nome_tabela:
                         st.error("Existe uma linha sem nome de Tabela/Banco. Corrija antes de salvar.")
                         st.stop()
 
                     supabase.table("regras_comissao").update({
                         "produto": nome_tabela,
+                        "valor_minimo": valor_minimo_edit,
                         "percentual_empresa": percentual_empresa_edit,
                         "ativo": bool(row["Ativo"])
                     }).eq("id", int(row["id"])).execute()
@@ -1434,25 +1672,28 @@ else:
                 st.rerun()
 
             st.divider()
-            st.markdown("**Editar regra individualmente:**")
-            regra_id = st.selectbox("Selecionar regra", df_regras["id"].tolist(),
-                format_func=lambda x: df_regras[df_regras["id"]==x].iloc[0]["produto"])
-            regra = df_regras[df_regras["id"]==regra_id].iloc[0]
-            with st.form("editar_regra"):
-                produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto","") or ""))
-                vm_edit = st.number_input("Valor minimo", min_value=0.0, step=1000.0, value=float(regra.get("valor_minimo") or 0))
-                pe_edit = st.number_input("% empresa", min_value=0.0, step=0.01, value=float(regra.get("percentual_empresa") or 0))
-                ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo",True)))
-                if st.form_submit_button("💾 Salvar alteracoes"):
-                    supabase.table("regras_comissao").update({"produto":produto_edit.strip().upper(),"valor_minimo":vm_edit,"percentual_empresa":pe_edit,"percentual_vendedor":0,"ativo":ativo_edit}).eq("id",int(regra_id)).execute()
-                    st.success("Regra atualizada!"); st.rerun()
-            st.divider()
-            confirmar_r = st.checkbox("Confirmo que quero excluir esta regra")
-            if st.button("🗑️ Excluir regra"):
-                if not confirmar_r: st.error("Marque a confirmacao.")
-                else:
-                    supabase.table("regras_comissao").delete().eq("id",int(regra_id)).execute()
-                    st.success("Regra excluida!"); st.rerun()
+
+            with st.expander("🗑️ Excluir comissão", expanded=False):
+                regra_id_excluir = st.selectbox(
+                    "Selecionar comissão para excluir",
+                    df_regras["id"].tolist(),
+                    format_func=lambda x: df_regras[df_regras["id"]==x].iloc[0]["produto"],
+                    key="regra_id_excluir_rapido"
+                )
+
+                confirmar_excluir_regra = st.checkbox(
+                    "Confirmo que quero excluir esta comissão",
+                    key="confirmar_excluir_regra_rapido"
+                )
+
+                if st.button("🗑️ Excluir comissão selecionada", use_container_width=True, key="btn_excluir_regra_rapido"):
+                    if not confirmar_excluir_regra:
+                        st.error("Marque a confirmação antes de excluir.")
+                    else:
+                        supabase.table("regras_comissao").delete().eq("id", int(regra_id_excluir)).execute()
+                        st.success("Comissão excluída!")
+                        st.rerun()
+
 
     elif menu == "🏢 Custos":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Custos Operacionais</span>', unsafe_allow_html=True)
