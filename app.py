@@ -7,6 +7,7 @@ import hashlib
 import re
 from pathlib import Path
 import io
+import math
 
 st.set_page_config(page_title="OPERAX SALES", layout="wide", page_icon="🌀")
 
@@ -90,6 +91,8 @@ small[data-testid="InputInstructions"] { display: none !important; }
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: rgba(2,12,30,0.5); }
 ::-webkit-scrollbar-thumb { background: rgba(56,189,248,0.25); border-radius: 3px; }
+.rank-contratos-btn button { background: rgba(99,102,241,0.10) !important; border: 1.5px dashed rgba(99,102,241,0.55) !important; color: #4f46e5 !important; font-size: 18px !important; font-weight: 800 !important; padding: 4px 10px !important; box-shadow: none !important; border-radius: 10px !important; min-height: 0 !important; height: auto !important; }
+.rank-contratos-btn button:hover { background: rgba(99,102,241,0.18) !important; transform: none !important; box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -124,6 +127,62 @@ def dinheiro(valor):
         return f"R$ {float(valor):,.2f}".replace(",","X").replace(".",",").replace("X",".")
     except Exception:
         return "R$ 0,00"
+
+def gerar_svg_pizza(labels, valores, cores, total_contratos):
+    total = sum(valores)
+    if total <= 0:
+        return "<div></div>"
+    cx, cy, r = 110, 110, 95
+    fatias_svg = []
+    legendas_svg = []
+    angulo_atual = -90.0
+    for i, (label, val) in enumerate(zip(labels, valores)):
+        fracao = val / total
+        angulo_fatia = fracao * 360.0
+        angulo_fim = angulo_atual + angulo_fatia
+
+        x1 = cx + r * math.cos(math.radians(angulo_atual))
+        y1 = cy + r * math.sin(math.radians(angulo_atual))
+        x2 = cx + r * math.cos(math.radians(angulo_fim))
+        y2 = cy + r * math.sin(math.radians(angulo_fim))
+        large_arc = 1 if angulo_fatia > 180 else 0
+        cor = cores[i % len(cores)]
+
+        if len(valores) == 1:
+            path = f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{cor}" stroke="#ffffff" stroke-width="2"/>'
+        else:
+            path = f'<path d="M{cx},{cy} L{x1:.2f},{y1:.2f} A{r},{r} 0 {large_arc} 1 {x2:.2f},{y2:.2f} Z" fill="{cor}" stroke="#ffffff" stroke-width="2"/>'
+        fatias_svg.append(path)
+
+        ang_meio = math.radians((angulo_atual + angulo_fim) / 2)
+        label_r = r * 0.66
+        lx = cx + label_r * math.cos(ang_meio)
+        ly = cy + label_r * math.sin(ang_meio)
+        if fracao > 0.035:
+            fatias_svg.append(f'<text x="{lx:.2f}" y="{ly:.2f}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" fill="#ffffff" font-family="Inter, sans-serif">{int(val)}</text>')
+
+        pct = round(fracao*100,1)
+        legendas_svg.append(f'''
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+            <div style="width:11px;height:11px;border-radius:3px;background:{cor};flex-shrink:0;"></div>
+            <span style="font-size:12px;color:#0f172a;font-weight:600;flex:1;">{label}</span>
+            <span style="font-size:12px;color:#64748b;font-weight:700;">{pct}%</span>
+        </div>''')
+
+        angulo_atual = angulo_fim
+
+    svg = f'''
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center;">
+        <svg width="220" height="220" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
+            {''.join(fatias_svg)}
+        </svg>
+        <div style="min-width:160px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">{total_contratos} contrato(s) no total</div>
+            {''.join(legendas_svg)}
+        </div>
+    </div>
+    '''
+    return svg
 
 def limpar_documento(valor):
     return re.sub(r"\D","",str(valor or ""))
@@ -423,116 +482,6 @@ def menu_lateral_v8():
         st.rerun()
 
     return st.session_state.menu_atual
-
-# =========================
-# RANKING - DETALHAMENTO POR BANCO (POPUP COM GRAFICO DE PIZZA)
-# =========================
-def montar_grafico_pizza_svg(dados, total_valor):
-    """
-    dados: lista de dicts [{"nome": str, "valor": float, "contratos": int, "cor": str}, ...]
-    Gera um SVG de pizza (donut) puro, sem libs externas.
-    """
-    import math
-    cx, cy, raio, raio_int = 110, 110, 100, 58
-    inicio_angulo = -90  # comeca no topo
-    fatias_svg = []
-    legendas_html = []
-
-    if total_valor <= 0:
-        return "<div style='text-align:center;color:#94a3b8;padding:20px;'>Sem dados de valor para exibir o grafico.</div>"
-
-    angulo_atual = inicio_angulo
-    for item in dados:
-        valor = item["valor"]
-        cor = item["cor"]
-        nome = item["nome"]
-        contratos = item["contratos"]
-        pct = (valor/total_valor*100) if total_valor>0 else 0
-        angulo_fatia = (valor/total_valor)*360 if total_valor>0 else 0
-
-        if angulo_fatia >= 359.99:
-            fatias_svg.append(f'<circle cx="{cx}" cy="{cy}" r="{raio}" fill="{cor}" />')
-        elif angulo_fatia > 0:
-            ang_ini_rad = math.radians(angulo_atual)
-            ang_fim_rad = math.radians(angulo_atual + angulo_fatia)
-            x1 = cx + raio*math.cos(ang_ini_rad)
-            y1 = cy + raio*math.sin(ang_ini_rad)
-            x2 = cx + raio*math.cos(ang_fim_rad)
-            y2 = cy + raio*math.sin(ang_fim_rad)
-            large_arc = 1 if angulo_fatia > 180 else 0
-            path = f'M {cx},{cy} L {x1:.2f},{y1:.2f} A {raio},{raio} 0 {large_arc} 1 {x2:.2f},{y2:.2f} Z'
-            fatias_svg.append(f'<path d="{path}" fill="{cor}" />')
-            angulo_atual += angulo_fatia
-
-        legendas_html.append(f"""
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #f1f5f9;">
-            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                <span style="width:11px;height:11px;border-radius:3px;background:{cor};flex-shrink:0;display:inline-block;"></span>
-                <span style="font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{nome}</span>
-            </div>
-            <div style="text-align:right;flex-shrink:0;">
-                <div style="font-size:13px;font-weight:800;color:#0f172a;">{dinheiro(valor)}</div>
-                <div style="font-size:11px;color:#64748b;">{contratos} contrato(s) • {pct:.1f}%</div>
-            </div>
-        </div>
-        """)
-
-    furo = f'<circle cx="{cx}" cy="{cy}" r="{raio_int}" fill="#ffffff" />'
-    total_contratos = sum(d["contratos"] for d in dados)
-    centro_texto = f'''
-        <text x="{cx}" y="{cy-8}" text-anchor="middle" font-size="22" font-weight="900" fill="#0f172a" font-family="Inter, sans-serif">{total_contratos}</text>
-        <text x="{cx}" y="{cy+12}" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b" font-family="Inter, sans-serif" letter-spacing="0.05em">CONTRATOS</text>
-    '''
-
-    svg = f'''
-    <svg viewBox="0 0 220 220" width="220" height="220" xmlns="http://www.w3.org/2000/svg">
-        {''.join(fatias_svg)}
-        {furo}
-        {centro_texto}
-    </svg>
-    '''
-
-    html = f'''
-    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap;justify-content:center;">
-        <div style="flex-shrink:0;">{svg}</div>
-        <div style="flex:1;min-width:220px;">{''.join(legendas_html)}</div>
-    </div>
-    '''
-    return html
-
-CORES_BANCOS = ["#0ea5e9","#6366f1","#22c55e","#f59e0b","#ef4444","#a855f7","#14b8a6","#ec4899","#84cc16","#f97316"]
-
-def mostrar_popup_detalhe_banco(vendedor_nome, df_vendedor):
-    """Mostra um popover com pizza de contratos/valor por tabela_banco para o vendedor."""
-    if "tabela_banco" not in df_vendedor.columns or df_vendedor.empty:
-        st.info("Sem dados de banco para este vendedor no periodo.")
-        return
-
-    agrupado = df_vendedor.groupby("tabela_banco").agg(
-        valor=("valor","sum"),
-        contratos=("id","count")
-    ).reset_index().sort_values("valor", ascending=False)
-
-    dados_pizza = []
-    for i, row in agrupado.iterrows():
-        nome_banco = str(row["tabela_banco"]) if pd.notna(row["tabela_banco"]) else "Sem banco"
-        dados_pizza.append({
-            "nome": nome_banco,
-            "valor": float(row["valor"] or 0),
-            "contratos": int(row["contratos"]),
-            "cor": CORES_BANCOS[len(dados_pizza) % len(CORES_BANCOS)]
-        })
-
-    total_valor = sum(d["valor"] for d in dados_pizza)
-
-    st.markdown(f'''
-    <div style="margin-bottom:10px;">
-        <span style="font-size:15px;font-weight:800;color:#0f172a;">📊 {vendedor_nome} — Contratos por Banco/Tabela</span>
-    </div>
-    ''', unsafe_allow_html=True)
-
-    grafico_html = montar_grafico_pizza_svg(dados_pizza, total_valor)
-    st.markdown(grafico_html, unsafe_allow_html=True)
 
 # =========================
 # LOGIN
@@ -890,43 +839,79 @@ else:
                 grp = grp.sort_values("total_pago", ascending=False).reset_index(drop=True)
                 grp.index += 1
                 medalhas = {1:"🥇",2:"🥈",3:"🥉"}
+
+                cores_pizza = ["#0ea5e9","#6366f1","#22c55e","#f59e0b","#ef4444","#a855f7","#14b8a6","#ec4899","#84cc16","#f97316"]
+
                 for i,row in grp.iterrows():
                     medalha = medalhas.get(i,f"#{i}")
                     pct_bar = min(int(row["pct_pagos"]),100)
                     bar_color = "#22c55e" if pct_bar>=70 else "#f59e0b" if pct_bar>=40 else "#ef4444"
+                    vendedor_nome = row["vendedor"]
+
                     st.markdown(f"""
-                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:18px 22px;margin-bottom:0px;">
+                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px 16px 0 0;padding:18px 22px 4px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                             <div style="display:flex;align-items:center;gap:14px;">
                                 <span style="font-size:28px;">{medalha}</span>
                                 <div>
-                                    <div style="font-size:16px;font-weight:800;color:#0f172a;">{row["vendedor"]}</div>
+                                    <div style="font-size:16px;font-weight:800;color:#0f172a;">{vendedor_nome}</div>
                                     <div style="font-size:12px;color:#64748b;">Ticket medio: {dinheiro(row["ticket_medio"])}</div>
                                 </div>
                             </div>
-                            <div style="display:flex;gap:20px;flex-wrap:wrap;">
+                            <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:center;">
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#0ea5e9;">TOTAL VENDIDO</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{dinheiro(row["total_vendido"])}</div></div>
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#22c55e;">TOTAL PAGO</div><div style="font-size:18px;font-weight:800;color:#16a34a;">{dinheiro(row["total_pago"])}</div></div>
-                                <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#6366f1;">CONTRATOS</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{int(row["contratos"])}</div></div>
+                                <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#6366f1;">CONTRATOS</div></div>
                                 <div style="text-align:center;"><div style="font-size:11px;font-weight:700;color:#f59e0b;">% PAGOS</div><div style="font-size:18px;font-weight:800;color:#0f172a;">{row["pct_pagos"]}%</div></div>
                             </div>
-                        </div>
-                        <div style="margin-top:14px;background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
-                            <div style="width:{pct_bar}%;height:100%;background:{bar_color};border-radius:999px;"></div>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
 
-                    df_vendedor_atual = df_rank[df_rank["vendedor"]==row["vendedor"]]
-                    col_pop_spacer, col_pop_btn = st.columns([4,1.3])
-                    with col_pop_btn:
-                        try:
-                            pop_ctx = st.popover(f"📊 Ver bancos ({int(row['contratos'])})", use_container_width=True)
-                        except Exception:
-                            pop_ctx = st.expander(f"📊 Ver bancos ({int(row['contratos'])})", expanded=False)
-                        with pop_ctx:
-                            mostrar_popup_detalhe_banco(row["vendedor"], df_vendedor_atual)
-                    st.markdown('<div style="margin-bottom:12px;"></div>', unsafe_allow_html=True)
+                    # Linha com o botão de contratos clicável posicionado no lugar certo + popup
+                    col_vazio, col_contratos_btn = st.columns([5.3,1])
+                    with col_contratos_btn:
+                        st.markdown('<div class="rank-contratos-btn">', unsafe_allow_html=True)
+                        pop = st.popover(f"{int(row['contratos'])}", use_container_width=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        with pop:
+                            st.markdown(f"**📋 Contratos de {vendedor_nome} por Banco/Tabela**")
+                            df_vend = df_rank[df_rank["vendedor"]==vendedor_nome].copy()
+                            if "tabela_banco" not in df_vend.columns or df_vend["tabela_banco"].dropna().empty:
+                                st.info("Nenhuma informacao de banco/tabela disponivel para estas vendas.")
+                            else:
+                                resumo_banco = df_vend.groupby("tabela_banco").agg(
+                                    qtd=("id","count"),
+                                    valor_total=("valor","sum")
+                                ).reset_index().sort_values("qtd", ascending=False)
+                                resumo_banco = resumo_banco[resumo_banco["tabela_banco"].notna()]
+                                if resumo_banco.empty:
+                                    st.info("Nenhuma informacao de banco/tabela disponivel para estas vendas.")
+                                else:
+                                    labels = resumo_banco["tabela_banco"].tolist()
+                                    valores_qtd = resumo_banco["qtd"].tolist()
+                                    cores_uso = (cores_pizza * ((len(labels)//len(cores_pizza))+1))[:len(labels)]
+
+                                    svg_pizza = gerar_svg_pizza(labels, valores_qtd, cores_uso, int(row['contratos']))
+                                    st.markdown(svg_pizza, unsafe_allow_html=True)
+
+                                    st.markdown("---")
+                                    for _, rb in resumo_banco.iterrows():
+                                        st.markdown(f"""
+                                        <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+                                            <span style="font-weight:700;color:#0f172a;font-size:13px;">{rb['tabela_banco']}</span>
+                                            <span style="font-size:12px;color:#64748b;">{int(rb['qtd'])} contrato(s)</span>
+                                            <span style="font-weight:700;color:#16a34a;font-size:13px;">{dinheiro(rb['valor_total'])}</span>
+                                        </div>
+                                        """, unsafe_allow_html=True)
+
+                    st.markdown(f"""
+                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-top:none;border-radius:0 0 16px 16px;padding:0 22px 18px;margin-bottom:12px;margin-top:-14px;">
+                        <div style="background:#f1f5f9;border-radius:999px;height:8px;overflow:hidden;">
+                            <div style="width:{pct_bar}%;height:100%;background:{bar_color};border-radius:999px;"></div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     elif menu == "🎯 Metas":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Metas & Bonus</span>', unsafe_allow_html=True)
