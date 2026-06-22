@@ -1359,66 +1359,23 @@ else:
 
         st.divider()
         st.markdown("### ⚙️ Regras de Comissao")
-
-        # ── ADICIONAR NOVA COMISSÃO NO MESMO LOCAL ──────────────────────────
-        with st.expander("➕ Adicionar nova comissão", expanded=False):
-            with st.form("nova_regra_rapida", clear_on_submit=True):
-                col_nova1, col_nova2, col_nova3, col_nova4 = st.columns([3, 1.3, 1.3, 1])
-
-                produto_novo = col_nova1.text_input(
-                    "Tabela/Banco",
-                    placeholder="Ex: 3RN CAPITAL - FGL 23 (36X)"
-                )
-
-                valor_minimo_novo = col_nova2.number_input(
-                    "Valor mínimo",
-                    min_value=0.0,
-                    step=1000.0,
-                    value=0.0
-                )
-
-                percentual_empresa_novo = col_nova3.number_input(
-                    "% Empresa",
-                    min_value=0.0,
-                    max_value=100.0,
-                    step=0.01,
-                    value=0.0,
-                    format="%.2f"
-                )
-
-                ativo_novo = col_nova4.checkbox("Ativo", value=True)
-
-                salvar_nova = st.form_submit_button(
-                    "➕ Adicionar comissão",
-                    use_container_width=True
-                )
-
-                if salvar_nova:
-                    nome_novo = str(produto_novo or "").strip().upper()
-
-                    if not nome_novo:
-                        st.error("Digite o nome da Tabela/Banco.")
-                    else:
-                        supabase.table("regras_comissao").insert({
-                            "produto": nome_novo,
-                            "valor_minimo": valor_minimo_novo,
-                            "percentual_empresa": percentual_empresa_novo,
-                            "percentual_vendedor": 0,
-                            "ativo": ativo_novo
-                        }).execute()
-
-                        st.success("Comissão adicionada!")
-                        st.rerun()
-
+        with st.form("nova_regra"):
+            produto = st.text_input("Tabela/Banco")
+            valor_minimo = st.number_input("Valor minimo", min_value=0.0, step=1000.0)
+            percentual_empresa = st.number_input("% empresa", min_value=0.0, step=0.01)
+            if st.form_submit_button("Salvar regra"):
+                if not produto: st.error("Preencha o nome da tabela/banco.")
+                else:
+                    supabase.table("regras_comissao").insert({"produto":produto.strip().upper(),"valor_minimo":valor_minimo,"percentual_empresa":percentual_empresa,"percentual_vendedor":0,"ativo":True}).execute()
+                    st.success("Regra criada!"); st.rerun()
         regras = supabase.table("regras_comissao").select("*").order("produto").order("valor_minimo").execute()
         df_regras = pd.DataFrame(regras.data)
-
         if df_regras.empty:
             st.warning("Nenhuma regra cadastrada.")
         else:
             # ── TABELA RÁPIDA EDITÁVEL ──────────────────────────
             st.markdown("**Editar tabelas rapidamente:**")
-            st.caption("Edite direto na tabela: Tabela/Banco, Valor Mínimo, % Empresa e Ativo.")
+            st.caption("Você pode alterar o nome da Tabela/Banco, o % Empresa e marcar/desmarcar Ativo direto aqui.")
 
             df_edit = df_regras[["id","produto","valor_minimo","percentual_empresa","ativo"]].copy()
             df_edit = df_edit.rename(columns={
@@ -1432,19 +1389,12 @@ else:
                 df_edit,
                 use_container_width=True,
                 hide_index=True,
-                disabled=["id"],
+                disabled=["id", "Valor Minimo"],
                 column_config={
                     "Tabela/Banco": st.column_config.TextColumn(
                         "Tabela/Banco",
                         help="Edite o nome da tabela/banco aqui",
                         required=True
-                    ),
-                    "Valor Minimo": st.column_config.NumberColumn(
-                        "Valor Minimo",
-                        help="Valor mínimo para essa regra. Normalmente pode ficar 0.",
-                        min_value=0.0,
-                        step=1000.0,
-                        format="%.2f"
                     ),
                     "% Empresa": st.column_config.NumberColumn(
                         "% Empresa",
@@ -1461,19 +1411,7 @@ else:
                 }
             )
 
-            col_salvar_tab, col_info_tab = st.columns([1.2, 2.8])
-
-            with col_salvar_tab:
-                salvar_tabela = st.button(
-                    "💾 Salvar alterações da tabela",
-                    use_container_width=True,
-                    key="btn_salvar_tabela_comissao"
-                )
-
-            with col_info_tab:
-                st.caption("Dica: após editar uma célula, clique em Salvar alterações da tabela.")
-
-            if salvar_tabela:
+            if st.button("💾 Salvar alterações da tabela", use_container_width=True, key="btn_salvar_ativo"):
                 for _, row in editado.iterrows():
                     nome_tabela = str(row["Tabela/Banco"] or "").strip().upper()
 
@@ -1482,18 +1420,12 @@ else:
                     except Exception:
                         percentual_empresa_edit = converter_valor_brasileiro(row["% Empresa"])
 
-                    try:
-                        valor_minimo_edit = float(row["Valor Minimo"] or 0)
-                    except Exception:
-                        valor_minimo_edit = converter_valor_brasileiro(row["Valor Minimo"])
-
                     if not nome_tabela:
                         st.error("Existe uma linha sem nome de Tabela/Banco. Corrija antes de salvar.")
                         st.stop()
 
                     supabase.table("regras_comissao").update({
                         "produto": nome_tabela,
-                        "valor_minimo": valor_minimo_edit,
                         "percentual_empresa": percentual_empresa_edit,
                         "ativo": bool(row["Ativo"])
                     }).eq("id", int(row["id"])).execute()
@@ -1502,29 +1434,25 @@ else:
                 st.rerun()
 
             st.divider()
-
-            # ── EXCLUIR REGRA SEM USAR EDIÇÃO INDIVIDUAL ───────────────────
-            with st.expander("🗑️ Excluir comissão", expanded=False):
-                regra_id_excluir = st.selectbox(
-                    "Selecionar comissão para excluir",
-                    df_regras["id"].tolist(),
-                    format_func=lambda x: df_regras[df_regras["id"]==x].iloc[0]["produto"],
-                    key="regra_id_excluir_rapido"
-                )
-
-                confirmar_excluir_regra = st.checkbox(
-                    "Confirmo que quero excluir esta comissão",
-                    key="confirmar_excluir_regra_rapido"
-                )
-
-                if st.button("🗑️ Excluir comissão selecionada", use_container_width=True, key="btn_excluir_regra_rapido"):
-                    if not confirmar_excluir_regra:
-                        st.error("Marque a confirmação antes de excluir.")
-                    else:
-                        supabase.table("regras_comissao").delete().eq("id", int(regra_id_excluir)).execute()
-                        st.success("Comissão excluída!")
-                        st.rerun()
-
+            st.markdown("**Editar regra individualmente:**")
+            regra_id = st.selectbox("Selecionar regra", df_regras["id"].tolist(),
+                format_func=lambda x: df_regras[df_regras["id"]==x].iloc[0]["produto"])
+            regra = df_regras[df_regras["id"]==regra_id].iloc[0]
+            with st.form("editar_regra"):
+                produto_edit = st.text_input("Tabela/Banco", value=str(regra.get("produto","") or ""))
+                vm_edit = st.number_input("Valor minimo", min_value=0.0, step=1000.0, value=float(regra.get("valor_minimo") or 0))
+                pe_edit = st.number_input("% empresa", min_value=0.0, step=0.01, value=float(regra.get("percentual_empresa") or 0))
+                ativo_edit = st.checkbox("Ativo", value=bool(regra.get("ativo",True)))
+                if st.form_submit_button("💾 Salvar alteracoes"):
+                    supabase.table("regras_comissao").update({"produto":produto_edit.strip().upper(),"valor_minimo":vm_edit,"percentual_empresa":pe_edit,"percentual_vendedor":0,"ativo":ativo_edit}).eq("id",int(regra_id)).execute()
+                    st.success("Regra atualizada!"); st.rerun()
+            st.divider()
+            confirmar_r = st.checkbox("Confirmo que quero excluir esta regra")
+            if st.button("🗑️ Excluir regra"):
+                if not confirmar_r: st.error("Marque a confirmacao.")
+                else:
+                    supabase.table("regras_comissao").delete().eq("id",int(regra_id)).execute()
+                    st.success("Regra excluida!"); st.rerun()
 
     elif menu == "🏢 Custos":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Custos Operacionais</span>', unsafe_allow_html=True)
