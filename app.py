@@ -355,6 +355,9 @@ def preparar_dataframe_vendas():
             else:
                 df[col] = None
 
+    # ✅ Puxa a data exatamente da coluna "data" do Supabase.
+    # Mantemos uma cópia original para exibir/exportar e uma data convertida para filtros.
+    df["data_original_supabase"] = df["data"]
     df["data"] = pd.to_datetime(df["data"], errors="coerce")
     df["mes_num"] = df["data"].dt.month
     df["ano"] = df["data"].dt.year
@@ -797,11 +800,14 @@ else:
                 colunas = [c for c in colunas if c in df.columns]
                 df_visao = df[colunas].copy()
 
-                # ✅ DATA BONITINHA NO PAINEL E NO EXCEL
-                # O sistema continua usando a coluna "data" do Supabase para filtrar por mês/dia/ano.
-                # Aqui apenas formatamos para aparecer e exportar bonito.
-                if "data" in df_visao.columns:
-                    df_visao["data"] = pd.to_datetime(df_visao["data"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+                # ✅ DATA DO SUPABASE NO PAINEL E NO EXCEL
+                # Puxa a data da coluna "data" do Supabase.
+                # A coluna "data" convertida continua sendo usada para filtros.
+                # Para exibir/exportar, usamos a cópia original do Supabase.
+                if "data_original_supabase" in df.columns and "data" in df_visao.columns:
+                    df_visao["data"] = df.loc[df_visao.index, "data_original_supabase"].astype(str)
+                elif "data" in df_visao.columns:
+                    df_visao["data"] = df_visao["data"].astype(str)
 
                 if "valor" in df_visao.columns:
                     df_visao["valor"] = df_visao["valor"].apply(dinheiro)
