@@ -309,9 +309,39 @@ def calcular_percentual_empresa_venda(tabela_banco, valor):
     return percentual
 
 def preparar_dataframe_vendas():
-    vendas = supabase.table("vendas").select("*").order("id",desc=True).execute()
-    df = pd.DataFrame(vendas.data)
-    if df.empty: return df
+    try:
+        # Busca paginada para não perder registros se passar de 1000 linhas
+        todos = []
+        inicio = 0
+        passo = 1000
+
+        while True:
+            res = (
+                supabase
+                .table("vendas")
+                .select("*")
+                .order("id", desc=True)
+                .range(inicio, inicio + passo - 1)
+                .execute()
+            )
+
+            lote = res.data or []
+            todos.extend(lote)
+
+            if len(lote) < passo:
+                break
+
+            inicio += passo
+
+        df = pd.DataFrame(todos)
+
+    except Exception as e:
+        st.error(f"Erro ao buscar vendas no Supabase: {e}")
+        return pd.DataFrame()
+
+    if df.empty:
+        return df
+
     for col in ["data","vendedor_id","vendedor","tabela_banco","valor","status","conferido","alterado_vendedor","ultima_alteracao_em","ultima_alteracao_por","ultima_alteracao_resumo"]:
         if col not in df.columns:
             if col=="tabela_banco" and "produto" in df.columns:
@@ -324,7 +354,8 @@ def preparar_dataframe_vendas():
                 df[col] = False
             else:
                 df[col] = None
-    df["data"] = pd.to_datetime(df["data"],errors="coerce")
+
+    df["data"] = pd.to_datetime(df["data"], errors="coerce")
     df["mes_num"] = df["data"].dt.month
     df["ano"] = df["data"].dt.year
     return df
@@ -678,20 +709,35 @@ else:
         if df.empty:
             st.warning("Nenhuma venda cadastrada.")
         else:
+            total_bruto_banco = len(df)
+
             meses = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
             col_f1,col_f2,col_f3,col_f4 = st.columns(4)
-            mes_nome = col_f1.selectbox("Mes", list(meses.values()), index=datetime.now().month-1)
+
+            opcoes_mes = ["Todos"] + list(meses.values())
+            mes_nome = col_f1.selectbox("Mes", opcoes_mes, index=0)
+
             anos = sorted(df["ano"].dropna().unique().astype(int).tolist(), reverse=True)
-            if not anos: anos = [datetime.now().year]
-            ano_filtro = col_f2.selectbox("Ano", anos)
+            opcoes_ano = ["Todos"] + anos if anos else ["Todos", datetime.now().year]
+            ano_filtro = col_f2.selectbox("Ano", opcoes_ano, index=0)
+
             dias = ["Todos"]+list(range(1,32))
             dia_filtro = col_f3.selectbox("Dia", dias)
             status_filtro = col_f4.selectbox("Status", ["Todos","Pendente","Aguardando Pagamento","Aguardando Assinatura","Pago","Cancelado"])
+
             tabelas = carregar_tabelas()
             tabela_filtro = st.selectbox("Tabela/Banco", ["Todas"]+tabelas)
-            mes_num = [k for k,v in meses.items() if v==mes_nome][0]
-            df = df[(df["mes_num"]==mes_num)&(df["ano"]==ano_filtro)]
-            if dia_filtro != "Todos": df = df[df["data"].dt.day==int(dia_filtro)]
+
+            # Aplica filtros somente quando não estiver em Todos
+            if mes_nome != "Todos":
+                mes_num = [k for k,v in meses.items() if v==mes_nome][0]
+                df = df[df["mes_num"]==mes_num]
+
+            if ano_filtro != "Todos":
+                df = df[df["ano"]==int(ano_filtro)]
+
+            if dia_filtro != "Todos":
+                df = df[df["data"].dt.day==int(dia_filtro)]
             if st.session_state.tipo != "admin": df = df[df["vendedor_id"]==st.session_state.user_id]
             if status_filtro != "Todos": df = df[df["status"]==status_filtro]
             if tabela_filtro != "Todas": df = df[df["tabela_banco"]==tabela_filtro]
@@ -728,9 +774,10 @@ else:
                 alteradas = df[df["alterado_vendedor"]==True]
                 if not alteradas.empty:
                     st.warning(f"⚠️ Existem {len(alteradas)} proposta(s) alterada(s) pelo vendedor.")
+            st.caption(f"Registros encontrados no banco antes dos filtros: {total_bruto_banco} | Registros após filtros: {len(df)}")
             st.divider()
             if df.empty:
-                st.info("Nenhuma proposta encontrada.")
+                st.info("Nenhuma proposta encontrada. Tente deixar Mes, Ano, Dia, Status e Tabela/Banco como Todos/Todas.")
             else:
                 if st.session_state.tipo=="admin":
                     colunas = ["id","data","vendedor","cliente","cpf","telefone","tabela_banco","valor","status","conferido","alterado_vendedor","ultima_alteracao_em","ultima_alteracao_por","ultima_alteracao_resumo","observacao","observacao_admin","observacao_alteracao"]
