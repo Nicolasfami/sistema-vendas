@@ -681,7 +681,9 @@ else:
                 perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
                 valor_empresa = float(valor)*(perc_empresa/100)
                 dados = {
-                    "data": str(datetime.now()),
+                    # ✅ Data/hora exata da digitação/cadastro da venda
+                    # É esta data que alimenta os filtros por dia, mês, ano e o Excel.
+                    "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "vendedor_id": st.session_state.user_id,
                     "vendedor": st.session_state.usuario,
                     "cliente": cliente, "cpf": cpf, "telefone": telefone,
@@ -714,12 +716,20 @@ else:
             meses = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
             col_f1,col_f2,col_f3,col_f4 = st.columns(4)
 
-            opcoes_mes = ["Todos"] + list(meses.values())
-            mes_nome = col_f1.selectbox("Mes", opcoes_mes, index=0)
+            # ✅ Volta a filtrar como antes:
+            # abre no mês atual e ano atual, mas mantém opção "Todos" para não esconder vendas.
+            mes_atual_nome = meses.get(datetime.now().month, "Janeiro")
+            opcoes_mes = list(meses.values()) + ["Todos"]
+            index_mes = opcoes_mes.index(mes_atual_nome) if mes_atual_nome in opcoes_mes else 0
+            mes_nome = col_f1.selectbox("Mes", opcoes_mes, index=index_mes)
 
             anos = sorted(df["ano"].dropna().unique().astype(int).tolist(), reverse=True)
-            opcoes_ano = ["Todos"] + anos if anos else ["Todos", datetime.now().year]
-            ano_filtro = col_f2.selectbox("Ano", opcoes_ano, index=0)
+            ano_atual = datetime.now().year
+            if not anos:
+                anos = [ano_atual]
+            opcoes_ano = anos + ["Todos"]
+            index_ano = opcoes_ano.index(ano_atual) if ano_atual in opcoes_ano else 0
+            ano_filtro = col_f2.selectbox("Ano", opcoes_ano, index=index_ano)
 
             dias = ["Todos"]+list(range(1,32))
             dia_filtro = col_f3.selectbox("Dia", dias)
@@ -728,7 +738,8 @@ else:
             tabelas = carregar_tabelas()
             tabela_filtro = st.selectbox("Tabela/Banco", ["Todas"]+tabelas)
 
-            # Aplica filtros somente quando não estiver em Todos
+            # ✅ Aplica mês/ano corretamente:
+            # Junho aparece em Junho, Maio aparece em Maio.
             if mes_nome != "Todos":
                 mes_num = [k for k,v in meses.items() if v==mes_nome][0]
                 df = df[df["mes_num"]==mes_num]
@@ -785,7 +796,16 @@ else:
                     colunas = ["id","data","cliente","telefone","tabela_banco","valor","status","conferido","observacao"]
                 colunas = [c for c in colunas if c in df.columns]
                 df_visao = df[colunas].copy()
-                if "valor" in df_visao.columns: df_visao["valor"] = df_visao["valor"].apply(dinheiro)
+
+                # ✅ DATA BONITINHA NO PAINEL E NO EXCEL
+                # O sistema continua usando a coluna "data" do Supabase para filtrar por mês/dia/ano.
+                # Aqui apenas formatamos para aparecer e exportar bonito.
+                if "data" in df_visao.columns:
+                    df_visao["data"] = pd.to_datetime(df_visao["data"], errors="coerce").dt.strftime("%d/%m/%Y %H:%M")
+
+                if "valor" in df_visao.columns:
+                    df_visao["valor"] = df_visao["valor"].apply(dinheiro)
+
                 traducao_cols = {
                     "id": "ID", "data": "Data", "vendedor": "Vendedor",
                     "cliente": "Cliente", "cpf": "CPF", "telefone": "Telefone",
