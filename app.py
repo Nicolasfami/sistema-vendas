@@ -308,6 +308,35 @@ def calcular_percentual_empresa_venda(tabela_banco, valor):
             break
     return percentual
 
+
+def converter_data_supabase_coluna(serie):
+    """
+    Converte a coluna data do Supabase para datetime de forma segura.
+    Aceita:
+    - 2026-06-19 21:17:12
+    - 2026-06-19T21:17:12
+    - 19/06/2026 21:17
+    - 19-06-2026 21:17
+    - datas com timezone
+    """
+    s = serie.astype(str).str.strip()
+
+    # Limpa timezone Z e T quando vier padrão ISO
+    s = s.str.replace("T", " ", regex=False)
+    s = s.str.replace("Z", "", regex=False)
+
+    # 1ª tentativa: formato brasileiro / dayfirst
+    dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+
+    # 2ª tentativa: formato americano/ISO para o que ficou NaT
+    faltando = dt.isna()
+    if faltando.any():
+        dt2 = pd.to_datetime(s[faltando], errors="coerce", dayfirst=False)
+        dt.loc[faltando] = dt2
+
+    return dt
+
+
 def preparar_dataframe_vendas():
     try:
         # Busca paginada para não perder registros se passar de 1000 linhas
@@ -355,12 +384,16 @@ def preparar_dataframe_vendas():
             else:
                 df[col] = None
 
-    # ✅ Puxa a data exatamente da coluna "data" do Supabase.
-    # Mantemos uma cópia original para exibir/exportar e uma data convertida para filtros.
+    # ✅ DATA DO SUPABASE USADA PARA FILTROS
+    # Mantém a data original para exibir/exportar, mas cria uma data convertida corretamente
+    # para mês, ano e dia. Isso corrige Maio/Junho quando a data vem como 19/06/2026.
     df["data_original_supabase"] = df["data"]
-    df["data"] = pd.to_datetime(df["data"], errors="coerce")
+    df["data"] = converter_data_supabase_coluna(df["data"])
+
     df["mes_num"] = df["data"].dt.month
     df["ano"] = df["data"].dt.year
+    df["dia"] = df["data"].dt.day
+
     return df
 
 def destacar_linhas_pendentes(row, tipo_usuario):
@@ -751,7 +784,7 @@ else:
                 df = df[df["ano"]==int(ano_filtro)]
 
             if dia_filtro != "Todos":
-                df = df[df["data"].dt.day==int(dia_filtro)]
+                df = df[df["dia"]==int(dia_filtro)]
             if st.session_state.tipo != "admin": df = df[df["vendedor_id"]==st.session_state.user_id]
             if status_filtro != "Todos": df = df[df["status"]==status_filtro]
             if tabela_filtro != "Todas": df = df[df["tabela_banco"]==tabela_filtro]
@@ -791,7 +824,8 @@ else:
             st.caption(f"Registros encontrados no banco antes dos filtros: {total_bruto_banco} | Registros após filtros: {len(df)}")
             st.divider()
             if df.empty:
-                st.info("Nenhuma proposta encontrada. Tente deixar Mes, Ano, Dia, Status e Tabela/Banco como Todos/Todas.")
+                st.info("Nenhuma proposta encontrada para esse filtro.")
+                st.caption("Se aparecer 0 em Maio/Junho, deixe Mês e Ano como Todos para conferir. A conversão agora usa a coluna data do Supabase com dayfirst=True.")
             else:
                 if st.session_state.tipo=="admin":
                     colunas = ["id","data","vendedor","cliente","cpf","telefone","tabela_banco","valor","status","conferido","alterado_vendedor","ultima_alteracao_em","ultima_alteracao_por","ultima_alteracao_resumo","observacao","observacao_admin","observacao_alteracao"]
