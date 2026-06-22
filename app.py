@@ -796,34 +796,6 @@ else:
                     st.warning("🔒 Proposta conferida — nao pode editar.")
                 else:
                     with st.form("editar_proposta"):
-                        # ✅ DATA DO CONTRATO EDITÁVEL SOMENTE PELA GESTÃO/ADMIN
-                        # Esta é a mesma coluna "data" usada nos filtros do painel.
-                        # Ao salvar, a proposta muda de dia/mês/ano automaticamente.
-                        data_original = pd.to_datetime(proposta.get("data"), errors="coerce")
-                        if pd.isna(data_original):
-                            data_original = pd.Timestamp.now()
-
-                        if st.session_state.tipo == "admin":
-                            col_data_edit, col_hora_edit = st.columns([1, 1])
-                            data_contrato_edit = col_data_edit.date_input(
-                                "Data do contrato",
-                                value=data_original.date(),
-                                key=f"data_contrato_edit_{proposta_id}"
-                            )
-                            hora_contrato_edit = col_hora_edit.time_input(
-                                "Hora do contrato",
-                                value=data_original.time().replace(microsecond=0),
-                                key=f"hora_contrato_edit_{proposta_id}"
-                            )
-                        else:
-                            st.text_input(
-                                "Data do contrato",
-                                value=data_original.strftime("%d/%m/%Y %H:%M"),
-                                disabled=True
-                            )
-                            data_contrato_edit = data_original.date()
-                            hora_contrato_edit = data_original.time().replace(microsecond=0)
-
                         cliente_edit = st.text_input("Cliente", value=str(proposta.get("cliente","") or ""))
                         cpf_edit = st.text_input("CPF", value=str(proposta.get("cpf","") or ""))
                         telefone_edit = st.text_input("Telefone", value=str(proposta.get("telefone","") or ""))
@@ -853,8 +825,6 @@ else:
                                 perc = calcular_percentual_empresa_venda(tabela_edit, valor_edit)
                                 dados_update = {"cliente":cliente_edit,"cpf":cpf_l,"telefone":tel_l,"produto":tabela_edit,"tabela_banco":tabela_edit,"valor":valor_edit,"status":status_edit,"observacao":observacao_edit,"comissao_empresa":perc,"valor_comissao_empresa":valor_edit*(perc/100)}
                                 if st.session_state.tipo=="admin":
-                                    nova_data_contrato = datetime.combine(data_contrato_edit, hora_contrato_edit)
-                                    dados_update["data"] = str(nova_data_contrato)
                                     dados_update["conferido"]=conferido_edit
                                     dados_update["alterado_vendedor"]=False
                                     dados_update["observacao_admin"]=obs_admin_edit
@@ -1403,21 +1373,65 @@ else:
         if df_regras.empty:
             st.warning("Nenhuma regra cadastrada.")
         else:
-            # ── TABELA RÁPIDA COM ATIVO/INATIVO ──────────────────────────
-            st.markdown("**Ativar / Inativar tabelas rapidamente:**")
+            # ── TABELA RÁPIDA EDITÁVEL ──────────────────────────
+            st.markdown("**Editar tabelas rapidamente:**")
+            st.caption("Você pode alterar o nome da Tabela/Banco, o % Empresa e marcar/desmarcar Ativo direto aqui.")
+
             df_edit = df_regras[["id","produto","valor_minimo","percentual_empresa","ativo"]].copy()
-            df_edit = df_edit.rename(columns={"produto":"Tabela/Banco","valor_minimo":"Valor Minimo","percentual_empresa":"% Empresa","ativo":"Ativo"})
+            df_edit = df_edit.rename(columns={
+                "produto": "Tabela/Banco",
+                "valor_minimo": "Valor Minimo",
+                "percentual_empresa": "% Empresa",
+                "ativo": "Ativo"
+            })
+
             editado = st.data_editor(
                 df_edit,
                 use_container_width=True,
                 hide_index=True,
-                disabled=["id","Tabela/Banco","Valor Minimo","% Empresa"],
-                column_config={"Ativo": st.column_config.CheckboxColumn("Ativo", help="Desmarque para inativar")}
+                disabled=["id", "Valor Minimo"],
+                column_config={
+                    "Tabela/Banco": st.column_config.TextColumn(
+                        "Tabela/Banco",
+                        help="Edite o nome da tabela/banco aqui",
+                        required=True
+                    ),
+                    "% Empresa": st.column_config.NumberColumn(
+                        "% Empresa",
+                        help="Edite o percentual da empresa aqui. Ex: 5.05",
+                        min_value=0.0,
+                        max_value=100.0,
+                        step=0.01,
+                        format="%.2f"
+                    ),
+                    "Ativo": st.column_config.CheckboxColumn(
+                        "Ativo",
+                        help="Desmarque para inativar"
+                    )
+                }
             )
-            if st.button("💾 Salvar alterações de ativo/inativo", use_container_width=True, key="btn_salvar_ativo"):
+
+            if st.button("💾 Salvar alterações da tabela", use_container_width=True, key="btn_salvar_ativo"):
                 for _, row in editado.iterrows():
-                    supabase.table("regras_comissao").update({"ativo": bool(row["Ativo"])}).eq("id", int(row["id"])).execute()
-                st.success("Alterações salvas!"); st.rerun()
+                    nome_tabela = str(row["Tabela/Banco"] or "").strip().upper()
+
+                    try:
+                        percentual_empresa_edit = float(row["% Empresa"] or 0)
+                    except Exception:
+                        percentual_empresa_edit = converter_valor_brasileiro(row["% Empresa"])
+
+                    if not nome_tabela:
+                        st.error("Existe uma linha sem nome de Tabela/Banco. Corrija antes de salvar.")
+                        st.stop()
+
+                    supabase.table("regras_comissao").update({
+                        "produto": nome_tabela,
+                        "percentual_empresa": percentual_empresa_edit,
+                        "ativo": bool(row["Ativo"])
+                    }).eq("id", int(row["id"])).execute()
+
+                st.success("Alterações salvas!")
+                st.rerun()
 
             st.divider()
             st.markdown("**Editar regra individualmente:**")
