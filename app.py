@@ -425,6 +425,116 @@ def menu_lateral_v8():
     return st.session_state.menu_atual
 
 # =========================
+# RANKING - DETALHAMENTO POR BANCO (POPUP COM GRAFICO DE PIZZA)
+# =========================
+def montar_grafico_pizza_svg(dados, total_valor):
+    """
+    dados: lista de dicts [{"nome": str, "valor": float, "contratos": int, "cor": str}, ...]
+    Gera um SVG de pizza (donut) puro, sem libs externas.
+    """
+    import math
+    cx, cy, raio, raio_int = 110, 110, 100, 58
+    inicio_angulo = -90  # comeca no topo
+    fatias_svg = []
+    legendas_html = []
+
+    if total_valor <= 0:
+        return "<div style='text-align:center;color:#94a3b8;padding:20px;'>Sem dados de valor para exibir o grafico.</div>"
+
+    angulo_atual = inicio_angulo
+    for item in dados:
+        valor = item["valor"]
+        cor = item["cor"]
+        nome = item["nome"]
+        contratos = item["contratos"]
+        pct = (valor/total_valor*100) if total_valor>0 else 0
+        angulo_fatia = (valor/total_valor)*360 if total_valor>0 else 0
+
+        if angulo_fatia >= 359.99:
+            fatias_svg.append(f'<circle cx="{cx}" cy="{cy}" r="{raio}" fill="{cor}" />')
+        elif angulo_fatia > 0:
+            ang_ini_rad = math.radians(angulo_atual)
+            ang_fim_rad = math.radians(angulo_atual + angulo_fatia)
+            x1 = cx + raio*math.cos(ang_ini_rad)
+            y1 = cy + raio*math.sin(ang_ini_rad)
+            x2 = cx + raio*math.cos(ang_fim_rad)
+            y2 = cy + raio*math.sin(ang_fim_rad)
+            large_arc = 1 if angulo_fatia > 180 else 0
+            path = f'M {cx},{cy} L {x1:.2f},{y1:.2f} A {raio},{raio} 0 {large_arc} 1 {x2:.2f},{y2:.2f} Z'
+            fatias_svg.append(f'<path d="{path}" fill="{cor}" />')
+            angulo_atual += angulo_fatia
+
+        legendas_html.append(f"""
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                <span style="width:11px;height:11px;border-radius:3px;background:{cor};flex-shrink:0;display:inline-block;"></span>
+                <span style="font-size:13px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{nome}</span>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:13px;font-weight:800;color:#0f172a;">{dinheiro(valor)}</div>
+                <div style="font-size:11px;color:#64748b;">{contratos} contrato(s) • {pct:.1f}%</div>
+            </div>
+        </div>
+        """)
+
+    furo = f'<circle cx="{cx}" cy="{cy}" r="{raio_int}" fill="#ffffff" />'
+    total_contratos = sum(d["contratos"] for d in dados)
+    centro_texto = f'''
+        <text x="{cx}" y="{cy-8}" text-anchor="middle" font-size="22" font-weight="900" fill="#0f172a" font-family="Inter, sans-serif">{total_contratos}</text>
+        <text x="{cx}" y="{cy+12}" text-anchor="middle" font-size="10" font-weight="700" fill="#64748b" font-family="Inter, sans-serif" letter-spacing="0.05em">CONTRATOS</text>
+    '''
+
+    svg = f'''
+    <svg viewBox="0 0 220 220" width="220" height="220" xmlns="http://www.w3.org/2000/svg">
+        {''.join(fatias_svg)}
+        {furo}
+        {centro_texto}
+    </svg>
+    '''
+
+    html = f'''
+    <div style="display:flex;gap:22px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        <div style="flex-shrink:0;">{svg}</div>
+        <div style="flex:1;min-width:220px;">{''.join(legendas_html)}</div>
+    </div>
+    '''
+    return html
+
+CORES_BANCOS = ["#0ea5e9","#6366f1","#22c55e","#f59e0b","#ef4444","#a855f7","#14b8a6","#ec4899","#84cc16","#f97316"]
+
+def mostrar_popup_detalhe_banco(vendedor_nome, df_vendedor):
+    """Mostra um popover com pizza de contratos/valor por tabela_banco para o vendedor."""
+    if "tabela_banco" not in df_vendedor.columns or df_vendedor.empty:
+        st.info("Sem dados de banco para este vendedor no periodo.")
+        return
+
+    agrupado = df_vendedor.groupby("tabela_banco").agg(
+        valor=("valor","sum"),
+        contratos=("id","count")
+    ).reset_index().sort_values("valor", ascending=False)
+
+    dados_pizza = []
+    for i, row in agrupado.iterrows():
+        nome_banco = str(row["tabela_banco"]) if pd.notna(row["tabela_banco"]) else "Sem banco"
+        dados_pizza.append({
+            "nome": nome_banco,
+            "valor": float(row["valor"] or 0),
+            "contratos": int(row["contratos"]),
+            "cor": CORES_BANCOS[len(dados_pizza) % len(CORES_BANCOS)]
+        })
+
+    total_valor = sum(d["valor"] for d in dados_pizza)
+
+    st.markdown(f'''
+    <div style="margin-bottom:10px;">
+        <span style="font-size:15px;font-weight:800;color:#0f172a;">📊 {vendedor_nome} — Contratos por Banco/Tabela</span>
+    </div>
+    ''', unsafe_allow_html=True)
+
+    grafico_html = montar_grafico_pizza_svg(dados_pizza, total_valor)
+    st.markdown(grafico_html, unsafe_allow_html=True)
+
+# =========================
 # LOGIN
 # =========================
 if "logado" not in st.session_state:
@@ -785,7 +895,7 @@ else:
                     pct_bar = min(int(row["pct_pagos"]),100)
                     bar_color = "#22c55e" if pct_bar>=70 else "#f59e0b" if pct_bar>=40 else "#ef4444"
                     st.markdown(f"""
-                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:18px 22px;margin-bottom:12px;">
+                    <div style="background:#ffffff;border:1.5px solid rgba(14,165,233,0.30);border-radius:16px;padding:18px 22px;margin-bottom:0px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                             <div style="display:flex;align-items:center;gap:14px;">
                                 <span style="font-size:28px;">{medalha}</span>
@@ -806,6 +916,17 @@ else:
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
+
+                    df_vendedor_atual = df_rank[df_rank["vendedor"]==row["vendedor"]]
+                    col_pop_spacer, col_pop_btn = st.columns([4,1.3])
+                    with col_pop_btn:
+                        try:
+                            pop_ctx = st.popover(f"📊 Ver bancos ({int(row['contratos'])})", use_container_width=True)
+                        except Exception:
+                            pop_ctx = st.expander(f"📊 Ver bancos ({int(row['contratos'])})", expanded=False)
+                        with pop_ctx:
+                            mostrar_popup_detalhe_banco(row["vendedor"], df_vendedor_atual)
+                    st.markdown('<div style="margin-bottom:12px;"></div>', unsafe_allow_html=True)
 
     elif menu == "🎯 Metas":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Metas & Bonus</span>', unsafe_allow_html=True)
