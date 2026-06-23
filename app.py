@@ -2856,7 +2856,7 @@ else:
                         nomes_cred_retomar = []
                         st.warning("Nenhuma credencial ativa cadastrada. Cadastre uma acima para poder retomar.")
 
-                    col_p1, col_p2 = st.columns(2)
+                    col_p1, col_p2, col_p3 = st.columns([1.3, 1.3, 1])
                     with col_p1:
                         if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_{rid_p}", disabled=(len(nomes_cred_retomar)==0)):
                             cpfs_lista_str = rod_p.get("cpfs_lista") or ""
@@ -2888,11 +2888,38 @@ else:
                         else:
                             st.caption("Nenhum resultado salvo ainda nesta rodada.")
 
+                    with col_p3:
+                        confirmar_descarte = st.checkbox("Confirmo", key=f"confirma_descarte_{rid_p}", help="Marque para habilitar o descarte definitivo desta rodada")
+                        if st.button("🗑️ Descartar", use_container_width=True, key=f"descartar_{rid_p}", disabled=not confirmar_descarte):
+                            supabase.table("fgts_rodadas").update({
+                                "status": "cancelada",
+                                "finalizado_em": str(datetime.now()),
+                            }).eq("id", rid_p).execute()
+                            st.success(f"Rodada #{rid_p} descartada. Os resultados já consultados continuam disponíveis no histórico.")
+                            time.sleep(1)
+                            st.rerun()
+
                     if resultados_parciais:
                         with st.expander(f"📋 Ver/exportar resultados parciais da rodada #{rid_p}"):
                             fgts_exportar_excel(resultados_parciais, f"fgts_rodada_{rid_p}_parcial.xlsx", f"export_parcial_{rid_p}")
 
             st.divider()
+
+            qtd_erro_auth = sum(1 for r in rodadas_pausadas if r.get("status") == "erro_autenticacao")
+            if qtd_erro_auth > 1:
+                confirmar_limpar_todas = st.checkbox(f"Confirmo que quero descartar as {qtd_erro_auth} rodada(s) com erro de autenticação de uma vez", key="confirma_limpar_todas_erro")
+                if st.button(f"🗑️ Descartar todas as {qtd_erro_auth} rodadas com erro de autenticação", use_container_width=True, disabled=not confirmar_limpar_todas):
+                    for rod_erro in rodadas_pausadas:
+                        if rod_erro.get("status") == "erro_autenticacao":
+                            supabase.table("fgts_rodadas").update({
+                                "status": "cancelada",
+                                "finalizado_em": str(datetime.now()),
+                            }).eq("id", rod_erro["id"]).execute()
+                    st.success(f"{qtd_erro_auth} rodada(s) descartada(s).")
+                    time.sleep(1)
+                    st.rerun()
+                st.divider()
+
             if st.button("➕ Iniciar nova rodada (sem retomar)", use_container_width=True):
                 st.session_state["fgts_forcar_nova"] = True
                 st.rerun()
