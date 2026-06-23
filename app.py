@@ -2534,7 +2534,7 @@ else:
 
         def fgts_buscar_rodadas_pausadas():
             try:
-                res = supabase.table("fgts_rodadas").select("*").eq("status", "pausada").order("id", desc=True).execute()
+                res = supabase.table("fgts_rodadas").select("*").in_("status", ["pausada", "erro_autenticacao"]).order("id", desc=True).execute()
                 return res.data or []
             except Exception:
                 return []
@@ -2759,12 +2759,17 @@ else:
 
             for rod_p in rodadas_pausadas:
                 rid_p = rod_p["id"]
+                status_rod_p = rod_p.get("status", "pausada")
                 total_p = int(rod_p.get("total_cpfs") or 0)
                 proc_p = int(rod_p.get("processados") or 0)
                 pct_p = int((proc_p/total_p*100)) if total_p > 0 else 0
 
                 with st.container(border=True):
-                    st.markdown(f"**Rodada #{rid_p}** — pausada com {proc_p}/{total_p} CPF(s) processados ({pct_p}%)")
+                    if status_rod_p == "erro_autenticacao":
+                        st.markdown(f"**Rodada #{rid_p}** — ❌ parou por erro de autenticação, com {proc_p}/{total_p} CPF(s) processados ({pct_p}%)")
+                        st.caption("Causa provável: a credencial usada fez login manual em outro lugar (site/app da V8) enquanto a rodada rodava, ou a senha mudou. Evite logar manualmente com a mesma conta enquanto uma rodada estiver ativa.")
+                    else:
+                        st.markdown(f"**Rodada #{rid_p}** — pausada com {proc_p}/{total_p} CPF(s) processados ({pct_p}%)")
 
                     resultados_parciais = fgts_buscar_resultados(rid_p)
                     tempo_medio_p = fgts_calcular_tempo_medio(resultados_parciais)
