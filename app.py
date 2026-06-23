@@ -439,7 +439,7 @@ def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password
         raise resultado_pronto["excecao"]
 
 
-def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_erro):
+def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_erro, detalhe=""):
     """Registra, na rodada, que UMA credencial específica caiu em erro de
     autenticação — sem afetar as outras credenciais que continuam ativas."""
     try:
@@ -448,9 +448,10 @@ def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_err
         lista_atual = [c for c in atual.split(",") if c]
         if apelido_com_erro not in lista_atual:
             lista_atual.append(apelido_com_erro)
-        supabase.table("fgts_rodadas").update({
-            "credenciais_com_erro": ",".join(lista_atual)
-        }).eq("id", rodada_id).execute()
+        update_dados = {"credenciais_com_erro": ",".join(lista_atual)}
+        if detalhe:
+            update_dados["detalhe_erro_autenticacao"] = f"{apelido_com_erro}: {detalhe}"[:1000]
+        supabase.table("fgts_rodadas").update(update_dados).eq("id", rodada_id).execute()
     except Exception:
         pass
 
@@ -468,8 +469,8 @@ def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag
     """
     try:
         v8_obter_token(username, password)
-    except Exception:
-        fgts_registrar_erro_credencial(rodada_id, username, apelido or username)
+    except Exception as e:
+        fgts_registrar_erro_credencial(rodada_id, username, apelido or username, detalhe=str(e))
         fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral, motivo_individual="erro_autenticacao")
         return
 
@@ -2756,6 +2757,10 @@ else:
             cred_com_erro_txt = rodada_ativa.get("credenciais_com_erro") or ""
             if cred_com_erro_txt:
                 st.error(f"⚠️ Credencial(is) com erro de autenticação nesta rodada: {cred_com_erro_txt}. As demais credenciais continuam processando normalmente — corrija/troque essa credencial e retome depois para reaproveitar a fatia dela.")
+                detalhe_erro_txt = rodada_ativa.get("detalhe_erro_autenticacao") or ""
+                if detalhe_erro_txt:
+                    with st.expander("Ver detalhe técnico do erro"):
+                        st.code(detalhe_erro_txt)
 
             st.progress(min(pct,100)/100, text=f"{processados} de {total} — {pct}%")
 
@@ -3009,6 +3014,9 @@ else:
                     st.caption(f"Usuário: {rod.get('usuario','')}" + (f" | Credenciais: {rod.get('credenciais_usadas','')}" if rod.get('credenciais_usadas') else ""))
                     if rod.get("credenciais_com_erro"):
                         st.warning(f"⚠️ Credencial(is) que tiveram erro de autenticação durante esta rodada: {rod.get('credenciais_com_erro')}")
+                        if rod.get("detalhe_erro_autenticacao"):
+                            with st.expander("Ver detalhe técnico do erro"):
+                                st.code(rod.get("detalhe_erro_autenticacao"))
 
                     resultados_rod = fgts_buscar_resultados(rid)
 
