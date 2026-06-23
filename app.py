@@ -41,8 +41,6 @@ RAILWAY_URL = "https://operax-whatsapp-production.up.railway.app"
 # ============================================================
 # CONSULTA FGTS - CONFIGURAÇÃO V8 DIGITAL
 # ============================================================
-V8_USERNAME = "tamarakarla@gmail.com"
-V8_PASSWORD = "Aryaaastark@@2026"
 V8_CLIENT_ID = "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"
 V8_AUDIENCE = "https://bff.v8sistema.com"
 V8_AUTH_URL = "https://auth.v8sistema.com/oauth/token"
@@ -53,9 +51,12 @@ SEGUNDOS_ENTRE_TENTATIVAS_POLL = 15
 MAX_TENTATIVAS_POLL = 4
 SEGUNDOS_ENTRE_TENTATIVAS_POST = 1
 
-_v8_token_cache = {"access_token": None, "obtained_at": 0, "expires_in": 0}
-_v8_ultima_falha_auth = {"timestamp": 0}
+# Cache de token POR CREDENCIAL (chave = username), permite múltiplos
+# logins V8 autenticando e processando CPFs em paralelo.
+_v8_token_cache = {}   # { username: {"access_token":..., "obtained_at":..., "expires_in":...} }
+_v8_ultima_falha_auth = {}  # { username: timestamp }
 _V8_INTERVALO_MINIMO_FALHA = 30
+_v8_cache_lock = threading.Lock()
 
 ROTULOS_OBSERVACAO_FGTS = {
     "nao_autorizado": "Não autorizado pelo cliente",
@@ -70,20 +71,23 @@ class ResultadoFinalNegocioFGTS(Exception):
         super().__init__(motivo)
 
 
-def v8_obter_token(forcar_novo=False):
+def v8_obter_token(username, password, forcar_novo=False):
     agora = time.time()
 
-    if not forcar_novo and _v8_token_cache["access_token"]:
-        if agora - _v8_token_cache["obtained_at"] < _v8_token_cache["expires_in"] - 60:
-            return _v8_token_cache["access_token"]
+    with _v8_cache_lock:
+        cache = _v8_token_cache.get(username)
+        if not forcar_novo and cache and cache.get("access_token"):
+            if agora - cache["obtained_at"] < cache["expires_in"] - 60:
+                return cache["access_token"]
 
-    if agora - _v8_ultima_falha_auth["timestamp"] < _V8_INTERVALO_MINIMO_FALHA:
-        raise RuntimeError("Autenticação V8 falhou recentemente. Aguardando intervalo de segurança.")
+        ultima_falha = _v8_ultima_falha_auth.get(username, 0)
+        if agora - ultima_falha < _V8_INTERVALO_MINIMO_FALHA:
+            raise RuntimeError(f"Autenticação V8 ({username}) falhou recentemente. Aguardando intervalo de segurança.")
 
     payload = {
         "grant_type": "password",
-        "username": V8_USERNAME,
-        "password": V8_PASSWORD,
+        "username": username,
+        "password": password,
         "audience": V8_AUDIENCE,
         "scope": "offline_access",
         "client_id": V8_CLIENT_ID,
@@ -92,18 +96,24 @@ def v8_obter_token(forcar_novo=False):
     resp = _req.post(V8_AUTH_URL, data=payload, headers=headers, timeout=30)
 
     if resp.status_code != 200:
-        _v8_ultima_falha_auth["timestamp"] = agora
-        raise RuntimeError(f"Falha na autenticação V8 (HTTP {resp.status_code}): {resp.text}")
+        with _v8_cache_lock:
+            _v8_ultima_falha_auth[username] = agora
+        raise RuntimeError(f"Falha na autenticação V8 ({username}) (HTTP {resp.status_code}): {resp.text}")
 
     data = resp.json()
-    _v8_token_cache["access_token"] = data["access_token"]
-    _v8_token_cache["obtained_at"] = agora
-    _v8_token_cache["expires_in"] = data.get("expires_in", 86400)
-    return _v8_token_cache["access_token"]
+    with _v8_cache_lock:
+        _v8_token_cache[username] = {
+            "access_token": data["access_token"],
+            "obtained_at": agora,
+            "expires_in": data.get("expires_in", 86400),
+        }
+    return data["access_token"]
 
 
-def v8_headers():
-    return {"Authorization": f"Bearer {v8_obter_token()}", "Content-Type": "application/json"}
+def v8_headers(username, password):
+    return {"Authorization": f"Bearer {v8_obter_token(username, password)}", "Content-Type": "application/json"}
+
+
 
 
 def v8_classificar_mensagem_negocio(texto_resposta):
@@ -135,7 +145,7 @@ def v8_eh_operacao_em_andamento(texto_resposta):
     return "operação fiduciária em andamento" in texto_lower or "operacao fiduciaria em andamento" in texto_lower
 
 
-def v8_iniciar_consulta_saldo(document_number, provider, parar_flag=None):
+def v8_iniciar_consulta_saldo(document_number, provider, username, password, parar_flag=None):
     url = f"{V8_BASE_URL}/fgts/balance"
     payload = {"documentNumber": document_number, "provider": provider.lower()}
 
@@ -145,11 +155,11 @@ def v8_iniciar_consulta_saldo(document_number, provider, parar_flag=None):
                 raise RuntimeError("Rodada pausada pelo usuário.")
             raise RuntimeError("Rodada cancelada pelo usuário.")
 
-        resp = _req.post(url, json=payload, headers=v8_headers(), timeout=30)
+        resp = _req.post(url, json=payload, headers=v8_headers(username, password), timeout=30)
 
         if resp.status_code == 401:
             resp = _req.post(url, json=payload, headers={
-                "Authorization": f"Bearer {v8_obter_token(forcar_novo=True)}",
+                "Authorization": f"Bearer {v8_obter_token(username, password, forcar_novo=True)}",
                 "Content-Type": "application/json",
             }, timeout=30)
 
@@ -173,14 +183,14 @@ def v8_iniciar_consulta_saldo(document_number, provider, parar_flag=None):
         raise RuntimeError(f"Erro ao iniciar consulta (HTTP {resp.status_code}): {resp.text}")
 
 
-def v8_consultar_resultado_saldo(document_number, provider=None):
+def v8_consultar_resultado_saldo(document_number, username, password, provider=None):
     url = f"{V8_BASE_URL}/fgts/balance"
     params = {"search": document_number}
-    resp = _req.get(url, params=params, headers=v8_headers(), timeout=30)
+    resp = _req.get(url, params=params, headers=v8_headers(username, password), timeout=30)
 
     if resp.status_code == 401:
         resp = _req.get(url, params=params, headers={
-            "Authorization": f"Bearer {v8_obter_token(forcar_novo=True)}",
+            "Authorization": f"Bearer {v8_obter_token(username, password, forcar_novo=True)}",
             "Content-Type": "application/json",
         }, timeout=30)
 
@@ -202,7 +212,7 @@ def v8_consultar_resultado_saldo(document_number, provider=None):
     return candidatos[0]
 
 
-def v8_aguardar_resultado_saldo(document_number, provider, parar_flag=None):
+def v8_aguardar_resultado_saldo(document_number, provider, username, password, parar_flag=None):
     tentativas_sem_registro = 0
 
     while tentativas_sem_registro < MAX_TENTATIVAS_POLL:
@@ -211,7 +221,7 @@ def v8_aguardar_resultado_saldo(document_number, provider, parar_flag=None):
                 raise RuntimeError("Rodada pausada pelo usuário.")
             raise RuntimeError("Rodada cancelada pelo usuário.")
 
-        registro = v8_consultar_resultado_saldo(document_number, provider=provider)
+        registro = v8_consultar_resultado_saldo(document_number, username, password, provider=provider)
 
         if registro and registro.get("status") == "success":
             return registro
@@ -236,10 +246,15 @@ def v8_formatar_periodos(periods):
     return "; ".join(f"{p.get('dueDate')}: R$ {p.get('amount')}" for p in periods)
 
 
-def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
+def fgts_processar_cpf(cpf, provider, rodada_id, username, password, parar_flag=None):
     """Processa um único CPF e grava o resultado na tabela fgts_resultados."""
+    inicio_cpf = time.time()
+
+    def _tempo():
+        return round(time.time() - inicio_cpf, 1)
+
     try:
-        v8_iniciar_consulta_saldo(cpf, provider, parar_flag=parar_flag)
+        v8_iniciar_consulta_saldo(cpf, provider, username, password, parar_flag=parar_flag)
     except ResultadoFinalNegocioFGTS as e:
         motivo_rotulo = v8_classificar_mensagem_negocio(e.motivo) or "erro_tecnico"
         supabase.table("fgts_resultados").insert({
@@ -250,10 +265,11 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
             "saldo_disponivel": "",
             "periodos": "",
             "observacao": ROTULOS_OBSERVACAO_FGTS.get(motivo_rotulo, e.motivo or ""),
+            "tempo_segundos": _tempo(),
         }).execute()
         return
     except Exception as e:
-        if "cancelada pelo usuário" in str(e):
+        if "cancelada pelo usuário" in str(e) or "pausada pelo usuário" in str(e):
             raise
         supabase.table("fgts_resultados").insert({
             "rodada_id": rodada_id,
@@ -263,10 +279,11 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
             "saldo_disponivel": "",
             "periodos": "",
             "observacao": f"Erro técnico no POST: {e}",
+            "tempo_segundos": _tempo(),
         }).execute()
         return
 
-    registro = v8_aguardar_resultado_saldo(cpf, provider, parar_flag=parar_flag)
+    registro = v8_aguardar_resultado_saldo(cpf, provider, username, password, parar_flag=parar_flag)
 
     if registro is None:
         supabase.table("fgts_resultados").insert({
@@ -277,6 +294,7 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
             "saldo_disponivel": "",
             "periodos": "",
             "observacao": "Tempo de espera esgotado sem retorno da V8.",
+            "tempo_segundos": _tempo(),
         }).execute()
         return
 
@@ -297,6 +315,7 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
                 "id_consulta": str(registro.get("id") or ""),
                 "criado_em_v8": str(registro.get("createdAt") or ""),
                 "atualizado_em_v8": str(registro.get("updatedAt") or ""),
+                "tempo_segundos": _tempo(),
             }).execute()
         else:
             supabase.table("fgts_resultados").insert({
@@ -307,6 +326,7 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
                 "saldo_disponivel": "",
                 "periodos": "",
                 "observacao": mensagem_status or "Falha na consulta (sem detalhe).",
+                "tempo_segundos": _tempo(),
             }).execute()
         return
 
@@ -322,6 +342,7 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
         "id_consulta": str(registro.get("id") or ""),
         "criado_em_v8": str(registro.get("createdAt") or ""),
         "atualizado_em_v8": str(registro.get("updatedAt") or ""),
+        "tempo_segundos": _tempo(),
     }).execute()
 
 
@@ -342,67 +363,258 @@ def fgts_cpfs_ja_processados(rodada_id):
         return set()
 
 
-def fgts_rodar_em_background(cpfs, rodada_id, parar_flag):
+# Lock global para evitar duas threads (credenciais diferentes) atualizarem
+# o contador "processados" da mesma rodada ao mesmo tempo (race condition).
+_fgts_contador_lock = threading.Lock()
+
+# Controla, por rodada, quantas threads de credenciais ainda estão ativas.
+# Quando a última thread termina, ela é responsável por marcar a rodada
+# como concluída/cancelada/pausada.
+_fgts_threads_ativas = {}   # { rodada_id: contador_int }
+_fgts_threads_lock = threading.Lock()
+
+
+def fgts_incrementar_processados(rodada_id):
+    with _fgts_contador_lock:
+        try:
+            res_atual = supabase.table("fgts_rodadas").select("processados").eq("id", rodada_id).execute()
+            processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
+            supabase.table("fgts_rodadas").update({
+                "processados": processados_atual + 1,
+                "ultimo_processamento_em": str(datetime.now()),
+            }).eq("id", rodada_id).execute()
+        except Exception:
+            pass
+
+
+# Tempo máximo absoluto que UM CPF pode ficar sendo processado antes do
+# watchdog forçar a passagem para o próximo (cobre o caso de um CPF ficar
+# preso indefinidamente, ex: loop de "tente novamente" sem fim).
+TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS = 180  # 3 minutos
+
+
+def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password, parar_flag):
     """
-    Roda em thread separada: testa autenticação 1x, depois processa cada CPF.
-    A cada CPF, verifica no BANCO se a rodada foi marcada como 'pausando' ou
-    'cancelando' (isso permite que qualquer aba/sessão consiga pausar/cancelar,
-    não só a aba que iniciou a rodada).
+    Roda fgts_processar_cpf numa thread interna com um limite de tempo
+    absoluto. Se o CPF não terminar dentro de TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS,
+    o watchdog marca esse CPF como erro técnico (timeout forçado) e libera
+    a thread principal para seguir ao próximo CPF, evitando que a rodada
+    inteira fique travada por um único CPF problemático.
+    """
+    resultado_pronto = {"concluido": False, "excecao": None}
+
+    def _alvo():
+        try:
+            fgts_processar_cpf(cpf, provider, rodada_id, username, password, parar_flag=parar_flag)
+        except Exception as e:
+            resultado_pronto["excecao"] = e
+        finally:
+            resultado_pronto["concluido"] = True
+
+    t_interna = threading.Thread(target=_alvo, daemon=True)
+    t_interna.start()
+    t_interna.join(timeout=TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS)
+
+    if not resultado_pronto["concluido"]:
+        # Watchdog: o CPF passou do tempo máximo. A thread interna fica
+        # "perdida" rodando sozinha (não há como matar uma thread Python
+        # à força), mas a thread principal segue adiante sem esperar mais,
+        # e já registramos o resultado como erro técnico de timeout.
+        try:
+            supabase.table("fgts_resultados").insert({
+                "rodada_id": rodada_id,
+                "cpf": cpf,
+                "provider": provider,
+                "status": "erro_tecnico",
+                "saldo_disponivel": "",
+                "periodos": "",
+                "observacao": f"Timeout forçado pelo watchdog ({TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS}s sem resposta).",
+                "tempo_segundos": TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS,
+            }).execute()
+        except Exception:
+            pass
+        return
+
+    if resultado_pronto["excecao"] is not None:
+        raise resultado_pronto["excecao"]
+
+
+def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag, inicio_geral):
+    """
+    Processa uma FATIA da lista de CPFs usando UMA credencial específica.
+    Várias dessas threads rodam em paralelo (uma por credencial ativa),
+    cada uma autenticando e consultando de forma independente.
     """
     try:
-        v8_obter_token()
+        v8_obter_token(username, password)
     except Exception:
-        supabase.table("fgts_rodadas").update({
-            "status": "erro_autenticacao",
-            "finalizado_em": str(datetime.now()),
-        }).eq("id", rodada_id).execute()
+        fgts_finalizar_thread(rodada_id, status_se_ultima="erro_autenticacao", inicio_geral=inicio_geral)
         return
 
     ja_processados = fgts_cpfs_ja_processados(rodada_id)
 
-    for cpf in cpfs:
+    for cpf in cpfs_fatia:
         if cpf in ja_processados:
             continue
 
         status_banco = fgts_status_atual_rodada(rodada_id)
 
         if status_banco == "cancelando" or parar_flag.get("parar") == "cancelar":
-            supabase.table("fgts_rodadas").update({
-                "status": "cancelada",
-                "finalizado_em": str(datetime.now()),
-            }).eq("id", rodada_id).execute()
+            fgts_finalizar_thread(rodada_id, status_se_ultima="cancelada", inicio_geral=inicio_geral)
             return
 
         if status_banco == "pausando" or parar_flag.get("parar") == "pausar":
-            supabase.table("fgts_rodadas").update({
-                "status": "pausada",
-            }).eq("id", rodada_id).execute()
+            fgts_finalizar_thread(rodada_id, status_se_ultima="pausada", inicio_geral=inicio_geral)
             return
 
         try:
-            fgts_processar_cpf(cpf, V8_PROVIDER, rodada_id, parar_flag=parar_flag)
+            fgts_processar_cpf_com_watchdog(cpf, V8_PROVIDER, rodada_id, username, password, parar_flag)
         except Exception as e:
-            if "cancelada pelo usuário" in str(e) or "pausada pelo usuário" in str(e):
-                status_final = "cancelada" if "cancelada" in str(e) else "pausada"
-                update_dados = {"status": status_final}
-                if status_final == "cancelada":
-                    update_dados["finalizado_em"] = str(datetime.now())
-                supabase.table("fgts_rodadas").update(update_dados).eq("id", rodada_id).execute()
+            if "cancelada pelo usuário" in str(e):
+                fgts_finalizar_thread(rodada_id, status_se_ultima="cancelada", inicio_geral=inicio_geral)
+                return
+            if "pausada pelo usuário" in str(e):
+                fgts_finalizar_thread(rodada_id, status_se_ultima="pausada", inicio_geral=inicio_geral)
                 return
 
+        fgts_incrementar_processados(rodada_id)
+
+    fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral)
+
+
+def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral):
+    """
+    Chamado quando UMA thread de credencial termina sua fatia (por concluir,
+    pausar ou cancelar). Só a ÚLTIMA thread viva da rodada efetivamente
+    atualiza o status final da rodada inteira — as outras só decrementam
+    o contador de threads ativas.
+    """
+    with _fgts_threads_lock:
+        _fgts_threads_ativas[rodada_id] = _fgts_threads_ativas.get(rodada_id, 1) - 1
+        restantes = _fgts_threads_ativas[rodada_id]
+
+    if restantes > 0:
+        return  # ainda existem outras credenciais processando
+
+    # Esta foi a última thread viva desta rodada: fecha a rodada de fato.
+    tempo_total = round(time.time() - inicio_geral, 1)
+    update_dados = {"status": status_se_ultima, "tempo_total_segundos": tempo_total}
+    if status_se_ultima in ("concluida", "cancelada"):
+        update_dados["finalizado_em"] = str(datetime.now())
+    supabase.table("fgts_rodadas").update(update_dados).eq("id", rodada_id).execute()
+
+
+def fgts_iniciar_threads(cpfs, rodada_id, credenciais, parar_flag):
+    """
+    Divide a lista de CPFs em fatias (uma por credencial) e dispara uma
+    thread paralela para cada credencial. Cada thread roda de forma
+    independente, com seu próprio login/token.
+    """
+    n_cred = len(credenciais)
+    fatias = [cpfs[i::n_cred] for i in range(n_cred)]  # distribui round-robin
+
+    with _fgts_threads_lock:
+        _fgts_threads_ativas[rodada_id] = n_cred
+
+    inicio_geral = time.time()
+
+    for i, cred in enumerate(credenciais):
+        fatia = fatias[i]
+        if not fatia:
+            with _fgts_threads_lock:
+                _fgts_threads_ativas[rodada_id] -= 1
+            continue
+        thread = threading.Thread(
+            target=fgts_thread_credencial,
+            args=(fatia, rodada_id, cred["username"], cred["password"], parar_flag, inicio_geral),
+            daemon=True
+        )
+        thread.start()
+
+
+# Flags globais de "tem thread rodando para esta rodada" — usado tanto
+# pela UI (sessão do navegador) quanto pelo watchdog externo (cron job),
+# que não tem session_state porque não é uma sessão de navegador de verdade.
+_fgts_flags_globais = {}
+LIMITE_INATIVIDADE_SEGUNDOS = 150  # 2min30s sem nenhum CPF novo = thread considerada morta
+
+
+def fgts_buscar_rodada_ativa_global():
+    try:
+        res = supabase.table("fgts_rodadas").select("*").in_("status", ["em_andamento","pausando","cancelando"]).order("id", desc=True).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+
+def fgts_buscar_credenciais_global(somente_ativas=True):
+    try:
+        q = supabase.table("fgts_credenciais").select("*").order("id")
+        if somente_ativas:
+            q = q.eq("ativo", True)
+        res = q.execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def fgts_checar_e_religar_rodada_ativa():
+    """
+    Função central de watchdog: verifica se existe uma rodada marcada como
+    'em_andamento' que está há mais de LIMITE_INATIVIDADE_SEGUNDOS sem
+    processar nenhum CPF novo (sinal de thread morta) e, se for o caso,
+    religa automaticamente com as mesmas credenciais usadas antes.
+
+    Pode ser chamada de dois lugares:
+    1. Pela UI da aba "Consulta FGTS" quando alguém abre a tela.
+    2. Pelo endpoint especial acionado por um serviço externo de cron job,
+       que bate na URL do app periodicamente mesmo sem ninguém olhando,
+       garantindo que a consulta se autocorrija mesmo de madrugada.
+
+    Retorna uma mensagem (string) se religou algo, ou None se não havia
+    nada para religar.
+    """
+    rodada_ativa = fgts_buscar_rodada_ativa_global()
+    if not rodada_ativa or rodada_ativa.get("status") != "em_andamento":
+        return None
+
+    rid_check = rodada_ativa["id"]
+    ja_tem_thread_registrada = _fgts_flags_globais.get(rid_check) is not None
+
+    referencia_pulso = rodada_ativa.get("ultimo_processamento_em") or rodada_ativa.get("iniciado_em")
+    segundos_sem_pulso = None
+    if referencia_pulso:
         try:
-            res_atual = supabase.table("fgts_rodadas").select("processados").eq("id", rodada_id).execute()
-            processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
-            supabase.table("fgts_rodadas").update({
-                "processados": processados_atual + 1
-            }).eq("id", rodada_id).execute()
+            dt_pulso = pd.to_datetime(referencia_pulso)
+            segundos_sem_pulso = (pd.Timestamp.now() - dt_pulso).total_seconds()
         except Exception:
             pass
 
+    thread_parece_morta = (not ja_tem_thread_registrada) and (
+        segundos_sem_pulso is not None and segundos_sem_pulso > LIMITE_INATIVIDADE_SEGUNDOS
+    )
+
+    if not thread_parece_morta:
+        return None
+
+    cpfs_lista_str_auto = rodada_ativa.get("cpfs_lista") or ""
+    cpfs_originais_auto = [c for c in cpfs_lista_str_auto.split(",") if c]
+    cred_usadas_nomes = [n.strip() for n in (rodada_ativa.get("credenciais_usadas") or "").split(",") if n.strip()]
+    todas_credenciais_auto = fgts_buscar_credenciais_global(somente_ativas=True)
+    credenciais_para_retomar_auto = [c for c in todas_credenciais_auto if c.get("apelido") in cred_usadas_nomes] or todas_credenciais_auto[:1]
+
+    if not (cpfs_originais_auto and credenciais_para_retomar_auto):
+        return None
+
+    flag_auto = {"parar": False}
+    _fgts_flags_globais[rid_check] = flag_auto
     supabase.table("fgts_rodadas").update({
-        "status": "concluida",
-        "finalizado_em": str(datetime.now()),
-    }).eq("id", rodada_id).execute()
+        "ultimo_processamento_em": str(datetime.now())
+    }).eq("id", rid_check).execute()
+    fgts_iniciar_threads(cpfs_originais_auto, rid_check, credenciais_para_retomar_auto, flag_auto)
+
+    return f"Rodada #{rid_check} estava sem atividade há {round(segundos_sem_pulso)}s — religada automaticamente com {len(credenciais_para_retomar_auto)} credencial(is)."
+
 
 st.markdown("""
 <style>
@@ -964,6 +1176,26 @@ def menu_lateral_v8():
         st.rerun()
 
     return st.session_state.menu_atual
+
+# =========================
+# WATCHDOG EXTERNO (cron job)
+# =========================
+# Rota especial acessível SEM login, via parâmetro secreto na URL:
+#   https://seu-app.streamlit.app/?watchdog=OPERAX_FGTS_WATCHDOG_2026
+# Um serviço externo gratuito (ex: cron-job.org) pode bater nessa URL a
+# cada poucos minutos, 24h por dia, para que a consulta FGTS se autocorrija
+# (detecte thread morta e religue) mesmo de madrugada, sem precisar que
+# ninguém abra a tela do app manualmente.
+WATCHDOG_SENHA_SECRETA = "OPERAX_FGTS_WATCHDOG_2026"
+
+_parametros_url = st.query_params
+if _parametros_url.get("watchdog") == WATCHDOG_SENHA_SECRETA:
+    resultado_watchdog = fgts_checar_e_religar_rodada_ativa()
+    if resultado_watchdog:
+        st.write(f"✅ {resultado_watchdog}")
+    else:
+        st.write("ℹ️ Nenhuma rodada travada encontrada. Tudo OK.")
+    st.stop()
 
 # =========================
 # LOGIN
@@ -2321,6 +2553,36 @@ else:
             except Exception:
                 return []
 
+        def fgts_buscar_credenciais(somente_ativas=False):
+            try:
+                q = supabase.table("fgts_credenciais").select("*").order("id")
+                if somente_ativas:
+                    q = q.eq("ativo", True)
+                res = q.execute()
+                return res.data or []
+            except Exception:
+                return []
+
+        def fgts_formatar_tempo(segundos):
+            if segundos is None:
+                return "—"
+            segundos = float(segundos)
+            if segundos < 60:
+                return f"{segundos:.0f}s"
+            minutos = int(segundos // 60)
+            seg_resto = int(segundos % 60)
+            if minutos < 60:
+                return f"{minutos}min {seg_resto}s"
+            horas = int(minutos // 60)
+            min_resto = int(minutos % 60)
+            return f"{horas}h {min_resto}min"
+
+        def fgts_calcular_tempo_medio(resultados_rod):
+            tempos = [float(r.get("tempo_segundos")) for r in resultados_rod if r.get("tempo_segundos") is not None]
+            if not tempos:
+                return None
+            return sum(tempos) / len(tempos)
+
         def fgts_exportar_excel(resultados_rod, nome_arquivo, key_botao):
             df_res = pd.DataFrame(resultados_rod)
             mapa_status_label = {
@@ -2332,12 +2594,12 @@ else:
                 "erro_tecnico": "⚠️ Erro técnico",
             }
             df_res["status_label"] = df_res["status"].map(lambda s: mapa_status_label.get(s, s))
-            colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","processado_em"]
+            colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","tempo_segundos","processado_em"]
             colunas_exibir = [c for c in colunas_exibir if c in df_res.columns]
             df_visao_fgts = df_res[colunas_exibir].rename(columns={
                 "cpf":"CPF","provider":"Provider","status_label":"Status",
                 "saldo_disponivel":"Saldo disponível","periodos":"Períodos",
-                "observacao":"Observação","processado_em":"Processado em"
+                "observacao":"Observação","tempo_segundos":"Tempo (s)","processado_em":"Processado em"
             })
             st.dataframe(df_visao_fgts, use_container_width=True, hide_index=True)
 
@@ -2354,8 +2616,64 @@ else:
                 key=key_botao
             )
 
+        # ── GERENCIAR CREDENCIAIS V8 ─────────────────────────
+        with st.expander("🔑 Gerenciar credenciais V8 (logins para rodar em paralelo)"):
+            st.caption("Cadastre quantos logins V8 quiser. Ao iniciar uma consulta, você escolhe quais ficam ativos para dividir os CPFs entre eles e processar em paralelo.")
+
+            with st.form("form_nova_credencial_fgts", clear_on_submit=True):
+                col_cred1, col_cred2, col_cred3 = st.columns([1.3,1.5,1.5])
+                apelido_cred = col_cred1.text_input("Apelido", placeholder="Ex: Tamara, João...")
+                username_cred = col_cred2.text_input("E-mail (login V8)")
+                password_cred = col_cred3.text_input("Senha (login V8)", type="password")
+                if st.form_submit_button("➕ Adicionar credencial", use_container_width=True):
+                    if not username_cred.strip() or not password_cred.strip():
+                        st.error("Preencha e-mail e senha.")
+                    else:
+                        supabase.table("fgts_credenciais").insert({
+                            "apelido": apelido_cred.strip() or username_cred.strip(),
+                            "username": username_cred.strip(),
+                            "password": password_cred,
+                            "ativo": True,
+                        }).execute()
+                        st.success("Credencial adicionada!")
+                        st.rerun()
+
+            credenciais_existentes = fgts_buscar_credenciais()
+            if not credenciais_existentes:
+                st.info("Nenhuma credencial cadastrada ainda. Adicione pelo menos uma para iniciar consultas.")
+            else:
+                st.markdown("**Credenciais cadastradas:**")
+                for cred in credenciais_existentes:
+                    col_v1, col_v2, col_v3 = st.columns([3,1,1])
+                    with col_v1:
+                        status_ativo = "🟢 Ativa" if cred.get("ativo") else "⚪ Inativa"
+                        st.markdown(f"**{cred.get('apelido','')}** — {cred.get('username','')} — {status_ativo}")
+                    with col_v2:
+                        if st.button("🔁 Ativar/Desativar", key=f"toggle_cred_{cred['id']}"):
+                            supabase.table("fgts_credenciais").update({"ativo": not cred.get("ativo")}).eq("id", cred["id"]).execute()
+                            st.rerun()
+                    with col_v3:
+                        if st.button("🗑️ Remover", key=f"del_cred_{cred['id']}"):
+                            supabase.table("fgts_credenciais").delete().eq("id", cred["id"]).execute()
+                            st.rerun()
+
+        st.divider()
+
         rodada_ativa = fgts_buscar_rodada_ativa()
         rodadas_pausadas = fgts_buscar_rodadas_pausadas()
+
+        # ── WATCHDOG DE ABERTURA: detecta thread morta e auto-retoma ──
+        # Toda vez que esta aba é aberta/atualizada, reaproveitamos a mesma
+        # checagem usada pelo watchdog externo (cron job): se a rodada
+        # "em_andamento" está há muito tempo sem processar nenhum CPF novo,
+        # religamos automaticamente com as credenciais usadas antes.
+        if rodada_ativa and rodada_ativa.get("status") == "em_andamento":
+            resultado_watchdog_aba = fgts_checar_e_religar_rodada_ativa()
+            if resultado_watchdog_aba:
+                st.session_state.fgts_flags[rodada_ativa["id"]] = _fgts_flags_globais.get(rodada_ativa["id"])
+                st.warning(f"⚠️ {resultado_watchdog_aba}")
+                time.sleep(1)
+                st.rerun()
 
         # ── RODADA ATIVA (em andamento / pausando / cancelando) ──
         if rodada_ativa:
@@ -2364,15 +2682,39 @@ else:
             total = int(rodada_ativa.get("total_cpfs") or 0)
             processados = int(rodada_ativa.get("processados") or 0)
             pct = int((processados/total*100)) if total > 0 else 0
+            cred_usadas_txt = rodada_ativa.get("credenciais_usadas") or ""
 
             if status_rid == "pausando":
-                st.warning(f"⏸️ Rodada #{rid} — pausando... (finalizando o CPF atual)")
+                st.warning(f"⏸️ Rodada #{rid} — pausando... (finalizando o(s) CPF(s) atual(is))")
             elif status_rid == "cancelando":
-                st.warning(f"🛑 Rodada #{rid} — cancelando... (finalizando o CPF atual)")
+                st.warning(f"🛑 Rodada #{rid} — cancelando... (finalizando o(s) CPF(s) atual(is))")
             else:
                 st.info(f"⏳ Rodada #{rid} em andamento — iniciada em {str(rodada_ativa.get('iniciado_em',''))[:16]}")
 
+            if cred_usadas_txt:
+                st.caption(f"🔑 Processando em paralelo com: {cred_usadas_txt}")
+
             st.progress(min(pct,100)/100, text=f"{processados} de {total} — {pct}%")
+
+            resultados_atuais = fgts_buscar_resultados(rid)
+            tempo_medio = fgts_calcular_tempo_medio(resultados_atuais)
+
+            col_t1, col_t2, col_t3 = st.columns(3)
+            col_t1.metric("⏱️ Tempo médio por CPF", fgts_formatar_tempo(tempo_medio) if tempo_medio else "Calculando...")
+            if tempo_medio and total > processados:
+                n_cred_ativa = max(len(cred_usadas_txt.split(",")), 1) if cred_usadas_txt else 1
+                restante_estimado = (tempo_medio * (total - processados)) / n_cred_ativa
+                col_t2.metric("⏳ Estimativa restante", fgts_formatar_tempo(restante_estimado))
+            else:
+                col_t2.metric("⏳ Estimativa restante", "—")
+            tempo_decorrido = None
+            if rodada_ativa.get("iniciado_em"):
+                try:
+                    inicio_dt = pd.to_datetime(rodada_ativa.get("iniciado_em"))
+                    tempo_decorrido = (pd.Timestamp.now() - inicio_dt).total_seconds()
+                except Exception:
+                    pass
+            col_t3.metric("🕐 Tempo decorrido", fgts_formatar_tempo(tempo_decorrido) if tempo_decorrido else "—")
 
             col_r1, col_r2, col_r3 = st.columns([2,1,1])
             with col_r1:
@@ -2383,7 +2725,7 @@ else:
                     if flag is not None:
                         flag["parar"] = "pausar"
                     supabase.table("fgts_rodadas").update({"status": "pausando"}).eq("id", rid).execute()
-                    st.info("Pausa solicitada — vai parar após o CPF atual e liberar a exportação do parcial.")
+                    st.info("Pausa solicitada — vai parar após o(s) CPF(s) atual(is) e liberar a exportação do parcial.")
                     time.sleep(1)
                     st.rerun()
             with col_r3:
@@ -2413,6 +2755,8 @@ else:
             st.markdown("### ⏸️ Rodadas pausadas")
             st.caption("Exporte o que já foi consultado ou retome de onde parou.")
 
+            credenciais_ativas_disponiveis = fgts_buscar_credenciais(somente_ativas=True)
+
             for rod_p in rodadas_pausadas:
                 rid_p = rod_p["id"]
                 total_p = int(rod_p.get("total_cpfs") or 0)
@@ -2422,33 +2766,50 @@ else:
                 with st.container(border=True):
                     st.markdown(f"**Rodada #{rid_p}** — pausada com {proc_p}/{total_p} CPF(s) processados ({pct_p}%)")
 
+                    resultados_parciais = fgts_buscar_resultados(rid_p)
+                    tempo_medio_p = fgts_calcular_tempo_medio(resultados_parciais)
+                    if tempo_medio_p:
+                        st.caption(f"⏱️ Tempo médio por CPF até aqui: {fgts_formatar_tempo(tempo_medio_p)}")
+
+                    if credenciais_ativas_disponiveis:
+                        nomes_cred_retomar = st.multiselect(
+                            "Credenciais para retomar (divide os CPFs restantes entre elas)",
+                            options=[c["id"] for c in credenciais_ativas_disponiveis],
+                            default=[credenciais_ativas_disponiveis[0]["id"]],
+                            format_func=lambda cid: next((c["apelido"] for c in credenciais_ativas_disponiveis if c["id"]==cid), str(cid)),
+                            key=f"cred_retomar_{rid_p}"
+                        )
+                    else:
+                        nomes_cred_retomar = []
+                        st.warning("Nenhuma credencial ativa cadastrada. Cadastre uma acima para poder retomar.")
+
                     col_p1, col_p2 = st.columns(2)
                     with col_p1:
-                        if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_{rid_p}"):
+                        if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_{rid_p}", disabled=(len(nomes_cred_retomar)==0)):
                             cpfs_lista_str = rod_p.get("cpfs_lista") or ""
                             cpfs_originais = [c for c in cpfs_lista_str.split(",") if c]
 
                             if not cpfs_originais:
                                 st.error("Não encontrei a lista original de CPFs desta rodada para retomar.")
                             else:
+                                credenciais_selecionadas = [c for c in credenciais_ativas_disponiveis if c["id"] in nomes_cred_retomar]
+
                                 flag = {"parar": False}
                                 st.session_state.fgts_flags[rid_p] = flag
 
-                                supabase.table("fgts_rodadas").update({"status": "em_andamento"}).eq("id", rid_p).execute()
+                                supabase.table("fgts_rodadas").update({
+                                    "status": "em_andamento",
+                                    "credenciais_usadas": ", ".join(c["apelido"] for c in credenciais_selecionadas),
+                                    "ultimo_processamento_em": str(datetime.now()),
+                                }).eq("id", rid_p).execute()
 
-                                thread = threading.Thread(
-                                    target=fgts_rodar_em_background,
-                                    args=(cpfs_originais, rid_p, flag),
-                                    daemon=True
-                                )
-                                thread.start()
+                                fgts_iniciar_threads(cpfs_originais, rid_p, credenciais_selecionadas, flag)
 
-                                st.success(f"Rodada #{rid_p} retomada! Continuando de onde parou.")
+                                st.success(f"Rodada #{rid_p} retomada com {len(credenciais_selecionadas)} credencial(is)!")
                                 time.sleep(1)
                                 st.rerun()
 
                     with col_p2:
-                        resultados_parciais = fgts_buscar_resultados(rid_p)
                         if resultados_parciais:
                             st.caption(f"{len(resultados_parciais)} resultado(s) disponível(eis) para exportar abaixo ⬇️")
                         else:
@@ -2467,70 +2828,83 @@ else:
         if not rodada_ativa and (not rodadas_pausadas or st.session_state.get("fgts_forcar_nova")):
             st.markdown("### ▶️ Nova consulta")
 
-            modo_entrada = st.radio("Como deseja informar os CPFs?", ["Colar lista de CPFs", "Subir arquivo .csv"], horizontal=True, key="fgts_modo_entrada")
+            credenciais_ativas = fgts_buscar_credenciais(somente_ativas=True)
 
-            cpfs_para_processar = []
-
-            if modo_entrada == "Colar lista de CPFs":
-                texto_cpfs = st.text_area("Cole os CPFs (um por linha)", height=180, placeholder="12345678900\n98765432100\n...", key="fgts_texto_cpfs")
-                if texto_cpfs.strip():
-                    linhas = [l.strip() for l in texto_cpfs.splitlines() if l.strip()]
-                    for l in linhas:
-                        c = limpar_documento(l)
-                        if len(c) == 11:
-                            cpfs_para_processar.append(c)
+            if not credenciais_ativas:
+                st.warning("⚠️ Cadastre pelo menos uma credencial V8 ativa (acima, em 'Gerenciar credenciais V8') antes de iniciar uma consulta.")
             else:
-                arquivo_csv = st.file_uploader("Selecione o arquivo .csv com os CPFs", type=["csv"], key="fgts_upload_csv")
-                if arquivo_csv is not None:
+                credenciais_escolhidas_ids = st.multiselect(
+                    "Quais credenciais usar nesta rodada? (cada uma processa uma fatia dos CPFs, em paralelo)",
+                    options=[c["id"] for c in credenciais_ativas],
+                    default=[credenciais_ativas[0]["id"]],
+                    format_func=lambda cid: next((c["apelido"] for c in credenciais_ativas if c["id"]==cid), str(cid)),
+                    key="fgts_cred_nova_rodada"
+                )
+
+                modo_entrada = st.radio("Como deseja informar os CPFs?", ["Colar lista de CPFs", "Subir arquivo .csv"], horizontal=True, key="fgts_modo_entrada")
+
+                cpfs_para_processar = []
+
+                if modo_entrada == "Colar lista de CPFs":
+                    texto_cpfs = st.text_area("Cole os CPFs (um por linha)", height=180, placeholder="12345678900\n98765432100\n...", key="fgts_texto_cpfs")
+                    if texto_cpfs.strip():
+                        linhas = [l.strip() for l in texto_cpfs.splitlines() if l.strip()]
+                        for l in linhas:
+                            c = limpar_documento(l)
+                            if len(c) == 11:
+                                cpfs_para_processar.append(c)
+                else:
+                    arquivo_csv = st.file_uploader("Selecione o arquivo .csv com os CPFs", type=["csv"], key="fgts_upload_csv")
+                    if arquivo_csv is not None:
+                        try:
+                            df_up = pd.read_csv(arquivo_csv, dtype=str)
+                            coluna_cpf = None
+                            for nome_col in ["cpf","CPF","documentNumber","documento","Documento"]:
+                                if nome_col in df_up.columns:
+                                    coluna_cpf = nome_col
+                                    break
+                            if coluna_cpf is None:
+                                st.error(f"Não encontrei coluna de CPF no arquivo. Colunas disponíveis: {list(df_up.columns)}")
+                            else:
+                                for v in df_up[coluna_cpf].dropna():
+                                    c = limpar_documento(v)
+                                    if len(c) == 11:
+                                        cpfs_para_processar.append(c)
+                        except Exception as e:
+                            st.error(f"Erro ao ler o arquivo: {e}")
+
+                cpfs_para_processar = list(dict.fromkeys(cpfs_para_processar))  # remove duplicados mantendo ordem
+
+                if cpfs_para_processar:
+                    n_sel = max(len(credenciais_escolhidas_ids), 1)
+                    st.success(f"✅ {len(cpfs_para_processar)} CPF(s) válido(s) detectado(s) — serão divididos entre {n_sel} credencial(is).")
+
+                if st.button("🚀 Iniciar Consulta", use_container_width=True, disabled=(len(cpfs_para_processar)==0 or len(credenciais_escolhidas_ids)==0)):
                     try:
-                        df_up = pd.read_csv(arquivo_csv, dtype=str)
-                        coluna_cpf = None
-                        for nome_col in ["cpf","CPF","documentNumber","documento","Documento"]:
-                            if nome_col in df_up.columns:
-                                coluna_cpf = nome_col
-                                break
-                        if coluna_cpf is None:
-                            st.error(f"Não encontrei coluna de CPF no arquivo. Colunas disponíveis: {list(df_up.columns)}")
-                        else:
-                            for v in df_up[coluna_cpf].dropna():
-                                c = limpar_documento(v)
-                                if len(c) == 11:
-                                    cpfs_para_processar.append(c)
+                        credenciais_selecionadas = [c for c in credenciais_ativas if c["id"] in credenciais_escolhidas_ids]
+
+                        nova_rodada = supabase.table("fgts_rodadas").insert({
+                            "total_cpfs": len(cpfs_para_processar),
+                            "processados": 0,
+                            "status": "em_andamento",
+                            "usuario": st.session_state.get("nome", st.session_state.get("usuario","")),
+                            "cpfs_lista": ",".join(cpfs_para_processar),
+                            "credenciais_usadas": ", ".join(c["apelido"] for c in credenciais_selecionadas),
+                            "ultimo_processamento_em": str(datetime.now()),
+                        }).execute()
+                        rodada_id_nova = nova_rodada.data[0]["id"]
+
+                        flag = {"parar": False}
+                        st.session_state.fgts_flags[rodada_id_nova] = flag
+
+                        fgts_iniciar_threads(cpfs_para_processar, rodada_id_nova, credenciais_selecionadas, flag)
+
+                        st.session_state["fgts_forcar_nova"] = False
+                        st.success(f"Rodada #{rodada_id_nova} iniciada! Processando {len(cpfs_para_processar)} CPF(s) com {len(credenciais_selecionadas)} credencial(is) em paralelo.")
+                        time.sleep(1)
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"Erro ao ler o arquivo: {e}")
-
-            cpfs_para_processar = list(dict.fromkeys(cpfs_para_processar))  # remove duplicados mantendo ordem
-
-            if cpfs_para_processar:
-                st.success(f"✅ {len(cpfs_para_processar)} CPF(s) válido(s) detectado(s) e prontos para consulta.")
-
-            if st.button("🚀 Iniciar Consulta", use_container_width=True, disabled=(len(cpfs_para_processar)==0)):
-                try:
-                    nova_rodada = supabase.table("fgts_rodadas").insert({
-                        "total_cpfs": len(cpfs_para_processar),
-                        "processados": 0,
-                        "status": "em_andamento",
-                        "usuario": st.session_state.get("nome", st.session_state.get("usuario","")),
-                        "cpfs_lista": ",".join(cpfs_para_processar),
-                    }).execute()
-                    rodada_id_nova = nova_rodada.data[0]["id"]
-
-                    flag = {"parar": False}
-                    st.session_state.fgts_flags[rodada_id_nova] = flag
-
-                    thread = threading.Thread(
-                        target=fgts_rodar_em_background,
-                        args=(cpfs_para_processar, rodada_id_nova, flag),
-                        daemon=True
-                    )
-                    thread.start()
-
-                    st.session_state["fgts_forcar_nova"] = False
-                    st.success(f"Rodada #{rodada_id_nova} iniciada! Processando {len(cpfs_para_processar)} CPF(s) em segundo plano.")
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Erro ao iniciar rodada: {e}")
+                        st.error(f"Erro ao iniciar rodada: {e}")
 
         st.divider()
 
@@ -2559,17 +2933,26 @@ else:
                 proc_r = int(rod.get("processados") or 0)
                 iniciado = str(rod.get("iniciado_em",""))[:16]
                 finalizado = str(rod.get("finalizado_em") or "")[:16]
+                tempo_total_r = rod.get("tempo_total_segundos")
 
                 with st.expander(f"Rodada #{rid} — {iniciado} — {proc_r}/{total_r} CPF(s) — {label_status}"):
                     st.markdown(f'''<span style="background:{bg_status};color:{txt_status};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status}</span>''', unsafe_allow_html=True)
                     st.caption(f"Iniciada em: {iniciado}" + (f" | Finalizada em: {finalizado}" if finalizado else ""))
-                    st.caption(f"Usuário: {rod.get('usuario','')}")
+                    st.caption(f"Usuário: {rod.get('usuario','')}" + (f" | Credenciais: {rod.get('credenciais_usadas','')}" if rod.get('credenciais_usadas') else ""))
 
                     resultados_rod = fgts_buscar_resultados(rid)
 
                     if not resultados_rod:
                         st.info("Nenhum resultado registrado ainda para esta rodada.")
                     else:
+                        tempo_medio_hist = fgts_calcular_tempo_medio(resultados_rod)
+                        col_h1, col_h2 = st.columns(2)
+                        col_h1.metric("⏱️ Tempo médio por CPF", fgts_formatar_tempo(tempo_medio_hist) if tempo_medio_hist else "—")
+                        if tempo_total_r:
+                            col_h2.metric("🏁 Tempo total da rodada", fgts_formatar_tempo(tempo_total_r))
+                        else:
+                            col_h2.metric("🏁 Tempo total da rodada", "—")
+
                         df_res = pd.DataFrame(resultados_rod)
 
                         mapa_status_label = {
@@ -2587,12 +2970,12 @@ else:
                         for i, (lbl, qtd) in enumerate(contagem.items()):
                             cols_resumo[i % len(cols_resumo)].metric(lbl, qtd)
 
-                        colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","processado_em"]
+                        colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","tempo_segundos","processado_em"]
                         colunas_exibir = [c for c in colunas_exibir if c in df_res.columns]
                         df_visao_fgts = df_res[colunas_exibir].rename(columns={
                             "cpf":"CPF","provider":"Provider","status_label":"Status",
                             "saldo_disponivel":"Saldo disponível","periodos":"Períodos",
-                            "observacao":"Observação","processado_em":"Processado em"
+                            "observacao":"Observação","tempo_segundos":"Tempo (s)","processado_em":"Processado em"
                         })
                         st.dataframe(df_visao_fgts, use_container_width=True, hide_index=True)
 
