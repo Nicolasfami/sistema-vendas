@@ -71,6 +71,13 @@ class ResultadoFinalNegocioFGTS(Exception):
         super().__init__(motivo)
 
 
+class AutenticacaoEmEsperaSeguranca(Exception):
+    """Levantada quando o app está respeitando o intervalo de segurança
+    pós-falha (NÃO chegou a testar a senha de novo) — diferente de uma
+    falha real de autenticação retornada pela V8."""
+    pass
+
+
 def v8_obter_token(username, password, forcar_novo=False):
     agora = time.time()
 
@@ -82,7 +89,10 @@ def v8_obter_token(username, password, forcar_novo=False):
 
         ultima_falha = _v8_ultima_falha_auth.get(username, 0)
         if agora - ultima_falha < _V8_INTERVALO_MINIMO_FALHA:
-            raise RuntimeError(f"Autenticação V8 ({username}) falhou recentemente. Aguardando intervalo de segurança.")
+            segundos_restantes = round(_V8_INTERVALO_MINIMO_FALHA - (agora - ultima_falha))
+            raise AutenticacaoEmEsperaSeguranca(
+                f"Aguardando {segundos_restantes}s de intervalo de segurança antes de tentar de novo (não testou a senha ainda)."
+            )
 
     payload = {
         "grant_type": "password",
@@ -467,10 +477,26 @@ def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag
     encerramos só esta thread, sem afetar as demais credenciais que
     continuam processando sua própria fatia normalmente.
     """
-    try:
-        v8_obter_token(username, password)
-    except Exception as e:
-        fgts_registrar_erro_credencial(rodada_id, username, apelido or username, detalhe=str(e))
+    # Tenta autenticar; se cair no intervalo de segurança (não testou a
+    # senha de verdade ainda), espera o tempo necessário e tenta de novo
+    # — isso evita o "loop" onde tentativas repetidas rápidas nunca chegam
+    # a testar a credencial de fato, ficando preso em falso erro.
+    autenticado = False
+    for _tentativa_auth in range(3):
+        try:
+            v8_obter_token(username, password)
+            autenticado = True
+            break
+        except AutenticacaoEmEsperaSeguranca:
+            time.sleep(_V8_INTERVALO_MINIMO_FALHA + 1)
+            continue
+        except Exception as e:
+            fgts_registrar_erro_credencial(rodada_id, username, apelido or username, detalhe=str(e))
+            fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral, motivo_individual="erro_autenticacao")
+            return
+
+    if not autenticado:
+        fgts_registrar_erro_credencial(rodada_id, username, apelido or username, detalhe="Não foi possível autenticar após aguardar o intervalo de segurança 3 vezes.")
         fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral, motivo_individual="erro_autenticacao")
         return
 
