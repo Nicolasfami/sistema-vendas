@@ -439,16 +439,38 @@ def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password
         raise resultado_pronto["excecao"]
 
 
-def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag, inicio_geral):
+def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_erro):
+    """Registra, na rodada, que UMA credencial específica caiu em erro de
+    autenticação — sem afetar as outras credenciais que continuam ativas."""
+    try:
+        res = supabase.table("fgts_rodadas").select("credenciais_com_erro").eq("id", rodada_id).execute()
+        atual = (res.data[0].get("credenciais_com_erro") or "") if res.data else ""
+        lista_atual = [c for c in atual.split(",") if c]
+        if apelido_com_erro not in lista_atual:
+            lista_atual.append(apelido_com_erro)
+        supabase.table("fgts_rodadas").update({
+            "credenciais_com_erro": ",".join(lista_atual)
+        }).eq("id", rodada_id).execute()
+    except Exception:
+        pass
+
+
+def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag, inicio_geral, apelido=""):
     """
     Processa uma FATIA da lista de CPFs usando UMA credencial específica.
     Várias dessas threads rodam em paralelo (uma por credencial ativa),
     cada uma autenticando e consultando de forma independente.
+
+    Se ESTA credencial específica falhar no login (ex: bloqueada, senha
+    mudou), apenas ELA para — registramos o problema nominalmente e
+    encerramos só esta thread, sem afetar as demais credenciais que
+    continuam processando sua própria fatia normalmente.
     """
     try:
         v8_obter_token(username, password)
     except Exception:
-        fgts_finalizar_thread(rodada_id, status_se_ultima="erro_autenticacao", inicio_geral=inicio_geral)
+        fgts_registrar_erro_credencial(rodada_id, username, apelido or username)
+        fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral, motivo_individual="erro_autenticacao")
         return
 
     ja_processados = fgts_cpfs_ja_processados(rodada_id)
@@ -482,13 +504,33 @@ def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag
     fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral)
 
 
-def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral):
+# Guarda, por rodada, qual foi o motivo de finalização "mais forte" entre
+# todas as threads (pausar/cancelar têm prioridade sobre concluir, porque
+# representam uma decisão explícita do usuário).
+_fgts_motivo_final = {}
+_fgts_motivo_lock = threading.Lock()
+
+_PRIORIDADE_STATUS = {"pausada": 3, "cancelada": 3, "erro_autenticacao": 2, "concluida": 1}
+
+
+def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral, motivo_individual=None):
     """
     Chamado quando UMA thread de credencial termina sua fatia (por concluir,
-    pausar ou cancelar). Só a ÚLTIMA thread viva da rodada efetivamente
-    atualiza o status final da rodada inteira — as outras só decrementam
-    o contador de threads ativas.
+    pausar, cancelar, ou — via motivo_individual — por erro de autenticação
+    isolado daquela credencial). Só a ÚLTIMA thread viva da rodada
+    efetivamente atualiza o status final da rodada inteira, usando o
+    status de MAIOR prioridade entre todas as threads que já terminaram
+    (pausar/cancelar > erro de autenticação > concluída), para que o erro
+    de uma única credencial não seja perdido nem trave indevidamente as
+    demais.
     """
+    status_para_registrar = motivo_individual or status_se_ultima
+
+    with _fgts_motivo_lock:
+        atual = _fgts_motivo_final.get(rodada_id)
+        if atual is None or _PRIORIDADE_STATUS.get(status_para_registrar, 0) > _PRIORIDADE_STATUS.get(atual, 0):
+            _fgts_motivo_final[rodada_id] = status_para_registrar
+
     with _fgts_threads_lock:
         _fgts_threads_ativas[rodada_id] = _fgts_threads_ativas.get(rodada_id, 1) - 1
         restantes = _fgts_threads_ativas[rodada_id]
@@ -496,10 +538,27 @@ def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral):
     if restantes > 0:
         return  # ainda existem outras credenciais processando
 
-    # Esta foi a última thread viva desta rodada: fecha a rodada de fato.
+    # Esta foi a última thread viva desta rodada: fecha a rodada de fato,
+    # usando o status de maior prioridade observado entre todas as threads.
+    with _fgts_motivo_lock:
+        status_final_real = _fgts_motivo_final.pop(rodada_id, status_se_ultima)
+
+    # "erro_autenticacao" só vira o status FINAL da rodada se TODAS as
+    # credenciais tiverem falhado (nenhuma concluiu nada) — caso contrário,
+    # a rodada é tratada como concluída (ainda que com aquela credencial
+    # registrada em credenciais_com_erro para o usuário saber e corrigir).
+    if status_final_real == "erro_autenticacao":
+        try:
+            res_check = supabase.table("fgts_resultados").select("id").eq("rodada_id", rodada_id).limit(1).execute()
+            teve_algum_resultado = bool(res_check.data)
+        except Exception:
+            teve_algum_resultado = False
+        if teve_algum_resultado:
+            status_final_real = "concluida"
+
     tempo_total = round(time.time() - inicio_geral, 1)
-    update_dados = {"status": status_se_ultima, "tempo_total_segundos": tempo_total}
-    if status_se_ultima in ("concluida", "cancelada"):
+    update_dados = {"status": status_final_real, "tempo_total_segundos": tempo_total}
+    if status_final_real in ("concluida", "cancelada"):
         update_dados["finalizado_em"] = str(datetime.now())
     supabase.table("fgts_rodadas").update(update_dados).eq("id", rodada_id).execute()
 
@@ -526,7 +585,7 @@ def fgts_iniciar_threads(cpfs, rodada_id, credenciais, parar_flag):
             continue
         thread = threading.Thread(
             target=fgts_thread_credencial,
-            args=(fatia, rodada_id, cred["username"], cred["password"], parar_flag, inicio_geral),
+            args=(fatia, rodada_id, cred["username"], cred["password"], parar_flag, inicio_geral, cred.get("apelido", cred["username"])),
             daemon=True
         )
         thread.start()
@@ -2694,6 +2753,10 @@ else:
             if cred_usadas_txt:
                 st.caption(f"🔑 Processando em paralelo com: {cred_usadas_txt}")
 
+            cred_com_erro_txt = rodada_ativa.get("credenciais_com_erro") or ""
+            if cred_com_erro_txt:
+                st.error(f"⚠️ Credencial(is) com erro de autenticação nesta rodada: {cred_com_erro_txt}. As demais credenciais continuam processando normalmente — corrija/troque essa credencial e retome depois para reaproveitar a fatia dela.")
+
             st.progress(min(pct,100)/100, text=f"{processados} de {total} — {pct}%")
 
             resultados_atuais = fgts_buscar_resultados(rid)
@@ -2944,6 +3007,8 @@ else:
                     st.markdown(f'''<span style="background:{bg_status};color:{txt_status};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status}</span>''', unsafe_allow_html=True)
                     st.caption(f"Iniciada em: {iniciado}" + (f" | Finalizada em: {finalizado}" if finalizado else ""))
                     st.caption(f"Usuário: {rod.get('usuario','')}" + (f" | Credenciais: {rod.get('credenciais_usadas','')}" if rod.get('credenciais_usadas') else ""))
+                    if rod.get("credenciais_com_erro"):
+                        st.warning(f"⚠️ Credencial(is) que tiveram erro de autenticação durante esta rodada: {rod.get('credenciais_com_erro')}")
 
                     resultados_rod = fgts_buscar_resultados(rid)
 
