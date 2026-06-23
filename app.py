@@ -9,6 +9,8 @@ import re
 from pathlib import Path
 import io
 import math
+import time
+import threading
 
 st.set_page_config(page_title="OPERAX SALES", layout="wide", page_icon="🌀")
 
@@ -35,6 +37,330 @@ SUPABASE_KEY = "sb_publishable_aATPGJyG-Q8KuLLflByr8w_nrHxt0mt"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 RAILWAY_URL = "https://operax-whatsapp-production.up.railway.app"
+
+# ============================================================
+# CONSULTA FGTS - CONFIGURAÇÃO V8 DIGITAL
+# ============================================================
+V8_USERNAME = "tamarakarla@gmail.com"
+V8_PASSWORD = "Aryaaastark@@2026"
+V8_CLIENT_ID = "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"
+V8_AUDIENCE = "https://bff.v8sistema.com"
+V8_AUTH_URL = "https://auth.v8sistema.com/oauth/token"
+V8_BASE_URL = "https://bff.v8sistema.com"
+V8_PROVIDER = "bms"
+
+SEGUNDOS_ENTRE_TENTATIVAS_POLL = 15
+MAX_TENTATIVAS_POLL = 20
+SEGUNDOS_ENTRE_TENTATIVAS_POST = 1
+
+_v8_token_cache = {"access_token": None, "obtained_at": 0, "expires_in": 0}
+_v8_ultima_falha_auth = {"timestamp": 0}
+_V8_INTERVALO_MINIMO_FALHA = 30
+
+ROTULOS_OBSERVACAO_FGTS = {
+    "nao_autorizado": "Não autorizado pelo cliente",
+    "saldo_insuficiente": "Saldo insuficiente (parcelas < R$100,00)",
+    "operacao_em_andamento": "Operação fiduciária em andamento (tentar mais tarde)",
+}
+
+
+class ResultadoFinalNegocioFGTS(Exception):
+    def __init__(self, motivo):
+        self.motivo = motivo
+        super().__init__(motivo)
+
+
+def v8_obter_token(forcar_novo=False):
+    agora = time.time()
+
+    if not forcar_novo and _v8_token_cache["access_token"]:
+        if agora - _v8_token_cache["obtained_at"] < _v8_token_cache["expires_in"] - 60:
+            return _v8_token_cache["access_token"]
+
+    if agora - _v8_ultima_falha_auth["timestamp"] < _V8_INTERVALO_MINIMO_FALHA:
+        raise RuntimeError("Autenticação V8 falhou recentemente. Aguardando intervalo de segurança.")
+
+    payload = {
+        "grant_type": "password",
+        "username": V8_USERNAME,
+        "password": V8_PASSWORD,
+        "audience": V8_AUDIENCE,
+        "scope": "offline_access",
+        "client_id": V8_CLIENT_ID,
+    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    resp = _req.post(V8_AUTH_URL, data=payload, headers=headers, timeout=30)
+
+    if resp.status_code != 200:
+        _v8_ultima_falha_auth["timestamp"] = agora
+        raise RuntimeError(f"Falha na autenticação V8 (HTTP {resp.status_code}): {resp.text}")
+
+    data = resp.json()
+    _v8_token_cache["access_token"] = data["access_token"]
+    _v8_token_cache["obtained_at"] = agora
+    _v8_token_cache["expires_in"] = data.get("expires_in", 86400)
+    return _v8_token_cache["access_token"]
+
+
+def v8_headers():
+    return {"Authorization": f"Bearer {v8_obter_token()}", "Content-Type": "application/json"}
+
+
+def v8_classificar_mensagem_negocio(texto_resposta):
+    if not texto_resposta:
+        return None
+    texto_lower = texto_resposta.lower()
+    if any(t in texto_lower for t in [
+        "não autoriza", "nao autoriza", "não possui autorização",
+        "nao possui autorizacao", "não autorizado", "nao autorizado",
+    ]):
+        return "nao_autorizado"
+    if "saldo insuficiente" in texto_lower:
+        return "saldo_insuficiente"
+    if v8_eh_operacao_em_andamento(texto_resposta):
+        return "operacao_em_andamento"
+    return None
+
+
+def v8_eh_tente_novamente(texto_resposta):
+    if not texto_resposta:
+        return False
+    return "tente novamente" in texto_resposta.lower()
+
+
+def v8_eh_operacao_em_andamento(texto_resposta):
+    if not texto_resposta:
+        return False
+    texto_lower = texto_resposta.lower()
+    return "operação fiduciária em andamento" in texto_lower or "operacao fiduciaria em andamento" in texto_lower
+
+
+def v8_iniciar_consulta_saldo(document_number, provider, parar_flag=None):
+    url = f"{V8_BASE_URL}/fgts/balance"
+    payload = {"documentNumber": document_number, "provider": provider.lower()}
+
+    while True:
+        if parar_flag is not None and parar_flag.get("parar"):
+            raise RuntimeError("Rodada cancelada pelo usuário.")
+
+        resp = _req.post(url, json=payload, headers=v8_headers(), timeout=30)
+
+        if resp.status_code == 401:
+            resp = _req.post(url, json=payload, headers={
+                "Authorization": f"Bearer {v8_obter_token(forcar_novo=True)}",
+                "Content-Type": "application/json",
+            }, timeout=30)
+
+        if resp.status_code in (200, 201, 202, 204):
+            return resp.text
+
+        detalhe = resp.text
+        try:
+            detalhe = resp.json().get("detail", resp.text)
+        except Exception:
+            pass
+
+        motivo_negocio = v8_classificar_mensagem_negocio(detalhe)
+        if motivo_negocio:
+            raise ResultadoFinalNegocioFGTS(detalhe)
+
+        if v8_eh_tente_novamente(detalhe):
+            time.sleep(SEGUNDOS_ENTRE_TENTATIVAS_POST)
+            continue
+
+        raise RuntimeError(f"Erro ao iniciar consulta (HTTP {resp.status_code}): {resp.text}")
+
+
+def v8_consultar_resultado_saldo(document_number, provider=None):
+    url = f"{V8_BASE_URL}/fgts/balance"
+    params = {"search": document_number}
+    resp = _req.get(url, params=params, headers=v8_headers(), timeout=30)
+
+    if resp.status_code == 401:
+        resp = _req.get(url, params=params, headers={
+            "Authorization": f"Bearer {v8_obter_token(forcar_novo=True)}",
+            "Content-Type": "application/json",
+        }, timeout=30)
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"Erro ao consultar resultado (HTTP {resp.status_code}): {resp.text}")
+
+    data = resp.json()
+    registros = data.get("data", [])
+    if not registros:
+        return None
+
+    if provider is None:
+        return registros[0]
+
+    candidatos = [r for r in registros if str(r.get("provider", "")).lower() == provider.lower()]
+    if not candidatos:
+        return None
+    candidatos.sort(key=lambda r: r.get("updatedAt", ""), reverse=True)
+    return candidatos[0]
+
+
+def v8_aguardar_resultado_saldo(document_number, provider, parar_flag=None):
+    tentativas_sem_registro = 0
+
+    while tentativas_sem_registro < MAX_TENTATIVAS_POLL:
+        if parar_flag is not None and parar_flag.get("parar"):
+            raise RuntimeError("Rodada cancelada pelo usuário.")
+
+        registro = v8_consultar_resultado_saldo(document_number, provider=provider)
+
+        if registro and registro.get("status") == "success":
+            return registro
+
+        if registro and registro.get("status") == "fail":
+            mensagem = registro.get("statusInfo")
+            if v8_eh_tente_novamente(mensagem):
+                time.sleep(SEGUNDOS_ENTRE_TENTATIVAS_POST)
+                continue
+            registro["_motivo_negocio"] = v8_classificar_mensagem_negocio(mensagem)
+            return registro
+
+        tentativas_sem_registro += 1
+        time.sleep(SEGUNDOS_ENTRE_TENTATIVAS_POLL)
+
+    return None
+
+
+def v8_formatar_periodos(periods):
+    if not periods:
+        return ""
+    return "; ".join(f"{p.get('dueDate')}: R$ {p.get('amount')}" for p in periods)
+
+
+def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
+    """Processa um único CPF e grava o resultado na tabela fgts_resultados."""
+    try:
+        v8_iniciar_consulta_saldo(cpf, provider, parar_flag=parar_flag)
+    except ResultadoFinalNegocioFGTS as e:
+        motivo_rotulo = v8_classificar_mensagem_negocio(e.motivo) or "erro_tecnico"
+        supabase.table("fgts_resultados").insert({
+            "rodada_id": rodada_id,
+            "cpf": cpf,
+            "provider": provider,
+            "status": motivo_rotulo,
+            "saldo_disponivel": "",
+            "periodos": "",
+            "observacao": ROTULOS_OBSERVACAO_FGTS.get(motivo_rotulo, e.motivo or ""),
+        }).execute()
+        return
+    except Exception as e:
+        if "cancelada pelo usuário" in str(e):
+            raise
+        supabase.table("fgts_resultados").insert({
+            "rodada_id": rodada_id,
+            "cpf": cpf,
+            "provider": provider,
+            "status": "erro_tecnico",
+            "saldo_disponivel": "",
+            "periodos": "",
+            "observacao": f"Erro técnico no POST: {e}",
+        }).execute()
+        return
+
+    registro = v8_aguardar_resultado_saldo(cpf, provider, parar_flag=parar_flag)
+
+    if registro is None:
+        supabase.table("fgts_resultados").insert({
+            "rodada_id": rodada_id,
+            "cpf": cpf,
+            "provider": provider,
+            "status": "erro_tecnico",
+            "saldo_disponivel": "",
+            "periodos": "",
+            "observacao": "Tempo de espera esgotado sem retorno da V8.",
+        }).execute()
+        return
+
+    status = registro.get("status")
+    mensagem_status = registro.get("statusInfo")
+
+    if status == "fail":
+        motivo_rotulo = registro.get("_motivo_negocio")
+        if motivo_rotulo:
+            supabase.table("fgts_resultados").insert({
+                "rodada_id": rodada_id,
+                "cpf": cpf,
+                "provider": provider,
+                "status": motivo_rotulo,
+                "saldo_disponivel": "",
+                "periodos": "",
+                "observacao": ROTULOS_OBSERVACAO_FGTS.get(motivo_rotulo, mensagem_status or ""),
+                "id_consulta": str(registro.get("id") or ""),
+                "criado_em_v8": str(registro.get("createdAt") or ""),
+                "atualizado_em_v8": str(registro.get("updatedAt") or ""),
+            }).execute()
+        else:
+            supabase.table("fgts_resultados").insert({
+                "rodada_id": rodada_id,
+                "cpf": cpf,
+                "provider": provider,
+                "status": "erro_tecnico",
+                "saldo_disponivel": "",
+                "periodos": "",
+                "observacao": mensagem_status or "Falha na consulta (sem detalhe).",
+            }).execute()
+        return
+
+    # status == success
+    supabase.table("fgts_resultados").insert({
+        "rodada_id": rodada_id,
+        "cpf": cpf,
+        "provider": registro.get("provider"),
+        "status": "success",
+        "saldo_disponivel": str(registro.get("amount") or ""),
+        "periodos": v8_formatar_periodos(registro.get("periods")),
+        "observacao": "",
+        "id_consulta": str(registro.get("id") or ""),
+        "criado_em_v8": str(registro.get("createdAt") or ""),
+        "atualizado_em_v8": str(registro.get("updatedAt") or ""),
+    }).execute()
+
+
+def fgts_rodar_em_background(cpfs, rodada_id, parar_flag):
+    """Roda em thread separada: testa autenticação 1x, depois processa cada CPF."""
+    try:
+        v8_obter_token()
+    except Exception as e:
+        supabase.table("fgts_rodadas").update({
+            "status": "erro_autenticacao",
+            "finalizado_em": str(datetime.now()),
+        }).eq("id", rodada_id).execute()
+        return
+
+    for cpf in cpfs:
+        if parar_flag.get("parar"):
+            supabase.table("fgts_rodadas").update({
+                "status": "cancelada",
+                "finalizado_em": str(datetime.now()),
+            }).eq("id", rodada_id).execute()
+            return
+        try:
+            fgts_processar_cpf(cpf, V8_PROVIDER, rodada_id, parar_flag=parar_flag)
+        except Exception as e:
+            if "cancelada pelo usuário" in str(e):
+                supabase.table("fgts_rodadas").update({
+                    "status": "cancelada",
+                    "finalizado_em": str(datetime.now()),
+                }).eq("id", rodada_id).execute()
+                return
+        try:
+            res_atual = supabase.table("fgts_rodadas").select("processados").eq("id", rodada_id).execute()
+            processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
+            supabase.table("fgts_rodadas").update({
+                "processados": processados_atual + 1
+            }).eq("id", rodada_id).execute()
+        except Exception:
+            pass
+
+    supabase.table("fgts_rodadas").update({
+        "status": "concluida",
+        "finalizado_em": str(datetime.now()),
+    }).eq("id", rodada_id).execute()
 
 st.markdown("""
 <style>
@@ -528,6 +854,7 @@ def icone_svg(nome):
         "metas": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>""",
         "custos": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9h18M3 15h18M9 3v18M15 3v18M3 3h18v18H3z"/></svg>""",
         "chat_wp": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>""",
+        "fgts": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>""",
     }
     return icones.get(nome,"")
 
@@ -545,6 +872,7 @@ def menu_lateral_v8():
             ("👥 Usuarios", "usuarios", "Gestao"),
             ("💰 Comissoes", "comissoes", "Gestao"),
             ("🏢 Custos", "custos", "Gestao"),
+            ("📑 Consulta FGTS", "fgts", "Gestao"),
         ]
     else:
         opcoes = [
@@ -572,7 +900,7 @@ def menu_lateral_v8():
     for nome, icone_nome, grupo in opcoes:
         nome_limpo = (nome.replace("📋 ","").replace("📊 ","").replace("👥 ","")
                       .replace("💰 ","").replace("🏆 ","").replace("🎯 ","")
-                      .replace("🏢 ","").replace("💬 ",""))
+                      .replace("🏢 ","").replace("💬 ","").replace("📑 ",""))
         if grupo != grupo_atual:
             st.sidebar.markdown(f'''<div class="menu-label-v8">{grupo}</div>''', unsafe_allow_html=True)
             grupo_atual = grupo
@@ -1913,3 +2241,206 @@ else:
                 st.markdown(f'<div style="font-size:12px;color:#64748b;">Volume break-even</div><div style="font-size:20px;font-weight:800;color:#0f172a;">{dinheiro(vol_necessario)}</div><div style="font-size:12px;color:#94a3b8;">a taxa {taxa_media}%</div><div style="font-size:12px;color:#64748b;margin-top:8px;">Por vendedora (2)</div><div style="font-size:18px;font-weight:700;color:#0ea5e9;">{dinheiro(vol_necessario/2)}</div>', unsafe_allow_html=True)
             else:
                 st.info("Adicione custos para ver a distribuicao.")
+
+    elif menu == "📑 Consulta FGTS":
+        st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Consulta FGTS — Saque Aniversário</span>', unsafe_allow_html=True)
+        st.caption("Consulta o saldo de FGTS (Saque Aniversário) via API V8 Digital, provider BMS.")
+
+        # Inicializa controle de cancelamento por rodada nesta sessão
+        if "fgts_flags" not in st.session_state:
+            st.session_state.fgts_flags = {}
+
+        def fgts_buscar_rodada_em_andamento():
+            try:
+                res = supabase.table("fgts_rodadas").select("*").eq("status", "em_andamento").order("id", desc=True).limit(1).execute()
+                return res.data[0] if res.data else None
+            except Exception:
+                return None
+
+        def fgts_buscar_historico(limite=15):
+            try:
+                res = supabase.table("fgts_rodadas").select("*").order("id", desc=True).limit(limite).execute()
+                return res.data or []
+            except Exception:
+                return []
+
+        def fgts_buscar_resultados(rodada_id):
+            try:
+                res = supabase.table("fgts_resultados").select("*").eq("rodada_id", rodada_id).execute()
+                return res.data or []
+            except Exception:
+                return []
+
+        rodada_ativa = fgts_buscar_rodada_em_andamento()
+
+        # ── RODADA EM ANDAMENTO ──────────────────────────────
+        if rodada_ativa:
+            rid = rodada_ativa["id"]
+            total = int(rodada_ativa.get("total_cpfs") or 0)
+            processados = int(rodada_ativa.get("processados") or 0)
+            pct = int((processados/total*100)) if total > 0 else 0
+
+            st.info(f"⏳ Rodada #{rid} em andamento — iniciada em {str(rodada_ativa.get('iniciado_em',''))[:16]}")
+            st.progress(min(pct,100)/100, text=f"{processados} de {total} — {pct}%")
+
+            col_r1, col_r2 = st.columns([3,1])
+            with col_r1:
+                st.caption("Você pode navegar para outras abas; a consulta continua em segundo plano neste mesmo processo.")
+            with col_r2:
+                if st.button("🛑 Cancelar rodada", use_container_width=True, key=f"cancelar_{rid}"):
+                    flag = st.session_state.fgts_flags.get(rid)
+                    if flag is not None:
+                        flag["parar"] = True
+                    else:
+                        # Rodada travada de uma execução anterior (thread não existe mais nesta sessão)
+                        supabase.table("fgts_rodadas").update({
+                            "status": "cancelada",
+                            "finalizado_em": str(datetime.now())
+                        }).eq("id", rid).execute()
+                    st.warning("Cancelamento solicitado. Atualizando...")
+                    time.sleep(1)
+                    st.rerun()
+
+            if st.button("🔄 Atualizar progresso", use_container_width=True, key=f"refresh_{rid}"):
+                st.rerun()
+
+        # ── INICIAR NOVA RODADA ──────────────────────────────
+        else:
+            st.markdown("### ▶️ Nova consulta")
+
+            modo_entrada = st.radio("Como deseja informar os CPFs?", ["Colar lista de CPFs", "Subir arquivo .csv"], horizontal=True, key="fgts_modo_entrada")
+
+            cpfs_para_processar = []
+
+            if modo_entrada == "Colar lista de CPFs":
+                texto_cpfs = st.text_area("Cole os CPFs (um por linha)", height=180, placeholder="12345678900\n98765432100\n...", key="fgts_texto_cpfs")
+                if texto_cpfs.strip():
+                    linhas = [l.strip() for l in texto_cpfs.splitlines() if l.strip()]
+                    for l in linhas:
+                        c = limpar_documento(l)
+                        if len(c) == 11:
+                            cpfs_para_processar.append(c)
+            else:
+                arquivo_csv = st.file_uploader("Selecione o arquivo .csv com os CPFs", type=["csv"], key="fgts_upload_csv")
+                if arquivo_csv is not None:
+                    try:
+                        df_up = pd.read_csv(arquivo_csv, dtype=str)
+                        coluna_cpf = None
+                        for nome_col in ["cpf","CPF","documentNumber","documento","Documento"]:
+                            if nome_col in df_up.columns:
+                                coluna_cpf = nome_col
+                                break
+                        if coluna_cpf is None:
+                            st.error(f"Não encontrei coluna de CPF no arquivo. Colunas disponíveis: {list(df_up.columns)}")
+                        else:
+                            for v in df_up[coluna_cpf].dropna():
+                                c = limpar_documento(v)
+                                if len(c) == 11:
+                                    cpfs_para_processar.append(c)
+                    except Exception as e:
+                        st.error(f"Erro ao ler o arquivo: {e}")
+
+            cpfs_para_processar = list(dict.fromkeys(cpfs_para_processar))  # remove duplicados mantendo ordem
+
+            if cpfs_para_processar:
+                st.success(f"✅ {len(cpfs_para_processar)} CPF(s) válido(s) detectado(s) e prontos para consulta.")
+
+            if st.button("🚀 Iniciar Consulta", use_container_width=True, disabled=(len(cpfs_para_processar)==0)):
+                try:
+                    nova_rodada = supabase.table("fgts_rodadas").insert({
+                        "total_cpfs": len(cpfs_para_processar),
+                        "processados": 0,
+                        "status": "em_andamento",
+                        "usuario": st.session_state.get("nome", st.session_state.get("usuario","")),
+                    }).execute()
+                    rodada_id_nova = nova_rodada.data[0]["id"]
+
+                    flag = {"parar": False}
+                    st.session_state.fgts_flags[rodada_id_nova] = flag
+
+                    thread = threading.Thread(
+                        target=fgts_rodar_em_background,
+                        args=(cpfs_para_processar, rodada_id_nova, flag),
+                        daemon=True
+                    )
+                    thread.start()
+
+                    st.success(f"Rodada #{rodada_id_nova} iniciada! Processando {len(cpfs_para_processar)} CPF(s) em segundo plano.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao iniciar rodada: {e}")
+
+        st.divider()
+
+        # ── HISTÓRICO DE RODADAS ─────────────────────────────
+        st.markdown("### 🕓 Histórico de rodadas")
+        historico = fgts_buscar_historico(15)
+
+        if not historico:
+            st.info("Nenhuma rodada de consulta realizada ainda.")
+        else:
+            badges_status = {
+                "em_andamento": ("⏳ Em andamento", "#fef9c3", "#92400e"),
+                "concluida": ("✅ Concluída", "#dcfce7", "#166534"),
+                "cancelada": ("🛑 Cancelada", "#fee2e2", "#991b1b"),
+                "erro_autenticacao": ("❌ Erro de autenticação", "#fee2e2", "#991b1b"),
+            }
+
+            for rod in historico:
+                rid = rod["id"]
+                status_rod = rod.get("status","em_andamento")
+                label_status, bg_status, txt_status = badges_status.get(status_rod, (status_rod, "#f1f5f9", "#64748b"))
+                total_r = int(rod.get("total_cpfs") or 0)
+                proc_r = int(rod.get("processados") or 0)
+                iniciado = str(rod.get("iniciado_em",""))[:16]
+                finalizado = str(rod.get("finalizado_em") or "")[:16]
+
+                with st.expander(f"Rodada #{rid} — {iniciado} — {proc_r}/{total_r} CPF(s) — {label_status}"):
+                    st.markdown(f'''<span style="background:{bg_status};color:{txt_status};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status}</span>''', unsafe_allow_html=True)
+                    st.caption(f"Iniciada em: {iniciado}" + (f" | Finalizada em: {finalizado}" if finalizado else ""))
+                    st.caption(f"Usuário: {rod.get('usuario','')}")
+
+                    resultados_rod = fgts_buscar_resultados(rid)
+
+                    if not resultados_rod:
+                        st.info("Nenhum resultado registrado ainda para esta rodada.")
+                    else:
+                        df_res = pd.DataFrame(resultados_rod)
+
+                        mapa_status_label = {
+                            "success": "✅ Sucesso",
+                            "fail": "❌ Falha",
+                            "nao_autorizado": "🚫 Não autorizado",
+                            "saldo_insuficiente": "⚠️ Saldo insuficiente",
+                            "operacao_em_andamento": "🔄 Operação em andamento",
+                            "erro_tecnico": "⚠️ Erro técnico",
+                        }
+                        df_res["status_label"] = df_res["status"].map(lambda s: mapa_status_label.get(s, s))
+
+                        contagem = df_res["status_label"].value_counts()
+                        cols_resumo = st.columns(min(len(contagem), 5) or 1)
+                        for i, (lbl, qtd) in enumerate(contagem.items()):
+                            cols_resumo[i % len(cols_resumo)].metric(lbl, qtd)
+
+                        colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","processado_em"]
+                        colunas_exibir = [c for c in colunas_exibir if c in df_res.columns]
+                        df_visao_fgts = df_res[colunas_exibir].rename(columns={
+                            "cpf":"CPF","provider":"Provider","status_label":"Status",
+                            "saldo_disponivel":"Saldo disponível","periodos":"Períodos",
+                            "observacao":"Observação","processado_em":"Processado em"
+                        })
+                        st.dataframe(df_visao_fgts, use_container_width=True, hide_index=True)
+
+                        buf_fgts = io.BytesIO()
+                        with pd.ExcelWriter(buf_fgts, engine="openpyxl") as writer:
+                            df_visao_fgts.to_excel(writer, index=False, sheet_name="Resultados FGTS")
+                        buf_fgts.seek(0)
+                        st.download_button(
+                            label="📥 Exportar resultado (Excel)",
+                            data=buf_fgts,
+                            file_name=f"fgts_rodada_{rid}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True,
+                            key=f"export_fgts_{rid}"
+                        )
