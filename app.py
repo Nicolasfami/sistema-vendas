@@ -50,7 +50,7 @@ V8_BASE_URL = "https://bff.v8sistema.com"
 V8_PROVIDER = "bms"
 
 SEGUNDOS_ENTRE_TENTATIVAS_POLL = 15
-MAX_TENTATIVAS_POLL = 20
+MAX_TENTATIVAS_POLL = 4
 SEGUNDOS_ENTRE_TENTATIVAS_POST = 1
 
 _v8_token_cache = {"access_token": None, "obtained_at": 0, "expires_in": 0}
@@ -141,6 +141,8 @@ def v8_iniciar_consulta_saldo(document_number, provider, parar_flag=None):
 
     while True:
         if parar_flag is not None and parar_flag.get("parar"):
+            if parar_flag.get("parar") == "pausar":
+                raise RuntimeError("Rodada pausada pelo usuário.")
             raise RuntimeError("Rodada cancelada pelo usuário.")
 
         resp = _req.post(url, json=payload, headers=v8_headers(), timeout=30)
@@ -205,6 +207,8 @@ def v8_aguardar_resultado_saldo(document_number, provider, parar_flag=None):
 
     while tentativas_sem_registro < MAX_TENTATIVAS_POLL:
         if parar_flag is not None and parar_flag.get("parar"):
+            if parar_flag.get("parar") == "pausar":
+                raise RuntimeError("Rodada pausada pelo usuário.")
             raise RuntimeError("Rodada cancelada pelo usuário.")
 
         registro = v8_consultar_resultado_saldo(document_number, provider=provider)
@@ -321,33 +325,71 @@ def fgts_processar_cpf(cpf, provider, rodada_id, parar_flag=None):
     }).execute()
 
 
+def fgts_status_atual_rodada(rodada_id):
+    try:
+        res = supabase.table("fgts_rodadas").select("status").eq("id", rodada_id).execute()
+        return res.data[0]["status"] if res.data else None
+    except Exception:
+        return None
+
+
+def fgts_cpfs_ja_processados(rodada_id):
+    """Retorna o conjunto de CPFs que já têm resultado salvo nesta rodada (para retomada)."""
+    try:
+        res = supabase.table("fgts_resultados").select("cpf").eq("rodada_id", rodada_id).execute()
+        return set(r["cpf"] for r in (res.data or []))
+    except Exception:
+        return set()
+
+
 def fgts_rodar_em_background(cpfs, rodada_id, parar_flag):
-    """Roda em thread separada: testa autenticação 1x, depois processa cada CPF."""
+    """
+    Roda em thread separada: testa autenticação 1x, depois processa cada CPF.
+    A cada CPF, verifica no BANCO se a rodada foi marcada como 'pausando' ou
+    'cancelando' (isso permite que qualquer aba/sessão consiga pausar/cancelar,
+    não só a aba que iniciou a rodada).
+    """
     try:
         v8_obter_token()
-    except Exception as e:
+    except Exception:
         supabase.table("fgts_rodadas").update({
             "status": "erro_autenticacao",
             "finalizado_em": str(datetime.now()),
         }).eq("id", rodada_id).execute()
         return
 
+    ja_processados = fgts_cpfs_ja_processados(rodada_id)
+
     for cpf in cpfs:
-        if parar_flag.get("parar"):
+        if cpf in ja_processados:
+            continue
+
+        status_banco = fgts_status_atual_rodada(rodada_id)
+
+        if status_banco == "cancelando" or parar_flag.get("parar") == "cancelar":
             supabase.table("fgts_rodadas").update({
                 "status": "cancelada",
                 "finalizado_em": str(datetime.now()),
             }).eq("id", rodada_id).execute()
             return
+
+        if status_banco == "pausando" or parar_flag.get("parar") == "pausar":
+            supabase.table("fgts_rodadas").update({
+                "status": "pausada",
+            }).eq("id", rodada_id).execute()
+            return
+
         try:
             fgts_processar_cpf(cpf, V8_PROVIDER, rodada_id, parar_flag=parar_flag)
         except Exception as e:
-            if "cancelada pelo usuário" in str(e):
-                supabase.table("fgts_rodadas").update({
-                    "status": "cancelada",
-                    "finalizado_em": str(datetime.now()),
-                }).eq("id", rodada_id).execute()
+            if "cancelada pelo usuário" in str(e) or "pausada pelo usuário" in str(e):
+                status_final = "cancelada" if "cancelada" in str(e) else "pausada"
+                update_dados = {"status": status_final}
+                if status_final == "cancelada":
+                    update_dados["finalizado_em"] = str(datetime.now())
+                supabase.table("fgts_rodadas").update(update_dados).eq("id", rodada_id).execute()
                 return
+
         try:
             res_atual = supabase.table("fgts_rodadas").select("processados").eq("id", rodada_id).execute()
             processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
@@ -2246,16 +2288,24 @@ else:
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Consulta FGTS — Saque Aniversário</span>', unsafe_allow_html=True)
         st.caption("Consulta o saldo de FGTS (Saque Aniversário) via API V8 Digital, provider BMS.")
 
-        # Inicializa controle de cancelamento por rodada nesta sessão
+        # Inicializa controle de pausa/cancelamento por rodada nesta sessão
         if "fgts_flags" not in st.session_state:
             st.session_state.fgts_flags = {}
 
-        def fgts_buscar_rodada_em_andamento():
+        def fgts_buscar_rodada_ativa():
+            """Busca rodada em_andamento, pausando ou cancelando (ainda "viva")."""
             try:
-                res = supabase.table("fgts_rodadas").select("*").eq("status", "em_andamento").order("id", desc=True).limit(1).execute()
+                res = supabase.table("fgts_rodadas").select("*").in_("status", ["em_andamento","pausando","cancelando"]).order("id", desc=True).limit(1).execute()
                 return res.data[0] if res.data else None
             except Exception:
                 return None
+
+        def fgts_buscar_rodadas_pausadas():
+            try:
+                res = supabase.table("fgts_rodadas").select("*").eq("status", "pausada").order("id", desc=True).execute()
+                return res.data or []
+            except Exception:
+                return []
 
         def fgts_buscar_historico(limite=15):
             try:
@@ -2271,41 +2321,150 @@ else:
             except Exception:
                 return []
 
-        rodada_ativa = fgts_buscar_rodada_em_andamento()
+        def fgts_exportar_excel(resultados_rod, nome_arquivo, key_botao):
+            df_res = pd.DataFrame(resultados_rod)
+            mapa_status_label = {
+                "success": "✅ Sucesso",
+                "fail": "❌ Falha",
+                "nao_autorizado": "🚫 Não autorizado",
+                "saldo_insuficiente": "⚠️ Saldo insuficiente",
+                "operacao_em_andamento": "🔄 Operação em andamento",
+                "erro_tecnico": "⚠️ Erro técnico",
+            }
+            df_res["status_label"] = df_res["status"].map(lambda s: mapa_status_label.get(s, s))
+            colunas_exibir = ["cpf","provider","status_label","saldo_disponivel","periodos","observacao","processado_em"]
+            colunas_exibir = [c for c in colunas_exibir if c in df_res.columns]
+            df_visao_fgts = df_res[colunas_exibir].rename(columns={
+                "cpf":"CPF","provider":"Provider","status_label":"Status",
+                "saldo_disponivel":"Saldo disponível","periodos":"Períodos",
+                "observacao":"Observação","processado_em":"Processado em"
+            })
+            st.dataframe(df_visao_fgts, use_container_width=True, hide_index=True)
 
-        # ── RODADA EM ANDAMENTO ──────────────────────────────
+            buf_fgts = io.BytesIO()
+            with pd.ExcelWriter(buf_fgts, engine="openpyxl") as writer:
+                df_visao_fgts.to_excel(writer, index=False, sheet_name="Resultados FGTS")
+            buf_fgts.seek(0)
+            st.download_button(
+                label="📥 Exportar resultado (Excel)",
+                data=buf_fgts,
+                file_name=nome_arquivo,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key=key_botao
+            )
+
+        rodada_ativa = fgts_buscar_rodada_ativa()
+        rodadas_pausadas = fgts_buscar_rodadas_pausadas()
+
+        # ── RODADA ATIVA (em andamento / pausando / cancelando) ──
         if rodada_ativa:
             rid = rodada_ativa["id"]
+            status_rid = rodada_ativa.get("status","em_andamento")
             total = int(rodada_ativa.get("total_cpfs") or 0)
             processados = int(rodada_ativa.get("processados") or 0)
             pct = int((processados/total*100)) if total > 0 else 0
 
-            st.info(f"⏳ Rodada #{rid} em andamento — iniciada em {str(rodada_ativa.get('iniciado_em',''))[:16]}")
+            if status_rid == "pausando":
+                st.warning(f"⏸️ Rodada #{rid} — pausando... (finalizando o CPF atual)")
+            elif status_rid == "cancelando":
+                st.warning(f"🛑 Rodada #{rid} — cancelando... (finalizando o CPF atual)")
+            else:
+                st.info(f"⏳ Rodada #{rid} em andamento — iniciada em {str(rodada_ativa.get('iniciado_em',''))[:16]}")
+
             st.progress(min(pct,100)/100, text=f"{processados} de {total} — {pct}%")
 
-            col_r1, col_r2 = st.columns([3,1])
+            col_r1, col_r2, col_r3 = st.columns([2,1,1])
             with col_r1:
-                st.caption("Você pode navegar para outras abas; a consulta continua em segundo plano neste mesmo processo.")
+                st.caption("Você pode navegar para outras abas; a consulta continua em segundo plano.")
             with col_r2:
-                if st.button("🛑 Cancelar rodada", use_container_width=True, key=f"cancelar_{rid}"):
+                if st.button("⏸️ Pausar", use_container_width=True, key=f"pausar_{rid}", disabled=(status_rid!="em_andamento")):
                     flag = st.session_state.fgts_flags.get(rid)
                     if flag is not None:
-                        flag["parar"] = True
-                    else:
-                        # Rodada travada de uma execução anterior (thread não existe mais nesta sessão)
-                        supabase.table("fgts_rodadas").update({
-                            "status": "cancelada",
-                            "finalizado_em": str(datetime.now())
-                        }).eq("id", rid).execute()
-                    st.warning("Cancelamento solicitado. Atualizando...")
+                        flag["parar"] = "pausar"
+                    supabase.table("fgts_rodadas").update({"status": "pausando"}).eq("id", rid).execute()
+                    st.info("Pausa solicitada — vai parar após o CPF atual e liberar a exportação do parcial.")
+                    time.sleep(1)
+                    st.rerun()
+            with col_r3:
+                if st.button("🛑 Cancelar", use_container_width=True, key=f"cancelar_{rid}", disabled=(status_rid!="em_andamento")):
+                    flag = st.session_state.fgts_flags.get(rid)
+                    if flag is not None:
+                        flag["parar"] = "cancelar"
+                    supabase.table("fgts_rodadas").update({"status": "cancelando"}).eq("id", rid).execute()
+                    st.warning("Cancelamento solicitado.")
                     time.sleep(1)
                     st.rerun()
 
             if st.button("🔄 Atualizar progresso", use_container_width=True, key=f"refresh_{rid}"):
                 st.rerun()
 
+            st.caption("Se o botão Pausar/Cancelar não tiver efeito em poucos segundos (ex: app reiniciou e a thread não existe mais), force pelo botão abaixo.")
+            if st.button("⚠️ Forçar parada (rodada travada)", key=f"forcar_{rid}"):
+                supabase.table("fgts_rodadas").update({
+                    "status": "pausada"
+                }).eq("id", rid).execute()
+                st.success("Rodada marcada como pausada. Você já pode exportar o parcial ou retomar.")
+                time.sleep(1)
+                st.rerun()
+
+        # ── RODADAS PAUSADAS (exportar parcial / retomar) ────
+        elif rodadas_pausadas:
+            st.markdown("### ⏸️ Rodadas pausadas")
+            st.caption("Exporte o que já foi consultado ou retome de onde parou.")
+
+            for rod_p in rodadas_pausadas:
+                rid_p = rod_p["id"]
+                total_p = int(rod_p.get("total_cpfs") or 0)
+                proc_p = int(rod_p.get("processados") or 0)
+                pct_p = int((proc_p/total_p*100)) if total_p > 0 else 0
+
+                with st.container(border=True):
+                    st.markdown(f"**Rodada #{rid_p}** — pausada com {proc_p}/{total_p} CPF(s) processados ({pct_p}%)")
+
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_{rid_p}"):
+                            cpfs_lista_str = rod_p.get("cpfs_lista") or ""
+                            cpfs_originais = [c for c in cpfs_lista_str.split(",") if c]
+
+                            if not cpfs_originais:
+                                st.error("Não encontrei a lista original de CPFs desta rodada para retomar.")
+                            else:
+                                flag = {"parar": False}
+                                st.session_state.fgts_flags[rid_p] = flag
+
+                                supabase.table("fgts_rodadas").update({"status": "em_andamento"}).eq("id", rid_p).execute()
+
+                                thread = threading.Thread(
+                                    target=fgts_rodar_em_background,
+                                    args=(cpfs_originais, rid_p, flag),
+                                    daemon=True
+                                )
+                                thread.start()
+
+                                st.success(f"Rodada #{rid_p} retomada! Continuando de onde parou.")
+                                time.sleep(1)
+                                st.rerun()
+
+                    with col_p2:
+                        resultados_parciais = fgts_buscar_resultados(rid_p)
+                        if resultados_parciais:
+                            st.caption(f"{len(resultados_parciais)} resultado(s) disponível(eis) para exportar abaixo ⬇️")
+                        else:
+                            st.caption("Nenhum resultado salvo ainda nesta rodada.")
+
+                    if resultados_parciais:
+                        with st.expander(f"📋 Ver/exportar resultados parciais da rodada #{rid_p}"):
+                            fgts_exportar_excel(resultados_parciais, f"fgts_rodada_{rid_p}_parcial.xlsx", f"export_parcial_{rid_p}")
+
+            st.divider()
+            if st.button("➕ Iniciar nova rodada (sem retomar)", use_container_width=True):
+                st.session_state["fgts_forcar_nova"] = True
+                st.rerun()
+
         # ── INICIAR NOVA RODADA ──────────────────────────────
-        else:
+        if not rodada_ativa and (not rodadas_pausadas or st.session_state.get("fgts_forcar_nova")):
             st.markdown("### ▶️ Nova consulta")
 
             modo_entrada = st.radio("Como deseja informar os CPFs?", ["Colar lista de CPFs", "Subir arquivo .csv"], horizontal=True, key="fgts_modo_entrada")
@@ -2352,6 +2511,7 @@ else:
                         "processados": 0,
                         "status": "em_andamento",
                         "usuario": st.session_state.get("nome", st.session_state.get("usuario","")),
+                        "cpfs_lista": ",".join(cpfs_para_processar),
                     }).execute()
                     rodada_id_nova = nova_rodada.data[0]["id"]
 
@@ -2365,6 +2525,7 @@ else:
                     )
                     thread.start()
 
+                    st.session_state["fgts_forcar_nova"] = False
                     st.success(f"Rodada #{rodada_id_nova} iniciada! Processando {len(cpfs_para_processar)} CPF(s) em segundo plano.")
                     time.sleep(1)
                     st.rerun()
@@ -2382,6 +2543,9 @@ else:
         else:
             badges_status = {
                 "em_andamento": ("⏳ Em andamento", "#fef9c3", "#92400e"),
+                "pausando": ("⏸️ Pausando...", "#fef3c7", "#92400e"),
+                "pausada": ("⏸️ Pausada", "#e0f2fe", "#075985"),
+                "cancelando": ("🛑 Cancelando...", "#fee2e2", "#991b1b"),
                 "concluida": ("✅ Concluída", "#dcfce7", "#166534"),
                 "cancelada": ("🛑 Cancelada", "#fee2e2", "#991b1b"),
                 "erro_autenticacao": ("❌ Erro de autenticação", "#fee2e2", "#991b1b"),
