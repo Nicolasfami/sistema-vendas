@@ -45,7 +45,7 @@ V8_CLIENT_ID = "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"
 V8_AUDIENCE = "https://bff.v8sistema.com"
 V8_AUTH_URL = "https://auth.v8sistema.com/oauth/token"
 V8_BASE_URL = "https://bff.v8sistema.com"
-V8_PROVIDER = "bms"
+V8_PROVIDER = "sants"
 
 SEGUNDOS_ENTRE_TENTATIVAS_POLL = 15
 MAX_TENTATIVAS_POLL = 4
