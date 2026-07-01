@@ -1402,25 +1402,32 @@ else:
             elif valor<=0:
                 st.error("Corrija o valor.")
             else:
-                perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
-                valor_empresa = float(valor)*(perc_empresa/100)
-                dados = {
-                    # ✅ Data/hora exata da digitação/cadastro da venda
-                    # É esta data que alimenta os filtros por dia, mês, ano e o Excel.
-                    "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "vendedor_id": st.session_state.user_id,
-                    "vendedor": st.session_state.usuario,
-                    "cliente": cliente, "cpf": cpf, "telefone": telefone,
-                    "produto": tabela_banco, "tabela_banco": tabela_banco,
-                    "valor": valor, "status": status,
-                    "percentual_comissao": 0, "valor_comissao": 0,
-                    "comissao_empresa": perc_empresa, "valor_comissao_empresa": valor_empresa,
-                    "conferido": False, "alterado_vendedor": False, "observacao": observacao
-                }
-                supabase.table("vendas").insert(dados).execute()
-                st.session_state.msg_sucesso = "✅ Venda cadastrada com sucesso!"
-                st.session_state.form_count += 1
-                st.rerun()
+                try:
+                    perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
+                    valor_empresa = float(valor)*(perc_empresa/100)
+                    dados = {
+                        # ✅ Data/hora exata da digitação/cadastro da venda
+                        # É esta data que alimenta os filtros por dia, mês, ano e o Excel.
+                        "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "vendedor_id": st.session_state.user_id,
+                        "vendedor": st.session_state.usuario,
+                        "cliente": cliente, "cpf": cpf, "telefone": telefone,
+                        "produto": tabela_banco, "tabela_banco": tabela_banco,
+                        "valor": valor, "status": status,
+                        "percentual_comissao": 0, "valor_comissao": 0,
+                        "comissao_empresa": perc_empresa, "valor_comissao_empresa": valor_empresa,
+                        "conferido": False, "alterado_vendedor": False, "observacao": observacao
+                    }
+                    resposta_insert = supabase.table("vendas").insert(dados).execute()
+                    if not resposta_insert.data:
+                        st.error("⚠️ O Supabase não retornou confirmação de que a venda foi salva. Verifique as permissões (RLS) da tabela 'vendas' para INSERT.")
+                    else:
+                        st.session_state.msg_sucesso = f"✅ Venda cadastrada com sucesso! (ID {resposta_insert.data[0].get('id')})"
+                        st.session_state.form_count += 1
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erro ao salvar a venda no Supabase: {e}")
+                    st.caption("Causas comuns: policy de RLS bloqueando INSERT para a chave publishable, coluna obrigatória faltando/tipo incompatível, ou constraint violada no banco.")
 
     elif menu == "📊 Painel":
         st.markdown("""
@@ -1436,6 +1443,19 @@ else:
             st.warning("Nenhuma venda cadastrada.")
         else:
             total_bruto_banco = len(df)
+
+            # 🔎 DIAGNÓSTICO (somente admin) — mostra quantas linhas falharam
+            # na conversão de data (NaT), para achar rapidamente vendas que
+            # somem dos filtros por mês/ano por causa de formato de data.
+            if st.session_state.tipo == "admin":
+                qtd_nat = int(df["data"].isna().sum())
+                with st.expander(f"🔧 Diagnóstico de datas — {qtd_nat} de {total_bruto_banco} vendas com data não reconhecida", expanded=(qtd_nat > 0)):
+                    if qtd_nat == 0:
+                        st.success("Todas as datas foram convertidas corretamente.")
+                    else:
+                        st.error(f"{qtd_nat} venda(s) têm a coluna 'data' num formato que o app não conseguiu converter — por isso elas não aparecem em nenhum filtro de Mês/Ano/Dia (só aparecem com Mês = Todos, Ano = Todos, Dia = Todos).")
+                        df_problema = df[df["data"].isna()][["id","cliente","vendedor","status","data_original_supabase"]]
+                        st.dataframe(df_problema, use_container_width=True, hide_index=True)
 
             meses = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
             col_f1,col_f2,col_f3,col_f4 = st.columns(4)
