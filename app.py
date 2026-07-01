@@ -980,25 +980,38 @@ def converter_data_supabase_coluna(serie):
     Converte a coluna data do Supabase para datetime de forma segura.
     Aceita:
     - 2026-06-19 21:17:12
-    - 2026-06-19T21:17:12
+    - 2026-06-19T21:17:12(.ffffff)
     - 19/06/2026 21:17
     - 19-06-2026 21:17
     - datas com timezone
+
+    IMPORTANTE: usamos format="mixed", que interpreta CADA valor
+    individualmente em vez de tentar adivinhar UM formato único para a
+    coluna inteira. A abordagem antiga (duas passadas com dayfirst=True
+    depois dayfirst=False) travava num formato "global" inferido a partir
+    das primeiras linhas e descartava (virava NaT) qualquer linha com uma
+    variação sutil de formato (ex: com/sem microssegundos) — foi isso que
+    fez ~189 de 204 vendas sumirem dos filtros de Mês/Ano no Painel.
     """
     s = serie.astype(str).str.strip()
 
-    # Limpa timezone Z e T quando vier padrão ISO
-    s = s.str.replace("T", " ", regex=False)
+    # Normaliza valores nulos/vazios/strings "None" vindas do astype(str)
+    s = s.replace({"None": None, "none": None, "nan": None, "NaT": None, "": None})
+
+    # Remove sufixo Z de UTC quando presente (não removemos o "T" aqui:
+    # format="mixed" entende tanto "T" quanto espaço como separador).
     s = s.str.replace("Z", "", regex=False)
 
-    # 1ª tentativa: formato brasileiro / dayfirst
-    dt = pd.to_datetime(s, errors="coerce", dayfirst=True)
+    dt = pd.to_datetime(s, errors="coerce", format="mixed", dayfirst=False)
 
-    # 2ª tentativa: formato americano/ISO para o que ficou NaT
-    faltando = dt.isna()
-    if faltando.any():
-        dt2 = pd.to_datetime(s[faltando], errors="coerce", dayfirst=False)
-        dt.loc[faltando] = dt2
+    # Salvaguarda: se alguma linha vier com timezone embutido (raro nesse
+    # schema, que é "timestamp without time zone"), normaliza removendo o
+    # timezone para não quebrar comparações .dt.month/.dt.year adiante.
+    try:
+        if getattr(dt.dt, "tz", None) is not None:
+            dt = dt.dt.tz_localize(None)
+    except (TypeError, AttributeError):
+        pass
 
     return dt
 
