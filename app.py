@@ -131,6 +131,22 @@ def carregar_documentos_da_venda(venda_id):
         return []
 
 
+def contar_documentos_por_vendas(lista_venda_ids):
+    """Retorna {venda_id: quantidade_de_documentos} para uma lista de IDs,
+    numa única consulta (evita 1 consulta por linha da tabela)."""
+    if not lista_venda_ids:
+        return {}
+    try:
+        res = supabase.table(TABELA_VENDA_DOCUMENTOS).select("venda_id").in_("venda_id", lista_venda_ids).execute()
+        contagem = {}
+        for r in (res.data or []):
+            vid = r.get("venda_id")
+            contagem[vid] = contagem.get(vid, 0) + 1
+        return contagem
+    except Exception:
+        return {}
+
+
 def gerar_link_download_documento(caminho_storage, validade_segundos=3600):
     """Gera um link temporário e seguro para baixar/visualizar um documento
     do bucket privado (o bucket não é público, então precisamos desse link
@@ -1722,6 +1738,12 @@ else:
                 if "valor" in df_visao.columns:
                     df_visao["valor"] = df_visao["valor"].apply(dinheiro)
 
+                # 📎 Coluna com a quantidade de documentos anexados por venda
+                # (consulta única pra não pesar a tela quando tem muitas propostas).
+                contagem_docs_painel = contar_documentos_por_vendas(df_visao["id"].tolist()) if "id" in df_visao.columns else {}
+                if "id" in df_visao.columns:
+                    df_visao["anexos"] = df_visao["id"].apply(lambda vid: f"📎 {contagem_docs_painel.get(vid,0)}" if contagem_docs_painel.get(vid,0) > 0 else "—")
+
                 traducao_cols = {
                     "id": "ID", "data": "Data", "vendedor": "Vendedor",
                     "cliente": "Cliente", "cpf": "CPF", "telefone": "Telefone",
@@ -1731,7 +1753,8 @@ else:
                     "observacao_alteracao": "Obs Alteracao",
                     "ultima_alteracao_em": "Ultima Alteracao Em",
                     "ultima_alteracao_por": "Ultima Alteracao Por",
-                    "ultima_alteracao_resumo": "Ultima Alteracao"
+                    "ultima_alteracao_resumo": "Ultima Alteracao",
+                    "anexos": "📎 Anexos"
                 }
                 df_visao = df_visao.rename(columns=traducao_cols)
 
