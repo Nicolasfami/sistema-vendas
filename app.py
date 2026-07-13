@@ -147,12 +147,19 @@ def contar_documentos_por_vendas(lista_venda_ids):
         return {}
 
 
-def gerar_link_download_documento(caminho_storage, validade_segundos=3600):
-    """Gera um link temporário e seguro para baixar/visualizar um documento
-    do bucket privado (o bucket não é público, então precisamos desse link
-    assinado, que expira sozinho depois de um tempo)."""
+def gerar_link_download_documento(caminho_storage, validade_segundos=3600, nome_arquivo=None):
+    """Gera um link temporário e seguro para baixar um documento do bucket
+    privado. Usa a opção 'download' da Supabase Storage para forçar o
+    navegador a BAIXAR o arquivo pro computador, em vez de abrir o PDF/imagem
+    direto numa aba nova (que é o comportamento padrão do navegador)."""
     try:
-        resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos)
+        opcoes = {"download": nome_arquivo or True}
+        try:
+            resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos, opcoes)
+        except TypeError:
+            # Versões mais antigas da lib supabase-py não aceitam esse 3º parâmetro —
+            # cai para o link normal (abre no navegador) em vez de quebrar a tela.
+            resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos)
         return resultado.get("signedURL") or resultado.get("signedUrl")
     except Exception:
         return None
@@ -1785,7 +1792,7 @@ else:
                                 tamanho_kb_v = round((doc_view.get("tamanho_bytes") or 0) / 1024)
                                 st.caption(f"{doc_view.get('tipo_documento','')} — {doc_view.get('nome_arquivo','')} ({tamanho_kb_v} KB)")
                             with col_dv2:
-                                link_doc_v = gerar_link_download_documento(doc_view.get("caminho_storage",""))
+                                link_doc_v = gerar_link_download_documento(doc_view.get("caminho_storage",""), nome_arquivo=doc_view.get("nome_arquivo"))
                                 if link_doc_v:
                                     st.link_button("⬇️ Baixar", link_doc_v, use_container_width=True)
                                 else:
@@ -1876,7 +1883,7 @@ else:
                             tamanho_kb = round((doc.get("tamanho_bytes") or 0) / 1024)
                             st.caption(f"{doc.get('tipo_documento','')} — {doc.get('nome_arquivo','')} ({tamanho_kb} KB)")
                         with col_doc2:
-                            link_doc = gerar_link_download_documento(doc.get("caminho_storage",""))
+                            link_doc = gerar_link_download_documento(doc.get("caminho_storage",""), nome_arquivo=doc.get("nome_arquivo"))
                             if link_doc:
                                 st.link_button("⬇️ Baixar", link_doc, use_container_width=True)
                             else:
