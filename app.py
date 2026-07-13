@@ -131,6 +131,22 @@ def carregar_documentos_da_venda(venda_id):
         return []
 
 
+def excluir_arquivos_storage_da_venda(venda_id):
+    """Apaga do Supabase Storage os arquivos físicos anexados a uma venda.
+    IMPORTANTE: chamar isso ANTES de excluir a venda do banco — o
+    ON DELETE CASCADE configurado em venda_documentos só limpa a linha da
+    tabela (o registro), não apaga o arquivo de verdade que fica guardado
+    no bucket. Sem isso, o arquivo continuaria ocupando espaço no Storage
+    mesmo depois da venda ser excluída."""
+    try:
+        documentos = carregar_documentos_da_venda(venda_id)
+        caminhos = [d.get("caminho_storage") for d in documentos if d.get("caminho_storage")]
+        if caminhos:
+            supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).remove(caminhos)
+    except Exception:
+        pass
+
+
 def contar_documentos_por_vendas(lista_venda_ids):
     """Retorna {venda_id: quantidade_de_documentos} para uma lista de IDs,
     numa única consulta (evita 1 consulta por linha da tabela)."""
@@ -1866,7 +1882,9 @@ else:
                                 ids = editado[editado["excluir"]==True]["id"].tolist()
                                 if not ids: st.warning("Nenhuma marcada.")
                                 else:
-                                    for vid in ids: supabase.table("vendas").delete().eq("id",int(vid)).execute()
+                                    for vid in ids:
+                                        excluir_arquivos_storage_da_venda(int(vid))
+                                        supabase.table("vendas").delete().eq("id",int(vid)).execute()
                                     st.success(f"{len(ids)} excluida(s)!")
                                     st.rerun()
                 st.divider()
