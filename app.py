@@ -39,6 +39,89 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 RAILWAY_URL = "https://operax-whatsapp-production.up.railway.app"
 
 # ============================================================
+# ANEXO DE DOCUMENTOS NA VENDA (contracheque, comprovante, etc.)
+# ============================================================
+# A opção de anexar documentos só aparece no Nova Venda quando o produto
+# selecionado estiver na lista "produtos_requer_documento" (tabela no
+# Supabase, gerenciável pelo admin dentro do próprio Nova Venda). Isso
+# evita travar a lógica num nome de produto fixo — quando o Nicolas criar
+# o produto novo em Regras de Comissão, ele só precisa marcar o produto
+# nessa lista, sem precisar mexer em código.
+BUCKET_DOCUMENTOS_VENDA = "documentos-vendas"
+TABELA_PRODUTOS_DOC = "produtos_requer_documento"
+TABELA_VENDA_DOCUMENTOS = "venda_documentos"
+TAMANHO_MAXIMO_DOCUMENTO_MB = 5
+TIPOS_DOCUMENTO_PERMITIDOS = {"application/pdf", "image/jpeg", "image/jpg", "image/png"}
+CATEGORIAS_DOCUMENTO_VENDA = ["Contracheque", "Comprovante de Endereço", "RG/CPF", "Outros"]
+
+
+def carregar_produtos_requer_documento():
+    """Retorna o conjunto de produtos (tabela_banco) que exigem anexo de documento."""
+    try:
+        res = supabase.table(TABELA_PRODUTOS_DOC).select("produto").execute()
+        return set(r["produto"] for r in (res.data or []))
+    except Exception:
+        return set()
+
+
+def alternar_produto_requer_documento(produto, requer):
+    """Liga/desliga a exigência de documento para um produto específico."""
+    try:
+        if requer:
+            supabase.table(TABELA_PRODUTOS_DOC).upsert({"produto": produto}, on_conflict="produto").execute()
+        else:
+            supabase.table(TABELA_PRODUTOS_DOC).delete().eq("produto", produto).execute()
+        return True
+    except Exception:
+        return False
+
+
+def validar_arquivo_documento(arquivo):
+    """Valida tamanho e tipo de um arquivo carregado via st.file_uploader.
+    Retorna (True, "") se válido, ou (False, motivo) caso contrário."""
+    if arquivo is None:
+        return True, ""
+    tamanho_mb = arquivo.size / (1024 * 1024)
+    if tamanho_mb > TAMANHO_MAXIMO_DOCUMENTO_MB:
+        return False, f"'{arquivo.name}' tem {tamanho_mb:.1f}MB — o limite é {TAMANHO_MAXIMO_DOCUMENTO_MB}MB."
+    if arquivo.type not in TIPOS_DOCUMENTO_PERMITIDOS:
+        return False, f"'{arquivo.name}' tem um tipo não permitido. Envie PDF, JPG ou PNG."
+    return True, ""
+
+
+def enviar_documento_para_storage(arquivo, cpf, tipo_documento):
+    """Sobe um arquivo para o bucket do Supabase Storage e retorna
+    (caminho_no_bucket, tamanho_em_bytes)."""
+    extensao = Path(arquivo.name).suffix or ""
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    nome_seguro = re.sub(r"[^a-zA-Z0-9_.-]", "_", Path(arquivo.name).stem) + extensao
+    tipo_seguro = re.sub(r"[^a-zA-Z0-9_-]", "_", tipo_documento)
+    caminho = f"{cpf}/{timestamp}_{tipo_seguro}_{nome_seguro}"
+    conteudo = arquivo.getvalue()
+    supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).upload(
+        path=caminho,
+        file=conteudo,
+        file_options={"content-type": arquivo.type}
+    )
+    return caminho, len(conteudo)
+
+
+def salvar_registro_documento_venda(venda_id, tipo_documento, nome_arquivo, caminho_storage, tamanho_bytes, enviado_por):
+    """Registra, na tabela venda_documentos, o link do arquivo salvo no Storage."""
+    try:
+        supabase.table(TABELA_VENDA_DOCUMENTOS).insert({
+            "venda_id": venda_id,
+            "tipo_documento": tipo_documento,
+            "nome_arquivo": nome_arquivo,
+            "caminho_storage": caminho_storage,
+            "tamanho_bytes": tamanho_bytes,
+            "enviado_por": enviado_por,
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+# ============================================================
 # CONSULTA FGTS - CONFIGURAÇÃO V8 DIGITAL
 # ============================================================
 V8_CLIENT_ID = "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"
@@ -1407,13 +1490,53 @@ else:
         status = st.selectbox("Status", ["Pendente","Aguardando Pagamento","Aguardando Assinatura","Pago","Cancelado"])
         observacao = st.text_area("Observacao", key=f"nova_observacao_{fc}")
 
+        # ── ANEXO DE DOCUMENTOS (aparece só para produtos configurados) ──
+        produtos_com_doc = carregar_produtos_requer_documento()
+        arquivos_documento_venda = {}  # {categoria: [UploadedFile, ...]}
+
+        if tabela_banco in produtos_com_doc:
+            st.markdown("### 📎 Documentos do Cliente")
+            st.caption(f"Opcional. Formatos aceitos: PDF, JPG, PNG — até {TAMANHO_MAXIMO_DOCUMENTO_MB}MB por arquivo.")
+            for categoria in CATEGORIAS_DOCUMENTO_VENDA:
+                multiplos = (categoria == "Outros")
+                arquivos = st.file_uploader(
+                    categoria,
+                    type=["pdf", "jpg", "jpeg", "png"],
+                    accept_multiple_files=multiplos,
+                    key=f"doc_{categoria}_{fc}"
+                )
+                if arquivos:
+                    arquivos_documento_venda[categoria] = arquivos if multiplos else [arquivos]
+
+        if st.session_state.tipo == "admin":
+            with st.expander("⚙️ Configurar quais produtos pedem documento"):
+                st.caption("Marque os produtos que devem exibir a seção de anexo de documentos no Nova Venda. Quando você criar um produto novo em Regras de Comissão, ele aparece aqui para você marcar.")
+                for produto_cfg in tabelas:
+                    marcado_atual = produto_cfg in produtos_com_doc
+                    novo_valor = st.checkbox(produto_cfg, value=marcado_atual, key=f"cfg_doc_{produto_cfg}")
+                    if novo_valor != marcado_atual:
+                        alternar_produto_requer_documento(produto_cfg, novo_valor)
+                        st.rerun()
+
         if st.button("💾 Salvar Venda", use_container_width=True):
+            erro_arquivo = ""
+            for _categoria, _lista_arquivos in arquivos_documento_venda.items():
+                for _arq in _lista_arquivos:
+                    _valido, _motivo = validar_arquivo_documento(_arq)
+                    if not _valido:
+                        erro_arquivo = _motivo
+                        break
+                if erro_arquivo:
+                    break
+
             if not validar_cpf(cpf):
                 st.error("Corrija o CPF.")
             elif not validar_telefone(telefone):
                 st.error("Corrija o telefone.")
             elif valor<=0:
                 st.error("Corrija o valor.")
+            elif erro_arquivo:
+                st.error(f"Documento inválido: {erro_arquivo}")
             else:
                 try:
                     perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
@@ -1435,7 +1558,29 @@ else:
                     if not resposta_insert.data:
                         st.error("⚠️ O Supabase não retornou confirmação de que a venda foi salva. Verifique as permissões (RLS) da tabela 'vendas' para INSERT.")
                     else:
-                        st.session_state.msg_sucesso = f"✅ Venda cadastrada com sucesso! (ID {resposta_insert.data[0].get('id')})"
+                        venda_id_nova = resposta_insert.data[0].get("id")
+                        qtd_docs_enviados = 0
+                        qtd_docs_com_erro = 0
+                        for categoria_doc, lista_arquivos in arquivos_documento_venda.items():
+                            for arquivo_doc in lista_arquivos:
+                                try:
+                                    caminho_doc, tamanho_doc = enviar_documento_para_storage(arquivo_doc, cpf, categoria_doc)
+                                    salvar_registro_documento_venda(
+                                        venda_id_nova, categoria_doc, arquivo_doc.name,
+                                        caminho_doc, tamanho_doc,
+                                        st.session_state.get("nome", st.session_state.get("usuario",""))
+                                    )
+                                    qtd_docs_enviados += 1
+                                except Exception:
+                                    qtd_docs_com_erro += 1
+
+                        msg_docs = ""
+                        if qtd_docs_enviados:
+                            msg_docs = f" • {qtd_docs_enviados} documento(s) anexado(s)"
+                        if qtd_docs_com_erro:
+                            msg_docs += f" • ⚠️ {qtd_docs_com_erro} documento(s) falharam ao subir"
+
+                        st.session_state.msg_sucesso = f"✅ Venda cadastrada com sucesso! (ID {venda_id_nova}){msg_docs}"
                         st.session_state.form_count += 1
                         st.rerun()
                 except Exception as e:
