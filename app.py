@@ -1508,16 +1508,6 @@ else:
                 if arquivos:
                     arquivos_documento_venda[categoria] = arquivos if multiplos else [arquivos]
 
-        if st.session_state.tipo == "admin":
-            with st.expander("⚙️ Configurar quais produtos pedem documento"):
-                st.caption("Marque os produtos que devem exibir a seção de anexo de documentos no Nova Venda. Quando você criar um produto novo em Regras de Comissão, ele aparece aqui para você marcar.")
-                for produto_cfg in tabelas:
-                    marcado_atual = produto_cfg in produtos_com_doc
-                    novo_valor = st.checkbox(produto_cfg, value=marcado_atual, key=f"cfg_doc_{produto_cfg}")
-                    if novo_valor != marcado_atual:
-                        alternar_produto_requer_documento(produto_cfg, novo_valor)
-                        st.rerun()
-
         if st.button("💾 Salvar Venda", use_container_width=True):
             erro_arquivo = ""
             for _categoria, _lista_arquivos in arquivos_documento_venda.items():
@@ -2503,6 +2493,19 @@ else:
 
         st.divider()
         st.markdown("### ⚙️ Regras de Comissao")
+
+        # ── CONFIGURAR QUAIS PRODUTOS PEDEM ANEXO DE DOCUMENTO ──
+        # Marcando aqui, a seção de anexo de documentos passa a aparecer
+        # automaticamente no Nova Venda quando esse produto for selecionado.
+        with st.expander("📎 Configurar quais produtos pedem anexo de documento"):
+            st.caption("Marque os produtos que devem exibir a seção de anexo de documentos (contracheque, comprovante, etc.) no Nova Venda. Assim que você criar um produto novo aqui embaixo, ele aparece nesta lista para você marcar.")
+            produtos_com_doc_cfg = carregar_produtos_requer_documento()
+            for produto_cfg in todas_tabelas:
+                marcado_atual = produto_cfg in produtos_com_doc_cfg
+                novo_valor = st.checkbox(produto_cfg, value=marcado_atual, key=f"cfg_doc_{produto_cfg}")
+                if novo_valor != marcado_atual:
+                    alternar_produto_requer_documento(produto_cfg, novo_valor)
+                    st.rerun()
 
         # ADICIONAR NOVA COMISSÃO NO MESMO LOCAL
         with st.expander("➕ Adicionar nova comissão", expanded=False):
