@@ -121,6 +121,26 @@ def salvar_registro_documento_venda(venda_id, tipo_documento, nome_arquivo, cami
     except Exception:
         return False
 
+
+def carregar_documentos_da_venda(venda_id):
+    """Retorna a lista de documentos anexados a uma venda específica."""
+    try:
+        res = supabase.table(TABELA_VENDA_DOCUMENTOS).select("*").eq("venda_id", venda_id).order("enviado_em").execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def gerar_link_download_documento(caminho_storage, validade_segundos=3600):
+    """Gera um link temporário e seguro para baixar/visualizar um documento
+    do bucket privado (o bucket não é público, então precisamos desse link
+    assinado, que expira sozinho depois de um tempo)."""
+    try:
+        resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos)
+        return resultado.get("signedURL") or resultado.get("signedUrl")
+    except Exception:
+        return None
+
 # ============================================================
 # CONSULTA FGTS - CONFIGURAÇÃO V8 DIGITAL
 # ============================================================
@@ -1714,7 +1734,72 @@ else:
                     "ultima_alteracao_resumo": "Ultima Alteracao"
                 }
                 df_visao = df_visao.rename(columns=traducao_cols)
-                st.dataframe(df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1), use_container_width=True)
+
+                # ── CLICAR NA LINHA ABRE OS DADOS COMPLETOS + ANEXOS ──
+                def _renderizar_proposta_completa(dados_proposta):
+                    st.markdown(f"### Venda #{int(dados_proposta.get('id'))}")
+                    col_view1, col_view2 = st.columns(2)
+                    with col_view1:
+                        st.markdown(f"**Cliente:** {dados_proposta.get('cliente','') or '—'}")
+                        st.markdown(f"**CPF:** {dados_proposta.get('cpf','') or '—'}")
+                        st.markdown(f"**Telefone:** {dados_proposta.get('telefone','') or '—'}")
+                        st.markdown(f"**Vendedor:** {dados_proposta.get('vendedor','') or '—'}")
+                    with col_view2:
+                        st.markdown(f"**Tabela/Banco:** {dados_proposta.get('tabela_banco','') or '—'}")
+                        st.markdown(f"**Valor:** {dinheiro(dados_proposta.get('valor',0))}")
+                        st.markdown(f"**Status:** {dados_proposta.get('status','') or '—'}")
+                        data_txt = str(dados_proposta.get('data_original_supabase') or dados_proposta.get('data') or '')[:16]
+                        st.markdown(f"**Data:** {data_txt or '—'}")
+                    if str(dados_proposta.get('observacao') or '').strip():
+                        st.markdown(f"**Observação:** {dados_proposta.get('observacao')}")
+                    st.divider()
+                    docs_view = carregar_documentos_da_venda(int(dados_proposta.get('id')))
+                    if docs_view:
+                        st.markdown(f"**📎 Documentos anexados ({len(docs_view)})**")
+                        for doc_view in docs_view:
+                            col_dv1, col_dv2 = st.columns([4, 1])
+                            with col_dv1:
+                                tamanho_kb_v = round((doc_view.get("tamanho_bytes") or 0) / 1024)
+                                st.caption(f"{doc_view.get('tipo_documento','')} — {doc_view.get('nome_arquivo','')} ({tamanho_kb_v} KB)")
+                            with col_dv2:
+                                link_doc_v = gerar_link_download_documento(doc_view.get("caminho_storage",""))
+                                if link_doc_v:
+                                    st.link_button("⬇️ Baixar", link_doc_v, use_container_width=True)
+                                else:
+                                    st.caption("⚠️ Indisponível")
+                    else:
+                        st.caption("📎 Nenhum documento anexado a esta venda.")
+
+                usar_dialog_nativo = hasattr(st, "dialog")
+                if usar_dialog_nativo:
+                    @st.dialog("Detalhes da Venda", width="large")
+                    def _abrir_dialog_proposta(id_venda_dialog):
+                        linha_dialog = df[df["id"] == id_venda_dialog]
+                        if not linha_dialog.empty:
+                            _renderizar_proposta_completa(linha_dialog.iloc[0].to_dict())
+
+                try:
+                    evento_tabela_painel = st.dataframe(
+                        df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1),
+                        use_container_width=True,
+                        on_select="rerun",
+                        selection_mode="single-row",
+                        key="tabela_vendas_painel"
+                    )
+                    if usar_dialog_nativo:
+                        try:
+                            linhas_sel = evento_tabela_painel.selection["rows"]
+                        except Exception:
+                            linhas_sel = getattr(getattr(evento_tabela_painel, "selection", None), "rows", [])
+                        if linhas_sel:
+                            id_venda_sel = int(df_visao.iloc[linhas_sel[0]]["ID"])
+                            _abrir_dialog_proposta(id_venda_sel)
+                    else:
+                        st.caption("Clique numa linha da tabela pra ver os dados completos + anexos. (Se não abrir, use o campo 'Editar proposta (ID)' abaixo.)")
+                except TypeError:
+                    # Streamlit desatualizado sem suporte a seleção de linha — cai no modo antigo, sem quebrar a tela.
+                    st.dataframe(df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1), use_container_width=True)
+
                 buf = io.BytesIO()
                 df_export = df_visao.copy()
                 with pd.ExcelWriter(buf, engine="openpyxl") as writer:
@@ -1757,6 +1842,23 @@ else:
                 st.divider()
                 proposta_id = st.selectbox("Editar proposta (ID)", df["id"].tolist())
                 proposta = df[df["id"]==proposta_id].iloc[0]
+
+                # ── DOCUMENTOS ANEXADOS A ESTA VENDA ──
+                documentos_da_proposta = carregar_documentos_da_venda(int(proposta_id))
+                if documentos_da_proposta:
+                    st.markdown(f"**📎 Documentos anexados ({len(documentos_da_proposta)})**")
+                    for doc in documentos_da_proposta:
+                        col_doc1, col_doc2 = st.columns([4, 1])
+                        with col_doc1:
+                            tamanho_kb = round((doc.get("tamanho_bytes") or 0) / 1024)
+                            st.caption(f"{doc.get('tipo_documento','')} — {doc.get('nome_arquivo','')} ({tamanho_kb} KB)")
+                        with col_doc2:
+                            link_doc = gerar_link_download_documento(doc.get("caminho_storage",""))
+                            if link_doc:
+                                st.link_button("⬇️ Baixar", link_doc, use_container_width=True)
+                            else:
+                                st.caption("⚠️ Link indisponível")
+                    st.divider()
                 bloqueada = (st.session_state.tipo!="admin" and bool(proposta.get("conferido",False)) is True)
 
                 if bloqueada:
