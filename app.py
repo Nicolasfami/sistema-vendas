@@ -2504,8 +2504,11 @@ else:
                 marcado_atual = produto_cfg in produtos_com_doc_cfg
                 novo_valor = st.checkbox(produto_cfg, value=marcado_atual, key=f"cfg_doc_{produto_cfg}")
                 if novo_valor != marcado_atual:
-                    alternar_produto_requer_documento(produto_cfg, novo_valor)
-                    st.rerun()
+                    sucesso_toggle = alternar_produto_requer_documento(produto_cfg, novo_valor)
+                    if not sucesso_toggle:
+                        st.error(f"⚠️ Não consegui salvar essa marcação para '{produto_cfg}'. Verifique se a tabela 'produtos_requer_documento' existe no Supabase e se o RLS permite INSERT/DELETE.")
+                    else:
+                        st.rerun()
 
         # ADICIONAR NOVA COMISSÃO NO MESMO LOCAL
         with st.expander("➕ Adicionar nova comissão", expanded=False):
