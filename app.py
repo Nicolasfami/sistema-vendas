@@ -41,12 +41,6 @@ RAILWAY_URL = "https://operax-whatsapp-production.up.railway.app"
 # ============================================================
 # ANEXO DE DOCUMENTOS NA VENDA (contracheque, comprovante, etc.)
 # ============================================================
-# A opção de anexar documentos só aparece no Nova Venda quando o produto
-# selecionado estiver na lista "produtos_requer_documento" (tabela no
-# Supabase, gerenciável pelo admin dentro do próprio Nova Venda). Isso
-# evita travar a lógica num nome de produto fixo — quando o Nicolas criar
-# o produto novo em Regras de Comissão, ele só precisa marcar o produto
-# nessa lista, sem precisar mexer em código.
 BUCKET_DOCUMENTOS_VENDA = "documentos-vendas"
 TABELA_PRODUTOS_DOC = "produtos_requer_documento"
 TABELA_VENDA_DOCUMENTOS = "venda_documentos"
@@ -56,7 +50,6 @@ CATEGORIAS_DOCUMENTO_VENDA = ["Contracheque", "Comprovante de Endereço", "RG/CP
 
 
 def carregar_produtos_requer_documento():
-    """Retorna o conjunto de produtos (tabela_banco) que exigem anexo de documento."""
     try:
         res = supabase.table(TABELA_PRODUTOS_DOC).select("produto").execute()
         return set(r["produto"] for r in (res.data or []))
@@ -65,7 +58,6 @@ def carregar_produtos_requer_documento():
 
 
 def alternar_produto_requer_documento(produto, requer):
-    """Liga/desliga a exigência de documento para um produto específico."""
     try:
         if requer:
             supabase.table(TABELA_PRODUTOS_DOC).upsert({"produto": produto}, on_conflict="produto").execute()
@@ -77,8 +69,6 @@ def alternar_produto_requer_documento(produto, requer):
 
 
 def validar_arquivo_documento(arquivo):
-    """Valida tamanho e tipo de um arquivo carregado via st.file_uploader.
-    Retorna (True, "") se válido, ou (False, motivo) caso contrário."""
     if arquivo is None:
         return True, ""
     tamanho_mb = arquivo.size / (1024 * 1024)
@@ -90,8 +80,6 @@ def validar_arquivo_documento(arquivo):
 
 
 def enviar_documento_para_storage(arquivo, cpf, tipo_documento):
-    """Sobe um arquivo para o bucket do Supabase Storage e retorna
-    (caminho_no_bucket, tamanho_em_bytes)."""
     extensao = Path(arquivo.name).suffix or ""
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
     nome_seguro = re.sub(r"[^a-zA-Z0-9_.-]", "_", Path(arquivo.name).stem) + extensao
@@ -107,7 +95,6 @@ def enviar_documento_para_storage(arquivo, cpf, tipo_documento):
 
 
 def salvar_registro_documento_venda(venda_id, tipo_documento, nome_arquivo, caminho_storage, tamanho_bytes, enviado_por):
-    """Registra, na tabela venda_documentos, o link do arquivo salvo no Storage."""
     try:
         supabase.table(TABELA_VENDA_DOCUMENTOS).insert({
             "venda_id": venda_id,
@@ -123,7 +110,6 @@ def salvar_registro_documento_venda(venda_id, tipo_documento, nome_arquivo, cami
 
 
 def carregar_documentos_da_venda(venda_id):
-    """Retorna a lista de documentos anexados a uma venda específica."""
     try:
         res = supabase.table(TABELA_VENDA_DOCUMENTOS).select("*").eq("venda_id", venda_id).order("enviado_em").execute()
         return res.data or []
@@ -132,12 +118,6 @@ def carregar_documentos_da_venda(venda_id):
 
 
 def excluir_arquivos_storage_da_venda(venda_id):
-    """Apaga do Supabase Storage os arquivos físicos anexados a uma venda.
-    IMPORTANTE: chamar isso ANTES de excluir a venda do banco — o
-    ON DELETE CASCADE configurado em venda_documentos só limpa a linha da
-    tabela (o registro), não apaga o arquivo de verdade que fica guardado
-    no bucket. Sem isso, o arquivo continuaria ocupando espaço no Storage
-    mesmo depois da venda ser excluída."""
     try:
         documentos = carregar_documentos_da_venda(venda_id)
         caminhos = [d.get("caminho_storage") for d in documentos if d.get("caminho_storage")]
@@ -148,8 +128,6 @@ def excluir_arquivos_storage_da_venda(venda_id):
 
 
 def contar_documentos_por_vendas(lista_venda_ids):
-    """Retorna {venda_id: quantidade_de_documentos} para uma lista de IDs,
-    numa única consulta (evita 1 consulta por linha da tabela)."""
     if not lista_venda_ids:
         return {}
     try:
@@ -164,17 +142,11 @@ def contar_documentos_por_vendas(lista_venda_ids):
 
 
 def gerar_link_download_documento(caminho_storage, validade_segundos=3600, nome_arquivo=None):
-    """Gera um link temporário e seguro para baixar um documento do bucket
-    privado. Usa a opção 'download' da Supabase Storage para forçar o
-    navegador a BAIXAR o arquivo pro computador, em vez de abrir o PDF/imagem
-    direto numa aba nova (que é o comportamento padrão do navegador)."""
     try:
         opcoes = {"download": nome_arquivo or True}
         try:
             resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos, opcoes)
         except TypeError:
-            # Versões mais antigas da lib supabase-py não aceitam esse 3º parâmetro —
-            # cai para o link normal (abre no navegador) em vez de quebrar a tela.
             resultado = supabase.storage.from_(BUCKET_DOCUMENTOS_VENDA).create_signed_url(caminho_storage, validade_segundos)
         return resultado.get("signedURL") or resultado.get("signedUrl")
     except Exception:
@@ -193,10 +165,8 @@ SEGUNDOS_ENTRE_TENTATIVAS_POLL = 15
 MAX_TENTATIVAS_POLL = 4
 SEGUNDOS_ENTRE_TENTATIVAS_POST = 1
 
-# Cache de token POR CREDENCIAL (chave = username), permite múltiplos
-# logins V8 autenticando e processando CPFs em paralelo.
-_v8_token_cache = {}   # { username: {"access_token":..., "obtained_at":..., "expires_in":...} }
-_v8_ultima_falha_auth = {}  # { username: timestamp }
+_v8_token_cache = {}
+_v8_ultima_falha_auth = {}
 _V8_INTERVALO_MINIMO_FALHA = 30
 _v8_cache_lock = threading.Lock()
 
@@ -214,9 +184,6 @@ class ResultadoFinalNegocioFGTS(Exception):
 
 
 class AutenticacaoEmEsperaSeguranca(Exception):
-    """Levantada quando o app está respeitando o intervalo de segurança
-    pós-falha (NÃO chegou a testar a senha de novo) — diferente de uma
-    falha real de autenticação retornada pela V8."""
     pass
 
 
@@ -264,8 +231,6 @@ def v8_obter_token(username, password, forcar_novo=False):
 
 def v8_headers(username, password):
     return {"Authorization": f"Bearer {v8_obter_token(username, password)}", "Content-Type": "application/json"}
-
-
 
 
 def v8_classificar_mensagem_negocio(texto_resposta):
@@ -399,7 +364,6 @@ def v8_formatar_periodos(periods):
 
 
 def fgts_processar_cpf(cpf, provider, rodada_id, username, password, parar_flag=None):
-    """Processa um único CPF e grava o resultado na tabela fgts_resultados."""
     inicio_cpf = time.time()
 
     def _tempo():
@@ -482,7 +446,6 @@ def fgts_processar_cpf(cpf, provider, rodada_id, username, password, parar_flag=
             }).execute()
         return
 
-    # status == success
     supabase.table("fgts_resultados").insert({
         "rodada_id": rodada_id,
         "cpf": cpf,
@@ -507,7 +470,6 @@ def fgts_status_atual_rodada(rodada_id):
 
 
 def fgts_cpfs_ja_processados(rodada_id):
-    """Retorna o conjunto de CPFs que já têm resultado salvo nesta rodada (para retomada)."""
     try:
         res = supabase.table("fgts_resultados").select("cpf").eq("rodada_id", rodada_id).execute()
         return set(r["cpf"] for r in (res.data or []))
@@ -515,14 +477,8 @@ def fgts_cpfs_ja_processados(rodada_id):
         return set()
 
 
-# Lock global para evitar duas threads (credenciais diferentes) atualizarem
-# o contador "processados" da mesma rodada ao mesmo tempo (race condition).
 _fgts_contador_lock = threading.Lock()
-
-# Controla, por rodada, quantas threads de credenciais ainda estão ativas.
-# Quando a última thread termina, ela é responsável por marcar a rodada
-# como concluída/cancelada/pausada.
-_fgts_threads_ativas = {}   # { rodada_id: contador_int }
+_fgts_threads_ativas = {}
 _fgts_threads_lock = threading.Lock()
 
 
@@ -539,20 +495,10 @@ def fgts_incrementar_processados(rodada_id):
             pass
 
 
-# Tempo máximo absoluto que UM CPF pode ficar sendo processado antes do
-# watchdog forçar a passagem para o próximo (cobre o caso de um CPF ficar
-# preso indefinidamente, ex: loop de "tente novamente" sem fim).
-TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS = 180  # 3 minutos
+TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS = 180
 
 
 def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password, parar_flag):
-    """
-    Roda fgts_processar_cpf numa thread interna com um limite de tempo
-    absoluto. Se o CPF não terminar dentro de TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS,
-    o watchdog marca esse CPF como erro técnico (timeout forçado) e libera
-    a thread principal para seguir ao próximo CPF, evitando que a rodada
-    inteira fique travada por um único CPF problemático.
-    """
     resultado_pronto = {"concluido": False, "excecao": None}
 
     def _alvo():
@@ -568,10 +514,6 @@ def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password
     t_interna.join(timeout=TIMEOUT_MAXIMO_POR_CPF_SEGUNDOS)
 
     if not resultado_pronto["concluido"]:
-        # Watchdog: o CPF passou do tempo máximo. A thread interna fica
-        # "perdida" rodando sozinha (não há como matar uma thread Python
-        # à força), mas a thread principal segue adiante sem esperar mais,
-        # e já registramos o resultado como erro técnico de timeout.
         try:
             supabase.table("fgts_resultados").insert({
                 "rodada_id": rodada_id,
@@ -592,8 +534,6 @@ def fgts_processar_cpf_com_watchdog(cpf, provider, rodada_id, username, password
 
 
 def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_erro, detalhe=""):
-    """Registra, na rodada, que UMA credencial específica caiu em erro de
-    autenticação — sem afetar as outras credenciais que continuam ativas."""
     try:
         res = supabase.table("fgts_rodadas").select("credenciais_com_erro").eq("id", rodada_id).execute()
         atual = (res.data[0].get("credenciais_com_erro") or "") if res.data else ""
@@ -609,20 +549,6 @@ def fgts_registrar_erro_credencial(rodada_id, username_com_erro, apelido_com_err
 
 
 def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag, inicio_geral, apelido=""):
-    """
-    Processa uma FATIA da lista de CPFs usando UMA credencial específica.
-    Várias dessas threads rodam em paralelo (uma por credencial ativa),
-    cada uma autenticando e consultando de forma independente.
-
-    Se ESTA credencial específica falhar no login (ex: bloqueada, senha
-    mudou), apenas ELA para — registramos o problema nominalmente e
-    encerramos só esta thread, sem afetar as demais credenciais que
-    continuam processando sua própria fatia normalmente.
-    """
-    # Tenta autenticar; se cair no intervalo de segurança (não testou a
-    # senha de verdade ainda), espera o tempo necessário e tenta de novo
-    # — isso evita o "loop" onde tentativas repetidas rápidas nunca chegam
-    # a testar a credencial de fato, ficando preso em falso erro.
     autenticado = False
     for _tentativa_auth in range(3):
         try:
@@ -673,9 +599,6 @@ def fgts_thread_credencial(cpfs_fatia, rodada_id, username, password, parar_flag
     fgts_finalizar_thread(rodada_id, status_se_ultima="concluida", inicio_geral=inicio_geral)
 
 
-# Guarda, por rodada, qual foi o motivo de finalização "mais forte" entre
-# todas as threads (pausar/cancelar têm prioridade sobre concluir, porque
-# representam uma decisão explícita do usuário).
 _fgts_motivo_final = {}
 _fgts_motivo_lock = threading.Lock()
 
@@ -683,16 +606,6 @@ _PRIORIDADE_STATUS = {"pausada": 3, "cancelada": 3, "erro_autenticacao": 2, "con
 
 
 def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral, motivo_individual=None):
-    """
-    Chamado quando UMA thread de credencial termina sua fatia (por concluir,
-    pausar, cancelar, ou — via motivo_individual — por erro de autenticação
-    isolado daquela credencial). Só a ÚLTIMA thread viva da rodada
-    efetivamente atualiza o status final da rodada inteira, usando o
-    status de MAIOR prioridade entre todas as threads que já terminaram
-    (pausar/cancelar > erro de autenticação > concluída), para que o erro
-    de uma única credencial não seja perdido nem trave indevidamente as
-    demais.
-    """
     status_para_registrar = motivo_individual or status_se_ultima
 
     with _fgts_motivo_lock:
@@ -705,17 +618,11 @@ def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral, motivo_indi
         restantes = _fgts_threads_ativas[rodada_id]
 
     if restantes > 0:
-        return  # ainda existem outras credenciais processando
+        return
 
-    # Esta foi a última thread viva desta rodada: fecha a rodada de fato,
-    # usando o status de maior prioridade observado entre todas as threads.
     with _fgts_motivo_lock:
         status_final_real = _fgts_motivo_final.pop(rodada_id, status_se_ultima)
 
-    # "erro_autenticacao" só vira o status FINAL da rodada se TODAS as
-    # credenciais tiverem falhado (nenhuma concluiu nada) — caso contrário,
-    # a rodada é tratada como concluída (ainda que com aquela credencial
-    # registrada em credenciais_com_erro para o usuário saber e corrigir).
     if status_final_real == "erro_autenticacao":
         try:
             res_check = supabase.table("fgts_resultados").select("id").eq("rodada_id", rodada_id).limit(1).execute()
@@ -733,13 +640,8 @@ def fgts_finalizar_thread(rodada_id, status_se_ultima, inicio_geral, motivo_indi
 
 
 def fgts_iniciar_threads(cpfs, rodada_id, credenciais, parar_flag):
-    """
-    Divide a lista de CPFs em fatias (uma por credencial) e dispara uma
-    thread paralela para cada credencial. Cada thread roda de forma
-    independente, com seu próprio login/token.
-    """
     n_cred = len(credenciais)
-    fatias = [cpfs[i::n_cred] for i in range(n_cred)]  # distribui round-robin
+    fatias = [cpfs[i::n_cred] for i in range(n_cred)]
 
     with _fgts_threads_lock:
         _fgts_threads_ativas[rodada_id] = n_cred
@@ -760,11 +662,8 @@ def fgts_iniciar_threads(cpfs, rodada_id, credenciais, parar_flag):
         thread.start()
 
 
-# Flags globais de "tem thread rodando para esta rodada" — usado tanto
-# pela UI (sessão do navegador) quanto pelo watchdog externo (cron job),
-# que não tem session_state porque não é uma sessão de navegador de verdade.
 _fgts_flags_globais = {}
-LIMITE_INATIVIDADE_SEGUNDOS = 150  # 2min30s sem nenhum CPF novo = thread considerada morta
+LIMITE_INATIVIDADE_SEGUNDOS = 150
 
 
 def fgts_buscar_rodada_ativa_global():
@@ -787,21 +686,6 @@ def fgts_buscar_credenciais_global(somente_ativas=True):
 
 
 def fgts_checar_e_religar_rodada_ativa():
-    """
-    Função central de watchdog: verifica se existe uma rodada marcada como
-    'em_andamento' que está há mais de LIMITE_INATIVIDADE_SEGUNDOS sem
-    processar nenhum CPF novo (sinal de thread morta) e, se for o caso,
-    religa automaticamente com as mesmas credenciais usadas antes.
-
-    Pode ser chamada de dois lugares:
-    1. Pela UI da aba "Consulta FGTS" quando alguém abre a tela.
-    2. Pelo endpoint especial acionado por um serviço externo de cron job,
-       que bate na URL do app periodicamente mesmo sem ninguém olhando,
-       garantindo que a consulta se autocorrija mesmo de madrugada.
-
-    Retorna uma mensagem (string) se religou algo, ou None se não havia
-    nada para religar.
-    """
     rodada_ativa = fgts_buscar_rodada_ativa_global()
     if not rodada_ativa or rodada_ativa.get("status") != "em_andamento":
         return None
@@ -1118,49 +1002,20 @@ def calcular_percentual_empresa_venda(tabela_banco, valor):
 
 
 def converter_data_supabase_coluna(serie):
-    """
-    Converte a coluna data do Supabase para datetime de forma segura.
-    Aceita:
-    - 2026-06-19 21:17:12
-    - 2026-06-19T21:17:12(.ffffff)
-    - 19/06/2026 21:17
-    - 19-06-2026 21:17
-    - datas com timezone
-
-    IMPORTANTE: usamos format="mixed", que interpreta CADA valor
-    individualmente em vez de tentar adivinhar UM formato único para a
-    coluna inteira. A abordagem antiga (duas passadas com dayfirst=True
-    depois dayfirst=False) travava num formato "global" inferido a partir
-    das primeiras linhas e descartava (virava NaT) qualquer linha com uma
-    variação sutil de formato (ex: com/sem microssegundos) — foi isso que
-    fez ~189 de 204 vendas sumirem dos filtros de Mês/Ano no Painel.
-    """
     s = serie.astype(str).str.strip()
-
-    # Normaliza valores nulos/vazios/strings "None" vindas do astype(str)
     s = s.replace({"None": None, "none": None, "nan": None, "NaT": None, "": None})
-
-    # Remove sufixo Z de UTC quando presente (não removemos o "T" aqui:
-    # format="mixed" entende tanto "T" quanto espaço como separador).
     s = s.str.replace("Z", "", regex=False)
-
     dt = pd.to_datetime(s, errors="coerce", format="mixed", dayfirst=False)
-
-    # Salvaguarda: se alguma linha vier com timezone embutido (raro nesse
-    # schema, que é "timestamp without time zone"), normaliza removendo o
-    # timezone para não quebrar comparações .dt.month/.dt.year adiante.
     try:
         if getattr(dt.dt, "tz", None) is not None:
             dt = dt.dt.tz_localize(None)
     except (TypeError, AttributeError):
         pass
-
     return dt
 
 
 def preparar_dataframe_vendas():
     try:
-        # Busca paginada para não perder registros se passar de 1000 linhas
         todos = []
         inicio = 0
         passo = 1000
@@ -1205,9 +1060,6 @@ def preparar_dataframe_vendas():
             else:
                 df[col] = None
 
-    # ✅ DATA DO SUPABASE USADA PARA FILTROS
-    # Mantém a data original para exibir/exportar, mas cria uma data convertida corretamente
-    # para mês, ano e dia. Isso corrige Maio/Junho quando a data vem como 19/06/2026.
     df["data_original_supabase"] = df["data"]
     df["data"] = converter_data_supabase_coluna(df["data"])
 
@@ -1421,12 +1273,6 @@ def menu_lateral_v8():
 # =========================
 # WATCHDOG EXTERNO (cron job)
 # =========================
-# Rota especial acessível SEM login, via parâmetro secreto na URL:
-#   https://seu-app.streamlit.app/?watchdog=OPERAX_FGTS_WATCHDOG_2026
-# Um serviço externo gratuito (ex: cron-job.org) pode bater nessa URL a
-# cada poucos minutos, 24h por dia, para que a consulta FGTS se autocorrija
-# (detecte thread morta e religue) mesmo de madrugada, sem precisar que
-# ninguém abra a tela do app manualmente.
 WATCHDOG_SENHA_SECRETA = "OPERAX_FGTS_WATCHDOG_2026"
 
 _parametros_url = st.query_params
@@ -1551,7 +1397,7 @@ else:
 
         # ── ANEXO DE DOCUMENTOS (aparece só para produtos configurados) ──
         produtos_com_doc = carregar_produtos_requer_documento()
-        arquivos_documento_venda = {}  # {categoria: [UploadedFile, ...]}
+        arquivos_documento_venda = {}
 
         if tabela_banco in produtos_com_doc:
             st.markdown("### 📎 Documentos do Cliente")
@@ -1591,8 +1437,6 @@ else:
                     perc_empresa = calcular_percentual_empresa_venda(tabela_banco, valor)
                     valor_empresa = float(valor)*(perc_empresa/100)
                     dados = {
-                        # ✅ Data/hora exata da digitação/cadastro da venda
-                        # É esta data que alimenta os filtros por dia, mês, ano e o Excel.
                         "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "vendedor_id": st.session_state.user_id,
                         "vendedor": st.session_state.usuario,
@@ -1651,9 +1495,6 @@ else:
         else:
             total_bruto_banco = len(df)
 
-            # 🔎 DIAGNÓSTICO (somente admin) — mostra quantas linhas falharam
-            # na conversão de data (NaT), para achar rapidamente vendas que
-            # somem dos filtros por mês/ano por causa de formato de data.
             if st.session_state.tipo == "admin":
                 qtd_nat = int(df["data"].isna().sum())
                 with st.expander(f"🔧 Diagnóstico de datas — {qtd_nat} de {total_bruto_banco} vendas com data não reconhecida", expanded=(qtd_nat > 0)):
@@ -1667,8 +1508,6 @@ else:
             meses = {1:"Janeiro",2:"Fevereiro",3:"Marco",4:"Abril",5:"Maio",6:"Junho",7:"Julho",8:"Agosto",9:"Setembro",10:"Outubro",11:"Novembro",12:"Dezembro"}
             col_f1,col_f2,col_f3,col_f4 = st.columns(4)
 
-            # ✅ Volta a filtrar como antes:
-            # abre no mês atual e ano atual, mas mantém opção "Todos" para não esconder vendas.
             mes_atual_nome = meses.get(datetime.now().month, "Janeiro")
             opcoes_mes = list(meses.values()) + ["Todos"]
             index_mes = opcoes_mes.index(mes_atual_nome) if mes_atual_nome in opcoes_mes else 0
@@ -1689,8 +1528,6 @@ else:
             tabelas = carregar_tabelas()
             tabela_filtro = st.selectbox("Tabela/Banco", ["Todas"]+tabelas)
 
-            # ✅ Aplica mês/ano corretamente:
-            # Junho aparece em Junho, Maio aparece em Maio.
             if mes_nome != "Todos":
                 mes_num = [k for k,v in meses.items() if v==mes_nome][0]
                 df = df[df["mes_num"]==mes_num]
@@ -1749,10 +1586,6 @@ else:
                 colunas = [c for c in colunas if c in df.columns]
                 df_visao = df[colunas].copy()
 
-                # ✅ DATA DO SUPABASE NO PAINEL E NO EXCEL
-                # Puxa a data da coluna "data" do Supabase.
-                # A coluna "data" convertida continua sendo usada para filtros.
-                # Para exibir/exportar, usamos a cópia original do Supabase.
                 if "data_original_supabase" in df.columns and "data" in df_visao.columns:
                     df_visao["data"] = df.loc[df_visao.index, "data_original_supabase"].astype(str)
                 elif "data" in df_visao.columns:
@@ -1761,8 +1594,6 @@ else:
                 if "valor" in df_visao.columns:
                     df_visao["valor"] = df_visao["valor"].apply(dinheiro)
 
-                # 📎 Coluna com a quantidade de documentos anexados por venda
-                # (consulta única pra não pesar a tela quando tem muitas propostas).
                 contagem_docs_painel = contar_documentos_por_vendas(df_visao["id"].tolist()) if "id" in df_visao.columns else {}
                 if "id" in df_visao.columns:
                     df_visao["anexos"] = df_visao["id"].apply(lambda vid: f"📎 {contagem_docs_painel.get(vid,0)}" if contagem_docs_painel.get(vid,0) > 0 else "—")
@@ -1781,7 +1612,6 @@ else:
                 }
                 df_visao = df_visao.rename(columns=traducao_cols)
 
-                # ── CLICAR NA LINHA ABRE OS DADOS COMPLETOS + ANEXOS ──
                 def _renderizar_proposta_completa(dados_proposta):
                     st.markdown(f"### Venda #{int(dados_proposta.get('id'))}")
                     col_view1, col_view2 = st.columns(2)
@@ -1843,7 +1673,6 @@ else:
                     else:
                         st.caption("Clique numa linha da tabela pra ver os dados completos + anexos. (Se não abrir, use o campo 'Editar proposta (ID)' abaixo.)")
                 except TypeError:
-                    # Streamlit desatualizado sem suporte a seleção de linha — cai no modo antigo, sem quebrar a tela.
                     st.dataframe(df_visao.style.apply(destacar_linhas_pendentes, tipo_usuario=st.session_state.tipo, axis=1), use_container_width=True)
 
                 buf = io.BytesIO()
@@ -1891,7 +1720,6 @@ else:
                 proposta_id = st.selectbox("Editar proposta (ID)", df["id"].tolist())
                 proposta = df[df["id"]==proposta_id].iloc[0]
 
-                # ── DOCUMENTOS ANEXADOS A ESTA VENDA ──
                 documentos_da_proposta = carregar_documentos_da_venda(int(proposta_id))
                 if documentos_da_proposta:
                     st.markdown(f"**📎 Documentos anexados ({len(documentos_da_proposta)})**")
@@ -1920,8 +1748,6 @@ else:
                         st.caption("Vendedor pode editar somente propostas não conferidas.")
 
                     with st.form("editar_proposta"):
-                        # DATA DO CONTRATO EDITÁVEL SOMENTE PELA GESTÃO/ADMIN
-                        # Esta é a mesma coluna "data" usada nos filtros do painel.
                         data_original = pd.to_datetime(proposta.get("data"), errors="coerce")
                         if pd.isna(data_original):
                             data_original = pd.Timestamp.now()
@@ -1939,7 +1765,6 @@ else:
                                 key=f"hora_contrato_edit_{proposta_id}"
                             )
 
-                            # TROCAR VENDEDOR SOMENTE ADMIN
                             try:
                                 usuarios_res = supabase.table("usuarios").select("id,nome,usuario,tipo,ativo").eq("ativo", True).order("nome").execute()
                                 usuarios_lista = usuarios_res.data or []
@@ -2107,7 +1932,6 @@ else:
                                 usuario_alteracao = str(st.session_state.get("nome", st.session_state.get("usuario","")))
                                 resumo_final = "; ".join(resumo_mudancas[:12]) if resumo_mudancas else "Sem mudança relevante detectada"
 
-                                # Tenta salvar auditoria; se as colunas não existirem, salva sem derrubar.
                                 dados_update_com_auditoria = dict(dados_update)
                                 dados_update_com_auditoria["ultima_alteracao_em"] = agora_alteracao
                                 dados_update_com_auditoria["ultima_alteracao_por"] = usuario_alteracao
@@ -2339,6 +2163,179 @@ else:
         if st.button("🔄 Verificar conexao", key="btn_wp_check"):
             st.rerun()
 
+    elif menu == "👥 Usuarios":
+        st.markdown("""
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,rgba(37,99,235,0.15),rgba(14,165,233,0.15));border:1px solid rgba(14,165,233,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0ea5e9" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+            <span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;letter-spacing:0.04em;">Usuários</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── CRIAR NOVO USUÁRIO ──
+        st.markdown("### ➕ Criar usuário")
+        with st.form("novo_usuario", clear_on_submit=True):
+            nome_novo_usuario = st.text_input("Nome")
+            login_novo_usuario = st.text_input("Usuário (login)")
+            senha_novo_usuario = st.text_input("Senha", type="password")
+            tipo_novo_usuario = st.selectbox("Tipo", ["vendedor", "admin"])
+
+            criar_usuario_btn = st.form_submit_button("Criar usuário", use_container_width=True)
+
+            if criar_usuario_btn:
+                if not nome_novo_usuario or not login_novo_usuario or not senha_novo_usuario:
+                    st.error("Preencha nome, usuário e senha.")
+                else:
+                    login_normalizado = login_novo_usuario.strip().lower()
+                    ja_existe = supabase.table("usuarios").select("id").eq("usuario", login_normalizado).execute()
+                    if ja_existe.data:
+                        st.error(f"Já existe um usuário com o login '{login_normalizado}'.")
+                    else:
+                        try:
+                            supabase.table("usuarios").insert({
+                                "nome": nome_novo_usuario.strip(),
+                                "usuario": login_normalizado,
+                                "senha_hash": hash_senha(senha_novo_usuario),
+                                "tipo": tipo_novo_usuario,
+                                "ativo": True
+                            }).execute()
+                            st.success(f"Usuário '{nome_novo_usuario}' criado com sucesso!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao criar usuário: {e}")
+
+        st.divider()
+
+        # ── LISTA DE USUÁRIOS CADASTRADOS ──
+        st.markdown("### 📋 Usuários cadastrados")
+        try:
+            usuarios_res = supabase.table("usuarios").select("*").order("nome").execute()
+            df_usuarios = pd.DataFrame(usuarios_res.data or [])
+        except Exception as e:
+            st.error(f"Erro ao carregar usuários: {e}")
+            df_usuarios = pd.DataFrame()
+
+        if df_usuarios.empty:
+            st.info("Nenhum usuário cadastrado ainda.")
+        else:
+            colunas_exibir_usuarios = [c for c in ["id", "nome", "usuario", "tipo", "ativo"] if c in df_usuarios.columns]
+            df_usuarios_visao = df_usuarios[colunas_exibir_usuarios].rename(columns={
+                "id": "ID", "nome": "Nome", "usuario": "Usuário/Login",
+                "tipo": "Tipo", "ativo": "Ativo"
+            })
+            st.dataframe(df_usuarios_visao, use_container_width=True, hide_index=True)
+
+            st.divider()
+
+            # ── EDITAR / GERENCIAR USUÁRIO SELECIONADO ──
+            st.markdown("### ✏️ Editar usuário")
+
+            opcoes_usuario = {
+                f"{row.get('nome','')} ({row.get('usuario','')})": row.get("id")
+                for _, row in df_usuarios.iterrows()
+            }
+            escolha_usuario_label = st.selectbox("Selecione o usuário", list(opcoes_usuario.keys()), key="sel_usuario_editar")
+            usuario_id_selecionado = opcoes_usuario[escolha_usuario_label]
+            usuario_selecionado = df_usuarios[df_usuarios["id"] == usuario_id_selecionado].iloc[0]
+
+            usuario_login_atual = str(usuario_selecionado.get("usuario", "") or "").lower()
+            eh_admin_principal = usuario_login_atual == "admin"
+
+            with st.form(f"editar_usuario_{usuario_id_selecionado}"):
+                nome_edit_usuario = st.text_input("Nome", value=str(usuario_selecionado.get("nome", "") or ""))
+                login_edit_usuario = st.text_input("Usuário/Login", value=str(usuario_selecionado.get("usuario", "") or ""))
+
+                tipo_atual_usuario = str(usuario_selecionado.get("tipo", "vendedor") or "vendedor")
+                tipo_index_usuario = 0 if tipo_atual_usuario == "vendedor" else 1
+                tipo_edit_usuario = st.selectbox("Tipo", ["vendedor", "admin"], index=tipo_index_usuario)
+
+                salvar_edicao_usuario = st.form_submit_button("💾 Salvar alterações", use_container_width=True)
+
+                if salvar_edicao_usuario:
+                    if not nome_edit_usuario.strip() or not login_edit_usuario.strip():
+                        st.error("Nome e usuário/login não podem ficar em branco.")
+                    else:
+                        login_edit_normalizado = login_edit_usuario.strip().lower()
+                        conflito = supabase.table("usuarios").select("id").eq("usuario", login_edit_normalizado).neq("id", int(usuario_id_selecionado)).execute()
+                        if conflito.data:
+                            st.error(f"Já existe outro usuário com o login '{login_edit_normalizado}'.")
+                        else:
+                            try:
+                                supabase.table("usuarios").update({
+                                    "nome": nome_edit_usuario.strip(),
+                                    "usuario": login_edit_normalizado,
+                                    "tipo": tipo_edit_usuario
+                                }).eq("id", int(usuario_id_selecionado)).execute()
+                                st.success("Usuário atualizado!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao atualizar usuário: {e}")
+
+            st.divider()
+
+            # ── ALTERAR SENHA ──
+            st.markdown("### 🔑 Alterar senha")
+            with st.form(f"alterar_senha_{usuario_id_selecionado}", clear_on_submit=True):
+                nova_senha_usuario = st.text_input("Nova senha", type="password")
+                alterar_senha_btn = st.form_submit_button("Alterar senha", use_container_width=True)
+
+                if alterar_senha_btn:
+                    if not nova_senha_usuario:
+                        st.error("Digite uma nova senha.")
+                    else:
+                        try:
+                            supabase.table("usuarios").update({
+                                "senha_hash": hash_senha(nova_senha_usuario)
+                            }).eq("id", int(usuario_id_selecionado)).execute()
+                            st.success("Senha alterada com sucesso!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao alterar senha: {e}")
+
+            st.divider()
+
+            # ── ATIVAR / DESATIVAR ──
+            st.markdown("### 🔄 Ativar / Desativar")
+            status_atual_usuario = bool(usuario_selecionado.get("ativo", True))
+            st.caption(f"Status atual: {'🟢 Ativo' if status_atual_usuario else '⚪ Inativo'}")
+
+            if eh_admin_principal:
+                st.info("O admin principal não pode ser desativado.")
+            else:
+                label_toggle = "🔴 Desativar usuário" if status_atual_usuario else "🟢 Ativar usuário"
+                if st.button(label_toggle, use_container_width=True, key=f"toggle_ativo_{usuario_id_selecionado}"):
+                    try:
+                        supabase.table("usuarios").update({
+                            "ativo": not status_atual_usuario
+                        }).eq("id", int(usuario_id_selecionado)).execute()
+                        st.success("Status alterado!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Erro ao alterar status: {e}")
+
+            st.divider()
+
+            # ── EXCLUIR USUÁRIO ──
+            st.markdown("### 🗑️ Excluir usuário")
+            if eh_admin_principal:
+                st.info("O admin principal não pode ser excluído.")
+            else:
+                confirmar_exclusao_usuario = st.checkbox(
+                    "Confirmo que quero excluir este usuário permanentemente",
+                    key=f"confirma_exclusao_usuario_{usuario_id_selecionado}"
+                )
+                if st.button("🗑️ Excluir usuário", use_container_width=True, key=f"btn_excluir_usuario_{usuario_id_selecionado}"):
+                    if not confirmar_exclusao_usuario:
+                        st.error("Marque a confirmação antes de excluir.")
+                    else:
+                        try:
+                            supabase.table("usuarios").delete().eq("id", int(usuario_id_selecionado)).execute()
+                            st.success("Usuário excluído!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Erro ao excluir usuário: {e}")
+
     elif menu == "💰 Comissoes":
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Regras de Comissao</span>', unsafe_allow_html=True)
 
@@ -2418,7 +2415,6 @@ else:
         grupos = carregar_grupos()
         todas_tabelas = carregar_tabelas()
 
-        # Mapear quais tabelas já estão em algum grupo
         tabelas_ja_usadas = set()
         tabelas_por_grupo = {}
         for g in grupos:
@@ -2426,10 +2422,8 @@ else:
             tabelas_por_grupo[g["id"]] = tabs
             tabelas_ja_usadas.update(tabs)
 
-        # Tabelas livres (não vinculadas a nenhum grupo)
         tabelas_livres = [t for t in todas_tabelas if t not in tabelas_ja_usadas]
 
-        # Controle de tipo fora do form para atualizar dinamicamente
         tipo_novo = st.selectbox("Tipo de pagamento", ["Dias úteis após a venda", "Dia fixo da semana"], key="tipo_novo_sel")
 
         with st.form("form_novo_grupo"):
@@ -2472,7 +2466,6 @@ else:
             resumo = f"{gdias} dias úteis" if gtipo=="dias" else f"Toda {gdiasem}"
 
             with st.expander(f"🏦 {gnome} — {qtd} tabela(s) • {resumo}"):
-                # Tipo fora do form para atualizar dinamicamente
                 tipo_edit = st.selectbox("Tipo de pagamento",
                     ["Dias úteis após a venda","Dia fixo da semana"],
                     index=0 if gtipo=="dias" else 1,
@@ -2490,7 +2483,6 @@ else:
                     st.markdown("**Selecione as tabelas/comissões deste grupo:**")
                     cols_tab = st.columns(2)
                     selecionadas = []
-                    # Mostrar: tabelas deste grupo + tabelas livres (não usadas em outros grupos)
                     tabelas_disponiveis = [t for t in todas_tabelas if t in tabelas_por_grupo[gid] or t not in tabelas_ja_usadas]
                     for i, tab in enumerate(tabelas_disponiveis):
                         checked = tab in tabelas_por_grupo[gid]
@@ -2507,7 +2499,6 @@ else:
 
         st.divider()
 
-        # ── CALENDÁRIO DE PREVISÃO ──────────────────────────────────────
         st.markdown("### 📅 Calendário de Previsão de Comissões")
 
         def dias_uteis_apos(data_inicio, dias):
@@ -2544,18 +2535,12 @@ else:
                     if gtipo == "dias":
                         data_prev = dias_uteis_apos(data_venda, gdias)
                     else:
-                        # Paga na segunda da SEMANA SEGUINTE à semana da venda
-                        # Semana = Seg a Sab. Qualquer venda da semana X paga na Segunda da semana X+1
                         from datetime import timedelta
-                        alvo = dia_semana_map.get(gdiasem, 0)  # 0=Seg, 1=Ter...
+                        alvo = dia_semana_map.get(gdiasem, 0)
                         dv = pd.Timestamp(data_venda)
-                        # Semana = Seg a Dom. Achar a Segunda da semana atual
-                        # weekday(): 0=Seg, 6=Dom
-                        dias_ate_seg = dv.weekday()  # 0 se já é segunda, 6 se domingo
+                        dias_ate_seg = dv.weekday()
                         seg_atual = dv - timedelta(days=dias_ate_seg)
-                        # Paga na Segunda da próxima semana
                         seg_prox = seg_atual + timedelta(days=7)
-                        # Ajustar para o dia configurado dentro dessa próxima semana
                         data_prev = seg_prox + timedelta(days=alvo)
                     key = str(data_prev.date())
                     valor_com = float(row.get("valor_comissao_empresa") or 0)
@@ -2568,7 +2553,6 @@ else:
                         eventos_cal[key][gnome] = 0
                     eventos_cal[key][gnome] += valor_com
 
-            # Montar calendário HTML
             hoje = pd.Timestamp.now()
             mes_atual = hoje.month
             ano_atual = hoje.year
@@ -2644,9 +2628,6 @@ else:
         st.divider()
         st.markdown("### ⚙️ Regras de Comissao")
 
-        # ── CONFIGURAR QUAIS PRODUTOS PEDEM ANEXO DE DOCUMENTO ──
-        # Marcando aqui, a seção de anexo de documentos passa a aparecer
-        # automaticamente no Nova Venda quando esse produto for selecionado.
         with st.expander("📎 Configurar quais produtos pedem anexo de documento"):
             st.caption("Marque os produtos que devem exibir a seção de anexo de documentos (contracheque, comprovante, etc.) no Nova Venda. Assim que você criar um produto novo aqui embaixo, ele aparece nesta lista para você marcar.")
             produtos_com_doc_cfg = carregar_produtos_requer_documento()
@@ -2660,7 +2641,6 @@ else:
                     else:
                         st.rerun()
 
-        # ADICIONAR NOVA COMISSÃO NO MESMO LOCAL
         with st.expander("➕ Adicionar nova comissão", expanded=False):
             with st.form("nova_regra_rapida", clear_on_submit=True):
                 col_nova1, col_nova2, col_nova3, col_nova4 = st.columns([3, 1.3, 1.3, 1])
@@ -2940,12 +2920,10 @@ else:
         st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">Consulta FGTS — Saque Aniversário</span>', unsafe_allow_html=True)
         st.caption("Consulta o saldo de FGTS (Saque Aniversário) via API V8 Digital, provider BMS.")
 
-        # Inicializa controle de pausa/cancelamento por rodada nesta sessão
         if "fgts_flags" not in st.session_state:
             st.session_state.fgts_flags = {}
 
         def fgts_buscar_rodada_ativa():
-            """Busca rodada em_andamento, pausando ou cancelando (ainda "viva")."""
             try:
                 res = supabase.table("fgts_rodadas").select("*").in_("status", ["em_andamento","pausando","cancelando"]).order("id", desc=True).limit(1).execute()
                 return res.data[0] if res.data else None
@@ -3036,7 +3014,6 @@ else:
                 key=key_botao
             )
 
-        # ── GERENCIAR CREDENCIAIS V8 ─────────────────────────
         with st.expander("🔑 Gerenciar credenciais V8 (logins para rodar em paralelo)"):
             st.caption("Cadastre quantos logins V8 quiser. Ao iniciar uma consulta, você escolhe quais ficam ativos para dividir os CPFs entre eles e processar em paralelo.")
 
@@ -3082,11 +3059,6 @@ else:
         rodada_ativa = fgts_buscar_rodada_ativa()
         rodadas_pausadas = fgts_buscar_rodadas_pausadas()
 
-        # ── WATCHDOG DE ABERTURA: detecta thread morta e auto-retoma ──
-        # Toda vez que esta aba é aberta/atualizada, reaproveitamos a mesma
-        # checagem usada pelo watchdog externo (cron job): se a rodada
-        # "em_andamento" está há muito tempo sem processar nenhum CPF novo,
-        # religamos automaticamente com as credenciais usadas antes.
         if rodada_ativa and rodada_ativa.get("status") == "em_andamento":
             resultado_watchdog_aba = fgts_checar_e_religar_rodada_ativa()
             if resultado_watchdog_aba:
@@ -3095,7 +3067,6 @@ else:
                 time.sleep(1)
                 st.rerun()
 
-        # ── RODADA ATIVA (em andamento / pausando / cancelando) ──
         if rodada_ativa:
             rid = rodada_ativa["id"]
             status_rid = rodada_ativa.get("status","em_andamento")
@@ -3178,7 +3149,6 @@ else:
                 time.sleep(1)
                 st.rerun()
 
-        # ── RODADAS PAUSADAS (exportar parcial / retomar) ────
         elif rodadas_pausadas:
             st.markdown("### ⏸️ Rodadas pausadas")
             st.caption("Exporte o que já foi consultado ou retome de onde parou.")
@@ -3284,7 +3254,6 @@ else:
                 st.session_state["fgts_forcar_nova"] = True
                 st.rerun()
 
-        # ── INICIAR NOVA RODADA ──────────────────────────────
         if not rodada_ativa and (not rodadas_pausadas or st.session_state.get("fgts_forcar_nova")):
             st.markdown("### ▶️ Nova consulta")
 
@@ -3333,7 +3302,7 @@ else:
                         except Exception as e:
                             st.error(f"Erro ao ler o arquivo: {e}")
 
-                cpfs_para_processar = list(dict.fromkeys(cpfs_para_processar))  # remove duplicados mantendo ordem
+                cpfs_para_processar = list(dict.fromkeys(cpfs_para_processar))
 
                 if cpfs_para_processar:
                     n_sel = max(len(credenciais_escolhidas_ids), 1)
@@ -3368,7 +3337,6 @@ else:
 
         st.divider()
 
-        # ── HISTÓRICO DE RODADAS ─────────────────────────────
         st.markdown("### 🕓 Histórico de rodadas")
         historico = fgts_buscar_historico(15)
 
