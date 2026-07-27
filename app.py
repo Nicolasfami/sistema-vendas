@@ -4637,10 +4637,9 @@ else:
 
             st.caption(
                 "CSV único com colunas: cpf, nome, celular (sempre obrigatórias). "
-                "Se a V8 estiver selecionada, também exige genero ('male'/'female') e data_nascimento "
-                "(aceita DD/MM/AAAA ou AAAA-MM-DD, o app converte sozinho) — "
-                "genero pode ser estimado automaticamente (checkbox acima), mas data_nascimento precisa vir no CSV. "
-                "email é opcional."
+                "Se a V8 estiver selecionada, também exige genero ('male'/'female'), data_nascimento "
+                "(aceita DD/MM/AAAA ou AAAA-MM-DD) e email válido — "
+                "genero pode ser estimado automaticamente (checkbox acima), mas data_nascimento e email precisam vir no CSV."
             )
 
             arquivo_csv_mb = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="mb_upload_csv")
@@ -4669,6 +4668,8 @@ else:
                         faltando_mb.append("genero")
                     if precisa_genero_v8_mb and col_datanasc_mb is None:
                         faltando_mb.append("data_nascimento")
+                    if precisa_genero_v8_mb and col_email_mb is None:
+                        faltando_mb.append("email")
 
                     if faltando_mb:
                         st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
@@ -4676,6 +4677,8 @@ else:
                             st.caption("A V8 exige o campo 'genero' ('male' ou 'female') — sem ele, a consulta na V8 falha com erro de validação. Marque a opção de inferir automaticamente acima, ou adicione a coluna.")
                         if precisa_genero_v8_mb and "data_nascimento" in faltando_mb:
                             st.caption("A V8 também exige 'data_nascimento' no formato AAAA-MM-DD (ex: 1990-05-20) — esse campo não dá pra estimar automaticamente, precisa vir no CSV.")
+                        if precisa_genero_v8_mb and "email" in faltando_mb:
+                            st.caption("A V8 também exige 'email' (formato válido) — precisa vir no CSV.")
                     else:
                         qtd_genero_inferido_mb = 0
                         for num_linha, row in df_up_mb.reset_index().iterrows():
@@ -4706,6 +4709,10 @@ else:
 
                             if precisa_genero_v8_mb and not re.match(r"^\d{4}-\d{2}-\d{2}$", data_nasc_l):
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: data_nascimento inválida ou ausente (aceita DD/MM/AAAA ou AAAA-MM-DD — valor lido: '{data_nasc_bruta_l}')")
+                                continue
+
+                            if precisa_genero_v8_mb and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email_l):
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: email inválido ou ausente (obrigatório para V8) — valor lido: '{email_l}'")
                                 continue
 
                             if precisa_genero_v8_mb and genero_l not in ("male", "female"):
