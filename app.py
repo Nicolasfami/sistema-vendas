@@ -847,9 +847,27 @@ def soma_consultar_margem(cpf, nome="", celular="", data_nascimento="", bancariz
             if resp.status_code == 429:
                 raise RuntimeError("Limite diário de consultas atingido na API Soma.")
 
+            if resp.status_code == 400:
+                try:
+                    corpo_erro = resp.json()
+                    detalhes = corpo_erro.get("detalhes")
+                    if detalhes:
+                        detalhes_txt = "; ".join(f"{d.get('campo')}: {d.get('mensagem')}" for d in detalhes)
+                    else:
+                        detalhes_txt = corpo_erro.get("message", resp.text)
+                except Exception:
+                    detalhes_txt = resp.text
+                raise RuntimeError(f"HTTP 400 (validação): {detalhes_txt}")
+
             resp.raise_for_status()
             return resp.json()
 
+        except RuntimeError as e:
+            if str(e).startswith("HTTP 400"):
+                raise
+            ultimo_erro = e
+            if tentativa < max_retries:
+                time.sleep(2 ** tentativa)
         except Exception as e:
             ultimo_erro = e
             if tentativa < max_retries:
