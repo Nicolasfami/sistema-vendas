@@ -731,6 +731,7 @@ def fgts_checar_e_religar_rodada_ativa():
 # CLT LOTE - CONFIGURAÇÃO API SOMA BP2 (Consignado Privado CLT)
 # ============================================================
 import os as _os_soma
+import json as _json_soma
 
 SOMA_BASE_URL = "https://api.somabp2.com.br"
 def _soma_ler_credencial_secrets(nome_chave):
@@ -942,9 +943,10 @@ def soma_lote_incrementar_processados(rodada_id):
         pass
 
 
-def soma_lote_worker(cpfs_fatia, rodada_id, bancarizadora, parar_flag):
+def soma_lote_worker(registros_fatia, rodada_id, bancarizadora, parar_flag):
     ja_processados = soma_lote_cpfs_ja_processados(rodada_id)
-    for cpf in cpfs_fatia:
+    for registro in registros_fatia:
+        cpf = registro["cpf"]
         if cpf in ja_processados:
             continue
 
@@ -954,7 +956,10 @@ def soma_lote_worker(cpfs_fatia, rodada_id, bancarizadora, parar_flag):
         if status_banco == "pausando" or parar_flag.get("parar") == "pausar":
             break
 
-        soma_lote_processar_cpf(cpf, rodada_id, bancarizadora)
+        soma_lote_processar_cpf(
+            cpf, rodada_id, bancarizadora,
+            nome=registro.get("nome", ""), celular=registro.get("celular", "")
+        )
         soma_lote_incrementar_processados(rodada_id)
 
     with _soma_lote_threads_lock:
@@ -975,9 +980,9 @@ def soma_lote_worker(cpfs_fatia, rodada_id, bancarizadora, parar_flag):
         supabase.table("soma_lote_rodadas").update(update_dados).eq("id", rodada_id).execute()
 
 
-def soma_lote_iniciar_threads(cpfs, rodada_id, bancarizadora, parar_flag, n_workers=SOMA_LOTE_NUM_WORKERS):
-    n_workers = max(1, min(n_workers, len(cpfs)))
-    fatias = [cpfs[i::n_workers] for i in range(n_workers)]
+def soma_lote_iniciar_threads(registros, rodada_id, bancarizadora, parar_flag, n_workers=SOMA_LOTE_NUM_WORKERS):
+    n_workers = max(1, min(n_workers, len(registros)))
+    fatias = [registros[i::n_workers] for i in range(n_workers)]
 
     with _soma_lote_threads_lock:
         _soma_lote_threads_ativas[rodada_id] = n_workers
@@ -3844,7 +3849,10 @@ else:
                     with col_ps1:
                         if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_soma_{rid_p_s}"):
                             cpfs_lista_str_s = rod_p_s.get("cpfs_lista") or ""
-                            cpfs_originais_s = [c for c in cpfs_lista_str_s.split(",") if c]
+                            try:
+                                cpfs_originais_s = _json_soma.loads(cpfs_lista_str_s) if cpfs_lista_str_s else []
+                            except Exception:
+                                cpfs_originais_s = []
                             if not cpfs_originais_s:
                                 st.error("Não encontrei a lista original de CPFs desta rodada.")
                             else:
@@ -3896,24 +3904,55 @@ else:
 
             bancarizadora_nova_s = st.selectbox("Bancarizadora", ["UY3", "CELCOIN"], key="soma_bancarizadora_nova")
 
+            st.caption("A Soma exige nome e celular junto com o CPF (mínimo 3 caracteres no nome, 10 dígitos no celular).")
             texto_cpfs_soma = st.text_area(
-                "Cole os CPFs (um por linha)", height=180,
-                placeholder="12345678900\n98765432100\n...", key="soma_texto_cpfs"
+                "Cole um por linha, no formato CPF;NOME;CELULAR", height=180,
+                placeholder="12345678900;JOAO DA SILVA;11999999999\n98765432100;MARIA SOUZA;21988887777\n...",
+                key="soma_texto_cpfs"
             )
 
             cpfs_soma_processar = []
+            linhas_com_erro_soma = []
             if texto_cpfs_soma.strip():
-                for linha in texto_cpfs_soma.splitlines():
-                    c = limpar_documento(linha)
-                    if len(c) == 11:
-                        cpfs_soma_processar.append(c)
-            cpfs_soma_processar = list(dict.fromkeys(cpfs_soma_processar))
+                for num_linha, linha in enumerate(texto_cpfs_soma.splitlines(), start=1):
+                    linha = linha.strip()
+                    if not linha:
+                        continue
+                    partes = linha.split(";")
+                    if len(partes) < 3:
+                        linhas_com_erro_soma.append(f"Linha {num_linha}: faltam campos (esperado CPF;NOME;CELULAR)")
+                        continue
+                    cpf_l, nome_l, celular_l = partes[0].strip(), partes[1].strip(), partes[2].strip()
+                    cpf_l = limpar_documento(cpf_l)
+                    celular_l = limpar_documento(celular_l)
+                    if len(cpf_l) != 11:
+                        linhas_com_erro_soma.append(f"Linha {num_linha}: CPF inválido ({cpf_l})")
+                        continue
+                    if len(nome_l) < 3:
+                        linhas_com_erro_soma.append(f"Linha {num_linha}: nome muito curto")
+                        continue
+                    if len(celular_l) < 10:
+                        linhas_com_erro_soma.append(f"Linha {num_linha}: celular deve ter no mínimo 10 dígitos")
+                        continue
+                    cpfs_soma_processar.append({"cpf": cpf_l, "nome": nome_l, "celular": celular_l})
+
+            # remove duplicados por CPF mantendo a primeira ocorrência
+            vistos_cpf_soma = set()
+            cpfs_soma_processar_dedup = []
+            for reg in cpfs_soma_processar:
+                if reg["cpf"] not in vistos_cpf_soma:
+                    vistos_cpf_soma.add(reg["cpf"])
+                    cpfs_soma_processar_dedup.append(reg)
+            cpfs_soma_processar = cpfs_soma_processar_dedup
+
+            if linhas_com_erro_soma:
+                st.error("Corrija essas linhas antes de continuar:\n" + "\n".join(linhas_com_erro_soma))
 
             if cpfs_soma_processar:
-                st.success(f"✅ {len(cpfs_soma_processar)} CPF(s) válido(s) detectado(s).")
+                st.success(f"✅ {len(cpfs_soma_processar)} registro(s) válido(s) detectado(s).")
 
             if st.button("🚀 Iniciar Consulta em Lote", use_container_width=True,
-                         disabled=(len(cpfs_soma_processar) == 0 or not credencial_soma_ativa)):
+                         disabled=(len(cpfs_soma_processar) == 0 or not credencial_soma_ativa or bool(linhas_com_erro_soma))):
                 try:
                     nova_rodada_soma = supabase.table("soma_lote_rodadas").insert({
                         "total_cpfs": len(cpfs_soma_processar),
@@ -3921,7 +3960,7 @@ else:
                         "status": "em_andamento",
                         "bancarizadora": bancarizadora_nova_s,
                         "usuario": st.session_state.get("nome", st.session_state.get("usuario", "")),
-                        "cpfs_lista": ",".join(cpfs_soma_processar),
+                        "cpfs_lista": _json_soma.dumps(cpfs_soma_processar),
                         "ultimo_processamento_em": str(datetime.now()),
                     }).execute()
                     rodada_id_nova_soma = nova_rodada_soma.data[0]["id"]
