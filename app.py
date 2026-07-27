@@ -4831,8 +4831,7 @@ else:
 
                         buf_hist_mb = io.BytesIO()
                         with pd.ExcelWriter(buf_hist_mb, engine="openpyxl") as writer:
-                            df_wide_mb.to_excel(writer, index=False, sheet_name="Resumo por CPF")
-                            df_visao_mb.to_excel(writer, index=False, sheet_name="Detalhado")
+                            df_wide_mb.to_excel(writer, index=False, sheet_name="Resultado")
                         buf_hist_mb.seek(0)
                         st.download_button(
                             label="📥 Exportar resultado (Excel)", data=buf_hist_mb,
