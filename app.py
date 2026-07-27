@@ -4728,37 +4728,36 @@ else:
                     else:
                         df_res_mb = pd.DataFrame(resultados_rod_mb)
 
-                        # ── Resumo por CPF: uma linha por CPF, colunas por banco ──
-                        st.markdown("**📊 Resumo por CPF**")
+                        # ── Uma linha por CPF, colunas de Status e Margem por banco ──
                         try:
-                            df_res_mb["resumo_banco"] = df_res_mb.apply(
-                                lambda r: (
-                                    f"{r['status']} — R$ {float(r['margem_disponivel']):.2f}"
-                                    if pd.notna(r.get("margem_disponivel"))
-                                    else str(r.get("status") or "—")
-                                ),
-                                axis=1
-                            )
-                            df_pivot_mb = df_res_mb.pivot_table(
-                                index="cpf", columns="banco", values="resumo_banco", aggfunc="first"
-                            ).reset_index().rename(columns={"cpf": "CPF"})
-                            st.dataframe(df_pivot_mb, use_container_width=True, hide_index=True)
-                        except Exception as e_pivot:
-                            st.caption(f"Não consegui montar o resumo por CPF ({e_pivot}) — veja a tabela detalhada abaixo.")
+                            bancos_presentes_mb = sorted(df_res_mb["banco"].dropna().unique().tolist())
+                            df_wide_mb = df_res_mb[["cpf", "nome"]].drop_duplicates(subset=["cpf"]) if "nome" in df_res_mb.columns else df_res_mb[["cpf"]].drop_duplicates()
+                            df_wide_mb = df_wide_mb.rename(columns={"cpf": "CPF"})
 
-                        st.markdown("**📋 Detalhado**")
-                        colunas_exibir_mb = ["cpf", "banco", "status", "margem_disponivel", "mensagem", "tempo_segundos"]
-                        colunas_exibir_mb = [c for c in colunas_exibir_mb if c in df_res_mb.columns]
-                        df_visao_mb = df_res_mb[colunas_exibir_mb].rename(columns={
-                            "cpf": "CPF", "banco": "Banco", "status": "Status",
-                            "margem_disponivel": "Margem Disponível", "mensagem": "Mensagem",
-                            "tempo_segundos": "Tempo (s)"
-                        })
-                        st.dataframe(df_visao_mb, use_container_width=True, hide_index=True)
+                            for banco_col in bancos_presentes_mb:
+                                sub = df_res_mb[df_res_mb["banco"] == banco_col].set_index("cpf")
+                                df_wide_mb[f"{banco_col} - Status"] = df_wide_mb["CPF"].map(sub["status"])
+                                if "margem_disponivel" in sub.columns:
+                                    df_wide_mb[f"{banco_col} - Margem"] = df_wide_mb["CPF"].map(sub["margem_disponivel"])
+
+                            st.dataframe(df_wide_mb, use_container_width=True, hide_index=True)
+                        except Exception as e_pivot:
+                            st.caption(f"Não consegui montar a tabela por banco ({e_pivot}) — veja o detalhado abaixo.")
+
+                        with st.expander("📋 Ver detalhado (com mensagens de erro)"):
+                            colunas_exibir_mb = ["cpf", "banco", "status", "margem_disponivel", "mensagem", "tempo_segundos"]
+                            colunas_exibir_mb = [c for c in colunas_exibir_mb if c in df_res_mb.columns]
+                            df_visao_mb = df_res_mb[colunas_exibir_mb].rename(columns={
+                                "cpf": "CPF", "banco": "Banco", "status": "Status",
+                                "margem_disponivel": "Margem Disponível", "mensagem": "Mensagem",
+                                "tempo_segundos": "Tempo (s)"
+                            })
+                            st.dataframe(df_visao_mb, use_container_width=True, hide_index=True)
 
                         buf_hist_mb = io.BytesIO()
                         with pd.ExcelWriter(buf_hist_mb, engine="openpyxl") as writer:
-                            df_visao_mb.to_excel(writer, index=False, sheet_name="Resultados")
+                            df_wide_mb.to_excel(writer, index=False, sheet_name="Resumo por CPF")
+                            df_visao_mb.to_excel(writer, index=False, sheet_name="Detalhado")
                         buf_hist_mb.seek(0)
                         st.download_button(
                             label="📥 Exportar resultado (Excel)", data=buf_hist_mb,
