@@ -1218,6 +1218,39 @@ def v8_clt_consultar_margem(cpf, nome, celular, data_nascimento, genero, email):
     return resultado
 
 
+# Nomes comuns terminados em "a" que na verdade são masculinos (exceções à regra geral)
+_NOMES_MASCULINOS_TERMINADOS_EM_A = {
+    "luca", "joshua", "isaac", "elisha", "noah", "ezra", "yehoshua",
+}
+
+# Nomes femininos comuns no Brasil que não terminam em "a"/"e" típico (fogem da regra de sufixo)
+_NOMES_FEMININOS_CONHECIDOS = {
+    "viviane", "elisabete", "elisabeth", "jaqueline", "marilyn", "ruth", "esther",
+    "raquel", "isis", "ingrid", "carol", "meire", "elizabeth", "nicole", "yasmin",
+    "yasmim", "kelly", "kellen", "eloise", "heloise", "elis", "iris", "miriam",
+    "abgail", "abigail", "jussara", "salete", "elaine", "solange", "helen",
+}
+
+
+def inferir_genero_por_nome(nome_completo):
+    """Estimativa (não garantida) de gênero a partir do primeiro nome, usando
+    a terminação mais comum em português (nomes terminados em 'a'/'ane'/etc -> feminino,
+    mais listas pequenas de exceções conhecidas). Retorna 'male' ou 'female'."""
+    if not nome_completo or not str(nome_completo).strip():
+        return ""
+    primeiro_nome = str(nome_completo).strip().split()[0].lower()
+    primeiro_nome = re.sub(r"[^a-zà-ú]", "", primeiro_nome)
+    if not primeiro_nome:
+        return ""
+    if primeiro_nome in _NOMES_FEMININOS_CONHECIDOS:
+        return "female"
+    if primeiro_nome in _NOMES_MASCULINOS_TERMINADOS_EM_A:
+        return "male"
+    if primeiro_nome.endswith(("a", "ane", "ete", "ice", "riz", "ana", "ela", "ina")):
+        return "female"
+    return "male"
+
+
 # ============================================================
 # CLT MULTI-BANCOS - PROCESSAMENTO EM LOTE UNIFICADO (SOMA + V8)
 # ============================================================
@@ -4595,9 +4628,17 @@ else:
                 "Quais bancos consultar?", ["SOMA", "V8"], default=["SOMA", "V8"], key="mb_bancos_selecionados"
             )
 
+            inferir_genero_mb = False
+            if "V8" in bancos_selecionados_mb:
+                inferir_genero_mb = st.checkbox(
+                    "🤖 Inferir gênero automaticamente pelo primeiro nome quando a coluna 'genero' estiver vazia (estimativa, não garantida)",
+                    value=False, key="mb_inferir_genero"
+                )
+
             st.caption(
                 "CSV único com colunas: cpf, nome, celular (sempre obrigatórias). "
-                "genero ('male' ou 'female') é obrigatório se a V8 estiver selecionada. "
+                "genero ('male' ou 'female') é obrigatório se a V8 estiver selecionada — "
+                "marque a opção acima para tentar preencher automaticamente quando faltar. "
                 "data_nascimento e email são opcionais — se a V8 exigir algum deles, o erro aparece na coluna Mensagem."
             )
 
@@ -4620,14 +4661,15 @@ else:
 
                     faltando_mb = [n for n, v in [("CPF", col_cpf_mb), ("nome", col_nome_mb), ("celular", col_celular_mb)] if v is None]
                     precisa_genero_v8_mb = "V8" in bancos_selecionados_mb
-                    if precisa_genero_v8_mb and col_genero_mb is None:
+                    if precisa_genero_v8_mb and col_genero_mb is None and not inferir_genero_mb:
                         faltando_mb.append("genero")
 
                     if faltando_mb:
                         st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
                         if precisa_genero_v8_mb and "genero" in faltando_mb:
-                            st.caption("A V8 exige o campo 'genero' ('male' ou 'female') — sem ele, a consulta na V8 falha com erro de validação.")
+                            st.caption("A V8 exige o campo 'genero' ('male' ou 'female') — sem ele, a consulta na V8 falha com erro de validação. Marque a opção de inferir automaticamente acima, ou adicione a coluna.")
                     else:
+                        qtd_genero_inferido_mb = 0
                         for num_linha, row in df_up_mb.reset_index().iterrows():
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
                             nome_l = str(row.get(col_nome_mb, "") or "").strip()
@@ -4645,9 +4687,14 @@ else:
                             if len(celular_l) < 10:
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
                                 continue
+
                             if precisa_genero_v8_mb and genero_l not in ("male", "female"):
-                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: genero deve ser 'male' ou 'female' (obrigatório para V8)")
-                                continue
+                                if inferir_genero_mb:
+                                    genero_l = inferir_genero_por_nome(nome_l)
+                                    qtd_genero_inferido_mb += 1
+                                if genero_l not in ("male", "female"):
+                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: genero deve ser 'male' ou 'female' (obrigatório para V8)")
+                                    continue
 
                             registros_mb_processar.append({
                                 "cpf": cpf_l, "nome": nome_l, "celular": celular_l,
@@ -4661,6 +4708,8 @@ else:
 
             if registros_mb_processar:
                 st.success(f"✅ {len(registros_mb_processar)} registro(s) válido(s) — {len(registros_mb_processar) * max(len(bancos_selecionados_mb),1)} consulta(s) no total.")
+                if inferir_genero_mb and qtd_genero_inferido_mb > 0:
+                    st.info(f"🤖 {qtd_genero_inferido_mb} registro(s) tiveram o gênero estimado automaticamente pelo nome (não é garantido — revise se for crítico).")
 
             credenciais_ok_mb = (
                 ("SOMA" not in bancos_selecionados_mb or credencial_soma_ativa_mb) and
