@@ -4637,9 +4637,10 @@ else:
 
             st.caption(
                 "CSV único com colunas: cpf, nome, celular (sempre obrigatórias). "
-                "genero ('male' ou 'female') é obrigatório se a V8 estiver selecionada — "
-                "marque a opção acima para tentar preencher automaticamente quando faltar. "
-                "data_nascimento e email são opcionais — se a V8 exigir algum deles, o erro aparece na coluna Mensagem."
+                "Se a V8 estiver selecionada, também exige genero ('male'/'female') e data_nascimento "
+                "(aceita DD/MM/AAAA ou AAAA-MM-DD, o app converte sozinho) — "
+                "genero pode ser estimado automaticamente (checkbox acima), mas data_nascimento precisa vir no CSV. "
+                "email é opcional."
             )
 
             arquivo_csv_mb = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="mb_upload_csv")
@@ -4655,7 +4656,10 @@ else:
                     col_cpf_mb = next((c for c in ["cpf", "documento", "documentnumber"] if c in df_up_mb.columns), None)
                     col_nome_mb = next((c for c in ["nome", "cliente", "name"] if c in df_up_mb.columns), None)
                     col_celular_mb = next((c for c in ["celular", "telefone", "phone", "fone"] if c in df_up_mb.columns), None)
-                    col_datanasc_mb = next((c for c in ["data_nascimento", "datanascimento", "nascimento"] if c in df_up_mb.columns), None)
+                    col_datanasc_mb = next((c for c in [
+                        "data_nascimento", "datanascimento", "nascimento",
+                        "data nascimento", "data de nascimento", "dt nascimento", "dt_nascimento"
+                    ] if c in df_up_mb.columns), None)
                     col_genero_mb = next((c for c in ["genero", "gênero", "sexo"] if c in df_up_mb.columns), None)
                     col_email_mb = next((c for c in ["email", "e-mail"] if c in df_up_mb.columns), None)
 
@@ -4663,18 +4667,30 @@ else:
                     precisa_genero_v8_mb = "V8" in bancos_selecionados_mb
                     if precisa_genero_v8_mb and col_genero_mb is None and not inferir_genero_mb:
                         faltando_mb.append("genero")
+                    if precisa_genero_v8_mb and col_datanasc_mb is None:
+                        faltando_mb.append("data_nascimento")
 
                     if faltando_mb:
                         st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
                         if precisa_genero_v8_mb and "genero" in faltando_mb:
                             st.caption("A V8 exige o campo 'genero' ('male' ou 'female') — sem ele, a consulta na V8 falha com erro de validação. Marque a opção de inferir automaticamente acima, ou adicione a coluna.")
+                        if precisa_genero_v8_mb and "data_nascimento" in faltando_mb:
+                            st.caption("A V8 também exige 'data_nascimento' no formato AAAA-MM-DD (ex: 1990-05-20) — esse campo não dá pra estimar automaticamente, precisa vir no CSV.")
                     else:
                         qtd_genero_inferido_mb = 0
                         for num_linha, row in df_up_mb.reset_index().iterrows():
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
                             nome_l = str(row.get(col_nome_mb, "") or "").strip()
                             celular_l = limpar_documento(row.get(col_celular_mb, ""))
-                            data_nasc_l = str(row.get(col_datanasc_mb, "") or "").strip() if col_datanasc_mb else ""
+                            data_nasc_bruta_l = str(row.get(col_datanasc_mb, "") or "").strip() if col_datanasc_mb else ""
+                            data_nasc_l = ""
+                            if data_nasc_bruta_l:
+                                if re.match(r"^\d{4}-\d{2}-\d{2}$", data_nasc_bruta_l):
+                                    data_nasc_l = data_nasc_bruta_l
+                                else:
+                                    data_convertida = pd.to_datetime(data_nasc_bruta_l, dayfirst=True, errors="coerce")
+                                    if pd.notna(data_convertida):
+                                        data_nasc_l = data_convertida.strftime("%Y-%m-%d")
                             genero_l = str(row.get(col_genero_mb, "") or "").strip().lower() if col_genero_mb else ""
                             email_l = str(row.get(col_email_mb, "") or "").strip() if col_email_mb else ""
 
@@ -4686,6 +4702,10 @@ else:
                                 continue
                             if len(celular_l) < 10:
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
+                                continue
+
+                            if precisa_genero_v8_mb and not re.match(r"^\d{4}-\d{2}-\d{2}$", data_nasc_l):
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: data_nascimento inválida ou ausente (aceita DD/MM/AAAA ou AAAA-MM-DD — valor lido: '{data_nasc_bruta_l}')")
                                 continue
 
                             if precisa_genero_v8_mb and genero_l not in ("male", "female"):
@@ -4785,9 +4805,11 @@ else:
 
                             for banco_col in bancos_presentes_mb:
                                 sub = df_res_mb[df_res_mb["banco"] == banco_col].set_index("cpf")
-                                df_wide_mb[f"{banco_col} - Status"] = df_wide_mb["CPF"].map(sub["status"])
+                                df_wide_mb[f"{banco_col} - Status"] = df_wide_mb["CPF"].map(sub["status"]).fillna("—")
                                 if "margem_disponivel" in sub.columns:
-                                    df_wide_mb[f"{banco_col} - Margem"] = df_wide_mb["CPF"].map(sub["margem_disponivel"])
+                                    df_wide_mb[f"{banco_col} - Margem"] = df_wide_mb["CPF"].map(sub["margem_disponivel"]).apply(
+                                        lambda v: dinheiro(v) if pd.notna(v) else "—"
+                                    )
 
                             st.dataframe(df_wide_mb, use_container_width=True, hide_index=True)
                         except Exception as e_pivot:
