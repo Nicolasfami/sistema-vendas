@@ -1031,6 +1031,351 @@ def soma_lote_buscar_resultados(rodada_id):
     except Exception:
         return []
 
+# ============================================================
+# CLT MULTI-BANCOS - V8 DIGITAL (Crédito Privado CLT)
+# ============================================================
+V8_CLT_AUTH_URL = "https://auth.v8sistema.com/oauth/token"
+V8_CLT_BASE_URL = "https://bff.v8sistema.com"
+V8_CLT_CLIENT_ID = "DHWogdaYmEI8n5bwwxPDzulMlSK7dwIn"  # mesmo client_id usado no FGTS
+V8_CLT_AUDIENCE = "https://bff.v8sistema.com"
+V8_CLT_PROVIDER = "QI"
+
+_v8_clt_token_cache = {"access_token": None, "obtido_em": 0.0, "username_usado": None}
+_v8_clt_token_lock = threading.Lock()
+_v8_clt_cred_cache = {"credencial": None, "obtido_em": 0.0}
+_v8_clt_cred_cache_lock = threading.Lock()
+
+
+def v8_clt_buscar_credenciais():
+    try:
+        res = supabase.table("v8_clt_credenciais").select("*").order("id", desc=True).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def v8_clt_buscar_credencial_ativa(forcar_novo=False):
+    agora = time.time()
+    with _v8_clt_cred_cache_lock:
+        if not forcar_novo and _v8_clt_cred_cache["credencial"] is not None:
+            if agora - _v8_clt_cred_cache["obtido_em"] < SOMA_CRED_CACHE_TTL_SEGUNDOS:
+                return _v8_clt_cred_cache["credencial"]
+    credencial = None
+    try:
+        res = supabase.table("v8_clt_credenciais").select("*").eq("ativo", True).order("id", desc=True).limit(1).execute()
+        if res.data:
+            credencial = (res.data[0]["username"], res.data[0]["password"])
+    except Exception:
+        pass
+    with _v8_clt_cred_cache_lock:
+        _v8_clt_cred_cache["credencial"] = credencial
+        _v8_clt_cred_cache["obtido_em"] = agora
+    return credencial
+
+
+def v8_clt_obter_token(forcar_novo=False):
+    agora = time.time()
+    credencial = v8_clt_buscar_credencial_ativa(forcar_novo=forcar_novo)
+    if not credencial:
+        raise RuntimeError("Nenhuma credencial V8 (CLT) ativa. Cadastre uma em 'Gerenciar credencial V8'.")
+    username, password = credencial
+
+    with _v8_clt_token_lock:
+        if not forcar_novo and _v8_clt_token_cache["access_token"] and _v8_clt_token_cache["username_usado"] == username:
+            if agora - _v8_clt_token_cache["obtido_em"] < (86400 - 60):
+                return _v8_clt_token_cache["access_token"]
+
+    payload = {
+        "grant_type": "password",
+        "username": username,
+        "password": password,
+        "audience": V8_CLT_AUDIENCE,
+        "scope": "offline_access",
+        "client_id": V8_CLT_CLIENT_ID,
+    }
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    resp = _req.post(V8_CLT_AUTH_URL, data=payload, headers=headers, timeout=30)
+    resp.raise_for_status()
+    data = resp.json()
+    token = data.get("access_token")
+    if not token:
+        raise RuntimeError(f"Resposta de auth V8 (CLT) sem access_token: {data}")
+
+    with _v8_clt_token_lock:
+        _v8_clt_token_cache["access_token"] = token
+        _v8_clt_token_cache["obtido_em"] = agora
+        _v8_clt_token_cache["username_usado"] = username
+    return token
+
+
+def v8_clt_headers():
+    return {"Authorization": f"Bearer {v8_clt_obter_token()}", "Content-Type": "application/json"}
+
+
+def v8_clt_criar_consulta(cpf, nome, celular, data_nascimento, genero, email):
+    """Gera o termo de consentimento / consulta. Retorna o consult_id."""
+    ddd = celular[:2] if len(celular) >= 10 else ""
+    numero = celular[2:] if len(celular) >= 10 else celular
+    payload = {
+        "borrowerDocumentNumber": cpf,
+        "gender": genero,
+        "birthDate": data_nascimento,
+        "signerName": nome,
+        "signerEmail": email,
+        "signerPhone": {
+            "phoneNumber": numero,
+            "countryCode": "55",
+            "areaCode": ddd,
+        },
+        "provider": V8_CLT_PROVIDER,
+    }
+    url = f"{V8_CLT_BASE_URL}/private-consignment/consult"
+    resp = _req.post(url, json=payload, headers=v8_clt_headers(), timeout=30)
+
+    if resp.status_code == 401:
+        resp = _req.post(url, json=payload, headers={
+            "Authorization": f"Bearer {v8_clt_obter_token(forcar_novo=True)}",
+            "Content-Type": "application/json",
+        }, timeout=30)
+
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Erro ao criar consulta V8 (HTTP {resp.status_code}): {resp.text}")
+
+    data = resp.json()
+    consult_id = data.get("id")
+    if not consult_id:
+        raise RuntimeError(f"Resposta sem 'id' ao criar consulta V8: {data}")
+    return consult_id
+
+
+def v8_clt_autorizar_consulta(consult_id):
+    url = f"{V8_CLT_BASE_URL}/private-consignment/consult/{consult_id}/authorize"
+    payload = {
+        "consult_id": consult_id,
+        "operationalSystem": "Linux",
+        "deviceModel": "OperaX-Robot",
+        "deviceName": "OperaX-Robot",
+        "deviceType": "desktop",
+    }
+    resp = _req.post(url, json=payload, headers=v8_clt_headers(), timeout=30)
+    if resp.status_code == 401:
+        resp = _req.post(url, json=payload, headers={
+            "Authorization": f"Bearer {v8_clt_obter_token(forcar_novo=True)}",
+            "Content-Type": "application/json",
+        }, timeout=30)
+    if resp.status_code >= 400:
+        raise RuntimeError(f"Erro ao autorizar consulta V8 (HTTP {resp.status_code}): {resp.text}")
+
+
+def v8_clt_consultar_status(cpf, consult_id, tentativas=15, intervalo_segundos=4):
+    """Faz polling na listagem até status final (SUCCESS/FAILED/REJECTED) ou esgotar tentativas."""
+    url = f"{V8_CLT_BASE_URL}/private-consignment/consult"
+    agora = datetime.now()
+    inicio_periodo = (agora - pd.Timedelta(days=1)).strftime("%Y-%m-%dT00:00:00Z")
+    fim_periodo = agora.strftime("%Y-%m-%dT23:59:59Z")
+    params = {
+        "startDate": inicio_periodo,
+        "endDate": fim_periodo,
+        "limit": 20,
+        "page": 1,
+        "search": cpf,
+        "provider": V8_CLT_PROVIDER,
+    }
+
+    for _tentativa in range(tentativas):
+        resp = _req.get(url, params=params, headers=v8_clt_headers(), timeout=30)
+        if resp.status_code == 401:
+            resp = _req.get(url, params=params, headers={
+                "Authorization": f"Bearer {v8_clt_obter_token(forcar_novo=True)}",
+                "Content-Type": "application/json",
+            }, timeout=30)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"Erro ao consultar status V8 (HTTP {resp.status_code}): {resp.text}")
+
+        data = resp.json()
+        registros = data.get("data", [])
+        candidato = next((r for r in registros if r.get("id") == consult_id), None)
+        if candidato is None and registros:
+            candidato = registros[0]
+
+        if candidato:
+            status = candidato.get("status")
+            if status in ("SUCCESS", "FAILED", "REJECTED"):
+                return candidato
+
+        time.sleep(intervalo_segundos)
+
+    return None
+
+
+def v8_clt_consultar_margem(cpf, nome, celular, data_nascimento, genero, email):
+    """Fluxo completo: cria consulta -> autoriza -> aguarda resultado."""
+    consult_id = v8_clt_criar_consulta(cpf, nome, celular, data_nascimento, genero, email)
+    v8_clt_autorizar_consulta(consult_id)
+    resultado = v8_clt_consultar_status(cpf, consult_id)
+    if resultado is None:
+        raise RuntimeError("Tempo de espera esgotado sem retorno da V8 (CLT).")
+    return resultado
+
+
+# ============================================================
+# CLT MULTI-BANCOS - PROCESSAMENTO EM LOTE UNIFICADO (SOMA + V8)
+# ============================================================
+def clt_mb_status_atual_rodada(rodada_id):
+    try:
+        res = supabase.table("clt_multibanco_rodadas").select("status").eq("id", rodada_id).execute()
+        return res.data[0]["status"] if res.data else None
+    except Exception:
+        return None
+
+
+def clt_mb_ja_processados(rodada_id):
+    try:
+        res = supabase.table("clt_multibanco_resultados").select("cpf,banco").eq("rodada_id", rodada_id).execute()
+        return set((r["cpf"], r["banco"]) for r in (res.data or []))
+    except Exception:
+        return set()
+
+
+def clt_mb_incrementar_processados(rodada_id):
+    try:
+        res_atual = supabase.table("clt_multibanco_rodadas").select("processados").eq("id", rodada_id).execute()
+        processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
+        supabase.table("clt_multibanco_rodadas").update({
+            "processados": processados_atual + 1,
+            "ultimo_processamento_em": str(datetime.now()),
+        }).eq("id", rodada_id).execute()
+    except Exception:
+        pass
+
+
+def clt_mb_processar_um(registro, banco, rodada_id):
+    inicio = time.time()
+    cpf = registro["cpf"]
+    try:
+        if banco == "SOMA":
+            resultado = soma_consultar_margem(
+                cpf, nome=registro.get("nome", ""), celular=registro.get("celular", ""),
+                data_nascimento=registro.get("data_nascimento", ""), bancarizadora="CELCOIN"
+            )
+            status = resultado.get("conStatusNome") or "success"
+            margem = resultado.get("conMargemDisponivel")
+            mensagem = resultado.get("conMensagem")
+        elif banco == "V8":
+            resultado = v8_clt_consultar_margem(
+                cpf, nome=registro.get("nome", ""), celular=registro.get("celular", ""),
+                data_nascimento=registro.get("data_nascimento", ""),
+                genero=registro.get("genero", ""), email=registro.get("email", "")
+            )
+            status = resultado.get("status")
+            margem_str = resultado.get("availableMarginValue")
+            try:
+                margem = float(margem_str) if margem_str not in (None, "") else None
+            except Exception:
+                margem = None
+            mensagem = resultado.get("description")
+        else:
+            raise RuntimeError(f"Banco desconhecido: {banco}")
+
+        supabase.table("clt_multibanco_resultados").insert({
+            "rodada_id": rodada_id, "cpf": cpf, "banco": banco,
+            "status": status, "margem_disponivel": margem, "mensagem": mensagem,
+            "resposta_completa": resultado, "tempo_segundos": round(time.time() - inicio, 1),
+        }).execute()
+    except Exception as e:
+        supabase.table("clt_multibanco_resultados").insert({
+            "rodada_id": rodada_id, "cpf": cpf, "banco": banco,
+            "status": "erro", "mensagem": str(e), "tempo_segundos": round(time.time() - inicio, 1),
+        }).execute()
+
+
+_clt_mb_threads_ativas = {}
+_clt_mb_threads_lock = threading.Lock()
+CLT_MB_NUM_WORKERS = 4
+
+
+def _clt_mb_finalizar(rodada_id):
+    with _clt_mb_threads_lock:
+        _clt_mb_threads_ativas[rodada_id] = _clt_mb_threads_ativas.get(rodada_id, 1) - 1
+        restantes = _clt_mb_threads_ativas[rodada_id]
+    if restantes <= 0:
+        status_banco_final = clt_mb_status_atual_rodada(rodada_id)
+        if status_banco_final == "cancelando":
+            status_final = "cancelada"
+        elif status_banco_final == "pausando":
+            status_final = "pausada"
+        else:
+            status_final = "concluida"
+        update_dados = {"status": status_final}
+        if status_final in ("concluida", "cancelada"):
+            update_dados["finalizado_em"] = str(datetime.now())
+        supabase.table("clt_multibanco_rodadas").update(update_dados).eq("id", rodada_id).execute()
+
+
+def clt_mb_worker(registros_fatia, rodada_id, bancos, parar_flag):
+    ja_processados = clt_mb_ja_processados(rodada_id)
+    for registro in registros_fatia:
+        for banco in bancos:
+            if (registro["cpf"], banco) in ja_processados:
+                continue
+            status_banco = clt_mb_status_atual_rodada(rodada_id)
+            if status_banco == "cancelando" or parar_flag.get("parar") == "cancelar":
+                _clt_mb_finalizar(rodada_id)
+                return
+            if status_banco == "pausando" or parar_flag.get("parar") == "pausar":
+                _clt_mb_finalizar(rodada_id)
+                return
+            clt_mb_processar_um(registro, banco, rodada_id)
+            clt_mb_incrementar_processados(rodada_id)
+
+    _clt_mb_finalizar(rodada_id)
+
+
+def clt_mb_iniciar_threads(registros, rodada_id, bancos, parar_flag, n_workers=CLT_MB_NUM_WORKERS):
+    n_workers = max(1, min(n_workers, len(registros)))
+    fatias = [registros[i::n_workers] for i in range(n_workers)]
+    with _clt_mb_threads_lock:
+        _clt_mb_threads_ativas[rodada_id] = n_workers
+    for fatia in fatias:
+        if not fatia:
+            with _clt_mb_threads_lock:
+                _clt_mb_threads_ativas[rodada_id] -= 1
+            continue
+        thread = threading.Thread(target=clt_mb_worker, args=(fatia, rodada_id, bancos, parar_flag), daemon=True)
+        thread.start()
+
+
+def clt_mb_buscar_rodada_ativa():
+    try:
+        res = supabase.table("clt_multibanco_rodadas").select("*").in_("status", ["em_andamento","pausando","cancelando"]).order("id", desc=True).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+
+def clt_mb_buscar_rodadas_pausadas():
+    try:
+        res = supabase.table("clt_multibanco_rodadas").select("*").eq("status", "pausada").order("id", desc=True).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def clt_mb_buscar_historico(limite=15):
+    try:
+        res = supabase.table("clt_multibanco_rodadas").select("*").order("id", desc=True).limit(limite).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def clt_mb_buscar_resultados(rodada_id):
+    try:
+        res = supabase.table("clt_multibanco_resultados").select("*").eq("rodada_id", rodada_id).execute()
+        return res.data or []
+    except Exception:
+        return []
+
 
 st.markdown("""
 <style>
@@ -1507,6 +1852,7 @@ def icone_svg(nome):
         "chat_wp": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>""",
         "fgts": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>""",
         "clt_lote": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>""",
+        "clt_multi": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9Z"/></svg>""",
     }
     return icones.get(nome,"")
 
@@ -1526,6 +1872,7 @@ def menu_lateral_v8():
             ("🏢 Custos", "custos", "Gestao"),
             ("📑 Consulta FGTS", "fgts", "Gestao"),
             ("🏦 CLT Lote", "clt_lote", "Gestao"),
+            ("🌐 CLT Multi-Bancos", "clt_multi", "Gestao"),
         ]
     else:
         opcoes = [
@@ -1554,7 +1901,7 @@ def menu_lateral_v8():
         nome_limpo = (nome.replace("📋 ","").replace("📊 ","").replace("👥 ","")
                       .replace("💰 ","").replace("🏆 ","").replace("🎯 ","")
                       .replace("🏢 ","").replace("💬 ","").replace("📑 ","")
-                      .replace("🏦 ",""))
+                      .replace("🏦 ","").replace("🌐 ",""))
         if grupo != grupo_atual:
             st.sidebar.markdown(f'''<div class="menu-label-v8">{grupo}</div>''', unsafe_allow_html=True)
             grupo_atual = grupo
@@ -4074,4 +4421,332 @@ else:
                             file_name=f"soma_clt_lote_{rid_h_s}.xlsx",
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True, key=f"export_soma_{rid_h_s}"
+                        )
+
+    elif menu == "🌐 CLT Multi-Bancos":
+        st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">CLT Multi-Bancos — Consulta simultânea</span>', unsafe_allow_html=True)
+        st.caption("Consulta margem/saldo em vários bancos de uma vez (Soma BP2 e V8 Digital), para o produto privado CLT.")
+
+        with st.expander("🔑 Gerenciar credencial V8 (Crédito Privado CLT)"):
+            st.caption("Login e senha da sua conta V8 Digital (mesmo sistema do FGTS, mas essa credencial fica separada para o produto CLT).")
+
+            with st.form("form_nova_credencial_v8_clt", clear_on_submit=True):
+                col_v8c1, col_v8c2, col_v8c3 = st.columns([1.3, 1.8, 1.8])
+                apelido_cred_v8c = col_v8c1.text_input("Apelido", placeholder="Ex: Principal", key="apelido_v8clt")
+                usuario_cred_v8c = col_v8c2.text_input("E-mail (login V8)", key="usuario_v8clt")
+                senha_cred_v8c = col_v8c3.text_input("Senha (login V8)", type="password", key="senha_v8clt")
+                if st.form_submit_button("➕ Adicionar credencial", use_container_width=True):
+                    if not usuario_cred_v8c.strip() or not senha_cred_v8c.strip():
+                        st.error("Preencha e-mail e senha.")
+                    else:
+                        supabase.table("v8_clt_credenciais").insert({
+                            "apelido": apelido_cred_v8c.strip() or usuario_cred_v8c.strip(),
+                            "username": usuario_cred_v8c.strip(),
+                            "password": senha_cred_v8c,
+                            "ativo": True,
+                        }).execute()
+                        st.success("Credencial adicionada e ativada!")
+                        st.rerun()
+
+            credenciais_v8clt_existentes = v8_clt_buscar_credenciais()
+            if not credenciais_v8clt_existentes:
+                st.info("Nenhuma credencial V8 (CLT) cadastrada ainda.")
+            else:
+                st.markdown("**Credenciais cadastradas:**")
+                for cred_v8c in credenciais_v8clt_existentes:
+                    col_v8v1, col_v8v2, col_v8v3 = st.columns([3, 1, 1])
+                    with col_v8v1:
+                        status_ativo_v8c = "🟢 Ativa" if cred_v8c.get("ativo") else "⚪ Inativa"
+                        st.markdown(f"**{cred_v8c.get('apelido','')}** — {cred_v8c.get('username','')} — {status_ativo_v8c}")
+                    with col_v8v2:
+                        if st.button("✅ Tornar ativa", key=f"ativar_v8clt_{cred_v8c['id']}", disabled=bool(cred_v8c.get("ativo"))):
+                            supabase.table("v8_clt_credenciais").update({"ativo": False}).neq("id", cred_v8c["id"]).execute()
+                            supabase.table("v8_clt_credenciais").update({"ativo": True}).eq("id", cred_v8c["id"]).execute()
+                            st.rerun()
+                    with col_v8v3:
+                        if st.button("🗑️ Remover", key=f"del_v8clt_{cred_v8c['id']}"):
+                            supabase.table("v8_clt_credenciais").delete().eq("id", cred_v8c["id"]).execute()
+                            st.rerun()
+
+        st.caption("A credencial da Soma continua sendo gerenciada na aba '🏦 CLT Lote'.")
+
+        credencial_soma_ativa_mb = soma_buscar_credencial_ativa()
+        credencial_v8clt_ativa = v8_clt_buscar_credencial_ativa()
+
+        col_status1, col_status2 = st.columns(2)
+        col_status1.markdown("🟢 Soma: credencial ativa" if credencial_soma_ativa_mb else "🔴 Soma: sem credencial ativa")
+        col_status2.markdown("🟢 V8: credencial ativa" if credencial_v8clt_ativa else "🔴 V8: sem credencial ativa")
+
+        if "clt_mb_flags" not in st.session_state:
+            st.session_state.clt_mb_flags = {}
+
+        rodada_ativa_mb = clt_mb_buscar_rodada_ativa()
+        rodadas_pausadas_mb = clt_mb_buscar_rodadas_pausadas()
+
+        if rodada_ativa_mb:
+            rid_mb = rodada_ativa_mb["id"]
+            status_rid_mb = rodada_ativa_mb.get("status", "em_andamento")
+            total_mb = int(rodada_ativa_mb.get("total_cpfs") or 0)
+            processados_mb = int(rodada_ativa_mb.get("processados") or 0)
+            pct_mb = int((processados_mb / total_mb * 100)) if total_mb > 0 else 0
+
+            if status_rid_mb == "pausando":
+                st.warning(f"⏸️ Rodada #{rid_mb} — pausando...")
+            elif status_rid_mb == "cancelando":
+                st.warning(f"🛑 Rodada #{rid_mb} — cancelando...")
+            else:
+                st.info(f"⏳ Rodada #{rid_mb} em andamento — bancos: {rodada_ativa_mb.get('bancos','')}")
+
+            st.progress(min(pct_mb, 100) / 100, text=f"{processados_mb} de {total_mb} — {pct_mb}% (cada CPF conta 1x por banco consultado)")
+
+            col_rmb1, col_rmb2, col_rmb3 = st.columns([2, 1, 1])
+            with col_rmb1:
+                st.caption("Você pode navegar para outras abas; a consulta continua em segundo plano.")
+            with col_rmb2:
+                if st.button("⏸️ Pausar", use_container_width=True, key=f"pausar_mb_{rid_mb}", disabled=(status_rid_mb != "em_andamento")):
+                    flag_mb = st.session_state.clt_mb_flags.get(rid_mb)
+                    if flag_mb is not None:
+                        flag_mb["parar"] = "pausar"
+                    supabase.table("clt_multibanco_rodadas").update({"status": "pausando"}).eq("id", rid_mb).execute()
+                    time.sleep(1)
+                    st.rerun()
+            with col_rmb3:
+                if st.button("🛑 Cancelar", use_container_width=True, key=f"cancelar_mb_{rid_mb}", disabled=(status_rid_mb != "em_andamento")):
+                    flag_mb = st.session_state.clt_mb_flags.get(rid_mb)
+                    if flag_mb is not None:
+                        flag_mb["parar"] = "cancelar"
+                    supabase.table("clt_multibanco_rodadas").update({"status": "cancelando"}).eq("id", rid_mb).execute()
+                    time.sleep(1)
+                    st.rerun()
+
+            if st.button("🔄 Atualizar progresso", use_container_width=True, key=f"refresh_mb_{rid_mb}"):
+                st.rerun()
+
+            st.caption("Se Pausar/Cancelar não fizer efeito (ex: app reiniciou), force pelo botão abaixo.")
+            if st.button("⚠️ Forçar parada (rodada travada)", key=f"forcar_mb_{rid_mb}"):
+                supabase.table("clt_multibanco_rodadas").update({"status": "pausada"}).eq("id", rid_mb).execute()
+                st.success("Rodada marcada como pausada.")
+                time.sleep(1)
+                st.rerun()
+
+        elif rodadas_pausadas_mb:
+            st.markdown("### ⏸️ Rodadas pausadas")
+            for rod_p_mb in rodadas_pausadas_mb:
+                rid_p_mb = rod_p_mb["id"]
+                total_p_mb = int(rod_p_mb.get("total_cpfs") or 0)
+                proc_p_mb = int(rod_p_mb.get("processados") or 0)
+                pct_p_mb = int((proc_p_mb / total_p_mb * 100)) if total_p_mb > 0 else 0
+
+                with st.container(border=True):
+                    st.markdown(f"**Rodada #{rid_p_mb}** — pausada com {proc_p_mb}/{total_p_mb} ({pct_p_mb}%) — bancos: {rod_p_mb.get('bancos','')}")
+                    resultados_parciais_mb = clt_mb_buscar_resultados(rid_p_mb)
+
+                    col_pmb1, col_pmb2, col_pmb3 = st.columns([1.3, 1.3, 1])
+                    with col_pmb1:
+                        if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_mb_{rid_p_mb}"):
+                            registros_str_mb = rod_p_mb.get("registros_lista") or ""
+                            try:
+                                registros_originais_mb = _json_soma.loads(registros_str_mb) if registros_str_mb else []
+                            except Exception:
+                                registros_originais_mb = []
+                            bancos_originais_mb = [b for b in (rod_p_mb.get("bancos") or "").split(",") if b]
+                            if not registros_originais_mb or not bancos_originais_mb:
+                                st.error("Não encontrei os dados originais desta rodada.")
+                            else:
+                                flag_mb_novo = {"parar": False}
+                                st.session_state.clt_mb_flags[rid_p_mb] = flag_mb_novo
+                                supabase.table("clt_multibanco_rodadas").update({
+                                    "status": "em_andamento",
+                                    "ultimo_processamento_em": str(datetime.now()),
+                                }).eq("id", rid_p_mb).execute()
+                                clt_mb_iniciar_threads(registros_originais_mb, rid_p_mb, bancos_originais_mb, flag_mb_novo)
+                                st.success(f"Rodada #{rid_p_mb} retomada!")
+                                time.sleep(1)
+                                st.rerun()
+                    with col_pmb2:
+                        if resultados_parciais_mb:
+                            st.caption(f"{len(resultados_parciais_mb)} resultado(s) disponível(eis) para exportar abaixo ⬇️")
+                        else:
+                            st.caption("Nenhum resultado salvo ainda.")
+                    with col_pmb3:
+                        confirmar_descarte_mb = st.checkbox("Confirmo", key=f"confirma_descarte_mb_{rid_p_mb}")
+                        if st.button("🗑️ Descartar", use_container_width=True, key=f"descartar_mb_{rid_p_mb}", disabled=not confirmar_descarte_mb):
+                            supabase.table("clt_multibanco_rodadas").update({
+                                "status": "cancelada", "finalizado_em": str(datetime.now()),
+                            }).eq("id", rid_p_mb).execute()
+                            st.success(f"Rodada #{rid_p_mb} descartada.")
+                            time.sleep(1)
+                            st.rerun()
+
+                    if resultados_parciais_mb:
+                        with st.expander(f"📋 Ver/exportar resultados parciais da rodada #{rid_p_mb}"):
+                            df_parcial_mb = pd.DataFrame(resultados_parciais_mb)
+                            st.dataframe(df_parcial_mb, use_container_width=True, hide_index=True)
+
+            st.divider()
+            if st.button("➕ Iniciar nova rodada (sem retomar)", use_container_width=True, key="mb_forcar_nova"):
+                st.session_state["clt_mb_forcar_nova"] = True
+                st.rerun()
+
+        if not rodada_ativa_mb and (not rodadas_pausadas_mb or st.session_state.get("clt_mb_forcar_nova")):
+            st.markdown("### ▶️ Nova consulta multi-bancos")
+
+            bancos_selecionados_mb = st.multiselect(
+                "Quais bancos consultar?", ["SOMA", "V8"], default=["SOMA", "V8"], key="mb_bancos_selecionados"
+            )
+
+            st.caption(
+                "CSV único com colunas: cpf, nome, celular (obrigatórias para todos), "
+                "e data_nascimento, genero, email (obrigatórias apenas se V8 estiver selecionado — genero deve ser 'male' ou 'female', data_nascimento no formato AAAA-MM-DD)."
+            )
+
+            arquivo_csv_mb = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="mb_upload_csv")
+
+            registros_mb_processar = []
+            linhas_com_erro_mb = []
+
+            if arquivo_csv_mb is not None:
+                try:
+                    df_up_mb = pd.read_csv(arquivo_csv_mb, dtype=str, sep=None, engine="python")
+                    df_up_mb.columns = [str(c).strip().lower() for c in df_up_mb.columns]
+
+                    col_cpf_mb = next((c for c in ["cpf", "documento", "documentnumber"] if c in df_up_mb.columns), None)
+                    col_nome_mb = next((c for c in ["nome", "cliente", "name"] if c in df_up_mb.columns), None)
+                    col_celular_mb = next((c for c in ["celular", "telefone", "phone", "fone"] if c in df_up_mb.columns), None)
+                    col_datanasc_mb = next((c for c in ["data_nascimento", "datanascimento", "nascimento"] if c in df_up_mb.columns), None)
+                    col_genero_mb = next((c for c in ["genero", "gênero", "sexo"] if c in df_up_mb.columns), None)
+                    col_email_mb = next((c for c in ["email", "e-mail"] if c in df_up_mb.columns), None)
+
+                    faltando_mb = [n for n, v in [("CPF", col_cpf_mb), ("nome", col_nome_mb), ("celular", col_celular_mb)] if v is None]
+                    precisa_v8_mb = "V8" in bancos_selecionados_mb
+                    if precisa_v8_mb:
+                        faltando_mb += [n for n, v in [("data_nascimento", col_datanasc_mb), ("genero", col_genero_mb), ("email", col_email_mb)] if v is None]
+
+                    if faltando_mb:
+                        st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
+                    else:
+                        for num_linha, row in df_up_mb.reset_index().iterrows():
+                            cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
+                            nome_l = str(row.get(col_nome_mb, "") or "").strip()
+                            celular_l = limpar_documento(row.get(col_celular_mb, ""))
+                            data_nasc_l = str(row.get(col_datanasc_mb, "") or "").strip() if col_datanasc_mb else ""
+                            genero_l = str(row.get(col_genero_mb, "") or "").strip().lower() if col_genero_mb else ""
+                            email_l = str(row.get(col_email_mb, "") or "").strip() if col_email_mb else ""
+
+                            if len(cpf_l) != 11:
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: CPF inválido ({cpf_l})")
+                                continue
+                            if len(nome_l) < 3:
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: nome muito curto")
+                                continue
+                            if len(celular_l) < 10:
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
+                                continue
+                            if precisa_v8_mb:
+                                if genero_l not in ("male", "female"):
+                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: genero deve ser 'male' ou 'female' (V8 selecionado)")
+                                    continue
+                                if not data_nasc_l:
+                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: data_nascimento obrigatória (V8 selecionado)")
+                                    continue
+                                if "@" not in email_l:
+                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: email inválido (V8 selecionado)")
+                                    continue
+
+                            registros_mb_processar.append({
+                                "cpf": cpf_l, "nome": nome_l, "celular": celular_l,
+                                "data_nascimento": data_nasc_l, "genero": genero_l, "email": email_l,
+                            })
+                except Exception as e:
+                    st.error(f"Erro ao ler o arquivo: {e}")
+
+            if linhas_com_erro_mb:
+                st.error("Corrija essas linhas antes de continuar:\n" + "\n".join(linhas_com_erro_mb))
+
+            if registros_mb_processar:
+                st.success(f"✅ {len(registros_mb_processar)} registro(s) válido(s) — {len(registros_mb_processar) * max(len(bancos_selecionados_mb),1)} consulta(s) no total.")
+
+            credenciais_ok_mb = (
+                ("SOMA" not in bancos_selecionados_mb or credencial_soma_ativa_mb) and
+                ("V8" not in bancos_selecionados_mb or credencial_v8clt_ativa)
+            )
+            if not credenciais_ok_mb:
+                st.warning("⚠️ Cadastre a(s) credencial(is) dos bancos selecionados antes de iniciar.")
+
+            if st.button("🚀 Iniciar Consulta Multi-Bancos", use_container_width=True,
+                         disabled=(len(registros_mb_processar) == 0 or len(bancos_selecionados_mb) == 0
+                                   or bool(linhas_com_erro_mb) or not credenciais_ok_mb)):
+                try:
+                    nova_rodada_mb = supabase.table("clt_multibanco_rodadas").insert({
+                        "total_cpfs": len(registros_mb_processar) * len(bancos_selecionados_mb),
+                        "processados": 0,
+                        "status": "em_andamento",
+                        "bancos": ",".join(bancos_selecionados_mb),
+                        "usuario": st.session_state.get("nome", st.session_state.get("usuario", "")),
+                        "registros_lista": _json_soma.dumps(registros_mb_processar),
+                        "ultimo_processamento_em": str(datetime.now()),
+                    }).execute()
+                    rodada_id_nova_mb = nova_rodada_mb.data[0]["id"]
+
+                    flag_nova_mb = {"parar": False}
+                    st.session_state.clt_mb_flags[rodada_id_nova_mb] = flag_nova_mb
+                    clt_mb_iniciar_threads(registros_mb_processar, rodada_id_nova_mb, bancos_selecionados_mb, flag_nova_mb)
+
+                    st.session_state["clt_mb_forcar_nova"] = False
+                    st.success(f"Rodada #{rodada_id_nova_mb} iniciada!")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao iniciar rodada: {e}")
+
+        st.divider()
+        st.markdown("### 🕓 Histórico de rodadas")
+        historico_mb = clt_mb_buscar_historico(15)
+
+        if not historico_mb:
+            st.info("Nenhuma rodada de consulta realizada ainda.")
+        else:
+            badges_status_mb = {
+                "em_andamento": ("⏳ Em andamento", "#fef9c3", "#92400e"),
+                "pausando": ("⏸️ Pausando...", "#fef3c7", "#92400e"),
+                "pausada": ("⏸️ Pausada", "#e0f2fe", "#075985"),
+                "cancelando": ("🛑 Cancelando...", "#fee2e2", "#991b1b"),
+                "concluida": ("✅ Concluída", "#dcfce7", "#166534"),
+                "cancelada": ("🛑 Cancelada", "#fee2e2", "#991b1b"),
+            }
+            for rod_mb in historico_mb:
+                rid_h_mb = rod_mb["id"]
+                status_rod_mb = rod_mb.get("status", "em_andamento")
+                label_status_mb, bg_status_mb, txt_status_mb = badges_status_mb.get(status_rod_mb, (status_rod_mb, "#f1f5f9", "#64748b"))
+                total_r_mb = int(rod_mb.get("total_cpfs") or 0)
+                proc_r_mb = int(rod_mb.get("processados") or 0)
+                iniciado_mb = str(rod_mb.get("iniciado_em", ""))[:16]
+
+                with st.expander(f"Rodada #{rid_h_mb} — {iniciado_mb} — {proc_r_mb}/{total_r_mb} — {label_status_mb} — {rod_mb.get('bancos','')}"):
+                    st.markdown(f'''<span style="background:{bg_status_mb};color:{txt_status_mb};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status_mb}</span>''', unsafe_allow_html=True)
+                    st.caption(f"Usuário: {rod_mb.get('usuario','')} | Bancos: {rod_mb.get('bancos','')}")
+
+                    resultados_rod_mb = clt_mb_buscar_resultados(rid_h_mb)
+                    if not resultados_rod_mb:
+                        st.info("Nenhum resultado registrado ainda para esta rodada.")
+                    else:
+                        df_res_mb = pd.DataFrame(resultados_rod_mb)
+                        colunas_exibir_mb = ["cpf", "banco", "status", "margem_disponivel", "mensagem", "tempo_segundos"]
+                        colunas_exibir_mb = [c for c in colunas_exibir_mb if c in df_res_mb.columns]
+                        df_visao_mb = df_res_mb[colunas_exibir_mb].rename(columns={
+                            "cpf": "CPF", "banco": "Banco", "status": "Status",
+                            "margem_disponivel": "Margem Disponível", "mensagem": "Mensagem",
+                            "tempo_segundos": "Tempo (s)"
+                        })
+                        st.dataframe(df_visao_mb, use_container_width=True, hide_index=True)
+
+                        buf_hist_mb = io.BytesIO()
+                        with pd.ExcelWriter(buf_hist_mb, engine="openpyxl") as writer:
+                            df_visao_mb.to_excel(writer, index=False, sheet_name="Resultados")
+                        buf_hist_mb.seek(0)
+                        st.download_button(
+                            label="📥 Exportar resultado (Excel)", data=buf_hist_mb,
+                            file_name=f"clt_multibanco_{rid_h_mb}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True, key=f"export_mb_{rid_h_mb}"
                         )
