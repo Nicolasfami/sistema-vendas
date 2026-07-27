@@ -4596,9 +4596,9 @@ else:
             )
 
             st.caption(
-                "CSV único com colunas: cpf, nome, celular (obrigatórias). "
-                "data_nascimento, genero, email são opcionais — inclua se tiver, mas se a V8 exigir algum "
-                "desses campos, o erro exato aparece no resultado da consulta (coluna Mensagem)."
+                "CSV único com colunas: cpf, nome, celular (sempre obrigatórias). "
+                "genero ('male' ou 'female') é obrigatório se a V8 estiver selecionada. "
+                "data_nascimento e email são opcionais — se a V8 exigir algum deles, o erro aparece na coluna Mensagem."
             )
 
             arquivo_csv_mb = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="mb_upload_csv")
@@ -4619,9 +4619,14 @@ else:
                     col_email_mb = next((c for c in ["email", "e-mail"] if c in df_up_mb.columns), None)
 
                     faltando_mb = [n for n, v in [("CPF", col_cpf_mb), ("nome", col_nome_mb), ("celular", col_celular_mb)] if v is None]
+                    precisa_genero_v8_mb = "V8" in bancos_selecionados_mb
+                    if precisa_genero_v8_mb and col_genero_mb is None:
+                        faltando_mb.append("genero")
 
                     if faltando_mb:
                         st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
+                        if precisa_genero_v8_mb and "genero" in faltando_mb:
+                            st.caption("A V8 exige o campo 'genero' ('male' ou 'female') — sem ele, a consulta na V8 falha com erro de validação.")
                     else:
                         for num_linha, row in df_up_mb.reset_index().iterrows():
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
@@ -4639,6 +4644,9 @@ else:
                                 continue
                             if len(celular_l) < 10:
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
+                                continue
+                            if precisa_genero_v8_mb and genero_l not in ("male", "female"):
+                                linhas_com_erro_mb.append(f"Linha {num_linha + 2}: genero deve ser 'male' ou 'female' (obrigatório para V8)")
                                 continue
 
                             registros_mb_processar.append({
@@ -4719,6 +4727,26 @@ else:
                         st.info("Nenhum resultado registrado ainda para esta rodada.")
                     else:
                         df_res_mb = pd.DataFrame(resultados_rod_mb)
+
+                        # ── Resumo por CPF: uma linha por CPF, colunas por banco ──
+                        st.markdown("**📊 Resumo por CPF**")
+                        try:
+                            df_res_mb["resumo_banco"] = df_res_mb.apply(
+                                lambda r: (
+                                    f"{r['status']} — R$ {float(r['margem_disponivel']):.2f}"
+                                    if pd.notna(r.get("margem_disponivel"))
+                                    else str(r.get("status") or "—")
+                                ),
+                                axis=1
+                            )
+                            df_pivot_mb = df_res_mb.pivot_table(
+                                index="cpf", columns="banco", values="resumo_banco", aggfunc="first"
+                            ).reset_index().rename(columns={"cpf": "CPF"})
+                            st.dataframe(df_pivot_mb, use_container_width=True, hide_index=True)
+                        except Exception as e_pivot:
+                            st.caption(f"Não consegui montar o resumo por CPF ({e_pivot}) — veja a tabela detalhada abaixo.")
+
+                        st.markdown("**📋 Detalhado**")
                         colunas_exibir_mb = ["cpf", "banco", "status", "margem_disponivel", "mensagem", "tempo_segundos"]
                         colunas_exibir_mb = [c for c in colunas_exibir_mb if c in df_res_mb.columns]
                         df_visao_mb = df_res_mb[colunas_exibir_mb].rename(columns={
