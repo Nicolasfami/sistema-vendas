@@ -4804,8 +4804,16 @@ else:
                         # ── Uma linha por CPF, colunas de Status e Margem por banco ──
                         try:
                             bancos_presentes_mb = sorted(df_res_mb["banco"].dropna().unique().tolist())
-                            df_wide_mb = df_res_mb[["cpf", "nome"]].drop_duplicates(subset=["cpf"]) if "nome" in df_res_mb.columns else df_res_mb[["cpf"]].drop_duplicates()
-                            df_wide_mb = df_wide_mb.rename(columns={"cpf": "CPF"})
+                            df_wide_mb = df_res_mb[["cpf"]].drop_duplicates().rename(columns={"cpf": "CPF"})
+
+                            # Recupera nome/celular originais do CSV enviado nesta rodada
+                            try:
+                                registros_originais_hist_mb = _json_soma.loads(rod_mb.get("registros_lista") or "[]")
+                                mapa_registros_mb = {r["cpf"]: r for r in registros_originais_hist_mb}
+                                df_wide_mb["Nome"] = df_wide_mb["CPF"].map(lambda c: mapa_registros_mb.get(c, {}).get("nome", ""))
+                                df_wide_mb["Celular"] = df_wide_mb["CPF"].map(lambda c: mapa_registros_mb.get(c, {}).get("celular", ""))
+                            except Exception:
+                                pass
 
                             for banco_col in bancos_presentes_mb:
                                 sub = df_res_mb[df_res_mb["banco"] == banco_col].set_index("cpf")
