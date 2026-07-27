@@ -3905,36 +3905,82 @@ else:
             bancarizadora_nova_s = st.selectbox("Bancarizadora", ["UY3", "CELCOIN"], key="soma_bancarizadora_nova")
 
             st.caption("A Soma exige nome e celular junto com o CPF (mínimo 3 caracteres no nome, 10 dígitos no celular).")
-            texto_cpfs_soma = st.text_area(
-                "Cole um por linha, no formato CPF;NOME;CELULAR", height=180,
-                placeholder="12345678900;JOAO DA SILVA;11999999999\n98765432100;MARIA SOUZA;21988887777\n...",
-                key="soma_texto_cpfs"
+
+            modo_entrada_soma = st.radio(
+                "Como deseja informar os dados?",
+                ["Subir arquivo .csv", "Colar lista"],
+                horizontal=True, key="soma_modo_entrada"
             )
 
             cpfs_soma_processar = []
             linhas_com_erro_soma = []
-            if texto_cpfs_soma.strip():
-                for num_linha, linha in enumerate(texto_cpfs_soma.splitlines(), start=1):
-                    linha = linha.strip()
-                    if not linha:
-                        continue
-                    partes = linha.split(";")
-                    if len(partes) < 3:
-                        linhas_com_erro_soma.append(f"Linha {num_linha}: faltam campos (esperado CPF;NOME;CELULAR)")
-                        continue
-                    cpf_l, nome_l, celular_l = partes[0].strip(), partes[1].strip(), partes[2].strip()
-                    cpf_l = limpar_documento(cpf_l)
-                    celular_l = limpar_documento(celular_l)
-                    if len(cpf_l) != 11:
-                        linhas_com_erro_soma.append(f"Linha {num_linha}: CPF inválido ({cpf_l})")
-                        continue
-                    if len(nome_l) < 3:
-                        linhas_com_erro_soma.append(f"Linha {num_linha}: nome muito curto")
-                        continue
-                    if len(celular_l) < 10:
-                        linhas_com_erro_soma.append(f"Linha {num_linha}: celular deve ter no mínimo 10 dígitos")
-                        continue
-                    cpfs_soma_processar.append({"cpf": cpf_l, "nome": nome_l, "celular": celular_l})
+
+            if modo_entrada_soma == "Subir arquivo .csv":
+                st.caption("O arquivo precisa ter colunas de CPF, nome e celular (os nomes das colunas podem variar, ex: 'cpf', 'nome', 'celular'/'telefone').")
+                arquivo_csv_soma = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="soma_upload_csv")
+
+                if arquivo_csv_soma is not None:
+                    try:
+                        df_up_soma = pd.read_csv(arquivo_csv_soma, dtype=str)
+                        df_up_soma.columns = [str(c).strip().lower() for c in df_up_soma.columns]
+
+                        col_cpf_soma = next((c for c in ["cpf", "documento", "documentnumber"] if c in df_up_soma.columns), None)
+                        col_nome_soma = next((c for c in ["nome", "cliente", "name"] if c in df_up_soma.columns), None)
+                        col_celular_soma = next((c for c in ["celular", "telefone", "phone", "fone"] if c in df_up_soma.columns), None)
+
+                        faltando = [nome_col for nome_col, val in
+                                    [("CPF", col_cpf_soma), ("nome", col_nome_soma), ("celular", col_celular_soma)]
+                                    if val is None]
+
+                        if faltando:
+                            st.error(f"Não encontrei coluna(s) de {', '.join(faltando)} no arquivo. Colunas disponíveis: {list(df_up_soma.columns)}")
+                        else:
+                            for num_linha, row in df_up_soma.reset_index().iterrows():
+                                cpf_l = limpar_documento(row.get(col_cpf_soma, ""))
+                                nome_l = str(row.get(col_nome_soma, "") or "").strip()
+                                celular_l = limpar_documento(row.get(col_celular_soma, ""))
+
+                                if len(cpf_l) != 11:
+                                    linhas_com_erro_soma.append(f"Linha {num_linha + 2}: CPF inválido ({cpf_l})")
+                                    continue
+                                if len(nome_l) < 3:
+                                    linhas_com_erro_soma.append(f"Linha {num_linha + 2}: nome muito curto")
+                                    continue
+                                if len(celular_l) < 10:
+                                    linhas_com_erro_soma.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
+                                    continue
+                                cpfs_soma_processar.append({"cpf": cpf_l, "nome": nome_l, "celular": celular_l})
+                    except Exception as e:
+                        st.error(f"Erro ao ler o arquivo: {e}")
+            else:
+                texto_cpfs_soma = st.text_area(
+                    "Cole um por linha, no formato CPF;NOME;CELULAR", height=180,
+                    placeholder="12345678900;JOAO DA SILVA;11999999999\n98765432100;MARIA SOUZA;21988887777\n...",
+                    key="soma_texto_cpfs"
+                )
+
+                if texto_cpfs_soma.strip():
+                    for num_linha, linha in enumerate(texto_cpfs_soma.splitlines(), start=1):
+                        linha = linha.strip()
+                        if not linha:
+                            continue
+                        partes = linha.split(";")
+                        if len(partes) < 3:
+                            linhas_com_erro_soma.append(f"Linha {num_linha}: faltam campos (esperado CPF;NOME;CELULAR)")
+                            continue
+                        cpf_l, nome_l, celular_l = partes[0].strip(), partes[1].strip(), partes[2].strip()
+                        cpf_l = limpar_documento(cpf_l)
+                        celular_l = limpar_documento(celular_l)
+                        if len(cpf_l) != 11:
+                            linhas_com_erro_soma.append(f"Linha {num_linha}: CPF inválido ({cpf_l})")
+                            continue
+                        if len(nome_l) < 3:
+                            linhas_com_erro_soma.append(f"Linha {num_linha}: nome muito curto")
+                            continue
+                        if len(celular_l) < 10:
+                            linhas_com_erro_soma.append(f"Linha {num_linha}: celular deve ter no mínimo 10 dígitos")
+                            continue
+                        cpfs_soma_processar.append({"cpf": cpf_l, "nome": nome_l, "celular": celular_l})
 
             # remove duplicados por CPF mantendo a primeira ocorrência
             vistos_cpf_soma = set()
