@@ -3921,7 +3921,7 @@ else:
 
                 if arquivo_csv_soma is not None:
                     try:
-                        df_up_soma = pd.read_csv(arquivo_csv_soma, dtype=str)
+                        df_up_soma = pd.read_csv(arquivo_csv_soma, dtype=str, sep=None, engine="python")
                         df_up_soma.columns = [str(c).strip().lower() for c in df_up_soma.columns]
 
                         col_cpf_soma = next((c for c in ["cpf", "documento", "documentnumber"] if c in df_up_soma.columns), None)
