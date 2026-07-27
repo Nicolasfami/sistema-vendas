@@ -727,6 +727,287 @@ def fgts_checar_e_religar_rodada_ativa():
 
     return f"Rodada #{rid_check} estava sem atividade há {round(segundos_sem_pulso)}s — religada automaticamente com {len(credenciais_para_retomar_auto)} credencial(is)."
 
+# ============================================================
+# CLT LOTE - CONFIGURAÇÃO API SOMA BP2 (Consignado Privado CLT)
+# ============================================================
+import os as _os_soma
+
+SOMA_BASE_URL = "https://api.somabp2.com.br"
+def _soma_ler_credencial_secrets(nome_chave):
+    try:
+        if nome_chave in st.secrets:
+            return st.secrets[nome_chave]
+    except Exception:
+        pass
+    return _os_soma.environ.get(nome_chave, "")
+
+SOMA_TOKEN_TTL_SEGUNDOS = 30 * 60  # 30 minutos
+
+_soma_token_cache = {"access_token": None, "obtido_em": 0.0, "client_id_usado": None}
+_soma_token_lock = threading.Lock()
+_soma_cred_cache = {"credencial": None, "obtido_em": 0.0}
+_soma_cred_cache_lock = threading.Lock()
+SOMA_CRED_CACHE_TTL_SEGUNDOS = 30
+
+
+def soma_buscar_credenciais():
+    """Lista todas as credenciais Soma BP2 cadastradas no Supabase (mais recente primeiro)."""
+    try:
+        res = supabase.table("soma_credenciais").select("*").order("id", desc=True).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def soma_buscar_credencial_ativa(forcar_novo=False):
+    """Retorna (client_id, client_secret) da credencial ativa no Supabase.
+    Cai para st.secrets/variável de ambiente se não houver nenhuma cadastrada no banco."""
+    agora = time.time()
+    with _soma_cred_cache_lock:
+        if not forcar_novo and _soma_cred_cache["credencial"] is not None:
+            if agora - _soma_cred_cache["obtido_em"] < SOMA_CRED_CACHE_TTL_SEGUNDOS:
+                return _soma_cred_cache["credencial"]
+
+    credencial = None
+    try:
+        res = supabase.table("soma_credenciais").select("*").eq("ativo", True).order("id", desc=True).limit(1).execute()
+        if res.data:
+            credencial = (res.data[0]["client_id"], res.data[0]["client_secret"])
+    except Exception:
+        pass
+
+    if credencial is None:
+        cid_secrets = _soma_ler_credencial_secrets("SOMA_CLIENT_ID")
+        csec_secrets = _soma_ler_credencial_secrets("SOMA_CLIENT_SECRET")
+        if cid_secrets and csec_secrets:
+            credencial = (cid_secrets, csec_secrets)
+
+    with _soma_cred_cache_lock:
+        _soma_cred_cache["credencial"] = credencial
+        _soma_cred_cache["obtido_em"] = agora
+
+    return credencial
+
+
+def soma_obter_token(forcar_novo=False):
+    agora = time.time()
+    credencial = soma_buscar_credencial_ativa(forcar_novo=forcar_novo)
+    if not credencial:
+        raise RuntimeError("Nenhuma credencial Soma BP2 ativa. Cadastre uma em 'Gerenciar credencial Soma BP2' na aba CLT Lote.")
+    client_id, client_secret = credencial
+
+    with _soma_token_lock:
+        if not forcar_novo and _soma_token_cache["access_token"] and _soma_token_cache["client_id_usado"] == client_id:
+            if agora - _soma_token_cache["obtido_em"] < (SOMA_TOKEN_TTL_SEGUNDOS - 60):
+                return _soma_token_cache["access_token"]
+
+    url = f"{SOMA_BASE_URL}/auth/oauth/token"
+    payload = {
+        "grantType": "client_credentials",
+        "clientId": client_id,
+        "clientSecret": client_secret,
+    }
+    resp = _req.post(url, json=payload, timeout=15)
+    resp.raise_for_status()
+    data = resp.json()
+    token = data.get("accessToken")
+    if not token:
+        raise RuntimeError(f"Resposta de autenticação Soma sem 'accessToken': {data}")
+
+    with _soma_token_lock:
+        _soma_token_cache["access_token"] = token
+        _soma_token_cache["obtido_em"] = agora
+        _soma_token_cache["client_id_usado"] = client_id
+    return token
+
+
+def soma_consultar_margem(cpf, nome="", celular="", data_nascimento="", bancarizadora="UY3", max_retries=3):
+    """Consulta margem/saldo (privado CLT) para um CPF via POST /v2/privado/externo/consultas/."""
+    url = f"{SOMA_BASE_URL}/v2/privado/externo/consultas/"
+    payload = {
+        "bancarizadora": bancarizadora,
+        "cpf": cpf,
+        "nome": nome,
+        "celular": celular,
+        "dataNascimento": data_nascimento,
+    }
+
+    ultimo_erro = None
+    for tentativa in range(1, max_retries + 1):
+        try:
+            token = soma_obter_token()
+            headers = {"Authorization": f"Bearer {token}"}
+            resp = _req.post(url, json=payload, headers=headers, timeout=25)
+
+            if resp.status_code == 401:
+                token = soma_obter_token(forcar_novo=True)
+                headers = {"Authorization": f"Bearer {token}"}
+                resp = _req.post(url, json=payload, headers=headers, timeout=25)
+
+            if resp.status_code == 429:
+                raise RuntimeError("Limite diário de consultas atingido na API Soma.")
+
+            resp.raise_for_status()
+            return resp.json()
+
+        except Exception as e:
+            ultimo_erro = e
+            if tentativa < max_retries:
+                time.sleep(2 ** tentativa)
+
+    raise RuntimeError(f"Falha ao consultar CPF {cpf} na Soma após {max_retries} tentativas: {ultimo_erro}")
+
+
+def soma_lote_status_atual_rodada(rodada_id):
+    try:
+        res = supabase.table("soma_lote_rodadas").select("status").eq("id", rodada_id).execute()
+        return res.data[0]["status"] if res.data else None
+    except Exception:
+        return None
+
+
+def soma_lote_cpfs_ja_processados(rodada_id):
+    try:
+        res = supabase.table("soma_lote_resultados").select("cpf").eq("rodada_id", rodada_id).execute()
+        return set(r["cpf"] for r in (res.data or []))
+    except Exception:
+        return set()
+
+
+_soma_lote_threads_ativas = {}
+_soma_lote_threads_lock = threading.Lock()
+SOMA_LOTE_NUM_WORKERS = 4
+
+
+def soma_lote_processar_cpf(cpf, rodada_id, bancarizadora, nome="", celular="", data_nascimento=""):
+    inicio_cpf = time.time()
+    try:
+        resultado = soma_consultar_margem(
+            cpf, nome=nome, celular=celular,
+            data_nascimento=data_nascimento, bancarizadora=bancarizadora
+        )
+        supabase.table("soma_lote_resultados").insert({
+            "rodada_id": rodada_id,
+            "cpf": cpf,
+            "bancarizadora": bancarizadora,
+            "status": "success",
+            "status_soma": resultado.get("conStatusNome"),
+            "margem_disponivel": resultado.get("conMargemDisponivel"),
+            "margem_bruta": resultado.get("conMargemBruta"),
+            "salario_bruto": resultado.get("conSalarioBruto"),
+            "salario_liquido": resultado.get("conSalarioLiquido"),
+            "empregador": resultado.get("conEmpregador"),
+            "mensagem": resultado.get("conMensagem"),
+            "resposta_completa": resultado,
+            "tempo_segundos": round(time.time() - inicio_cpf, 1),
+        }).execute()
+    except Exception as e:
+        supabase.table("soma_lote_resultados").insert({
+            "rodada_id": rodada_id,
+            "cpf": cpf,
+            "bancarizadora": bancarizadora,
+            "status": "erro",
+            "mensagem": str(e),
+            "tempo_segundos": round(time.time() - inicio_cpf, 1),
+        }).execute()
+
+
+def soma_lote_incrementar_processados(rodada_id):
+    try:
+        res_atual = supabase.table("soma_lote_rodadas").select("processados").eq("id", rodada_id).execute()
+        processados_atual = (res_atual.data[0]["processados"] if res_atual.data else 0) or 0
+        supabase.table("soma_lote_rodadas").update({
+            "processados": processados_atual + 1,
+            "ultimo_processamento_em": str(datetime.now()),
+        }).eq("id", rodada_id).execute()
+    except Exception:
+        pass
+
+
+def soma_lote_worker(cpfs_fatia, rodada_id, bancarizadora, parar_flag):
+    ja_processados = soma_lote_cpfs_ja_processados(rodada_id)
+    for cpf in cpfs_fatia:
+        if cpf in ja_processados:
+            continue
+
+        status_banco = soma_lote_status_atual_rodada(rodada_id)
+        if status_banco == "cancelando" or parar_flag.get("parar") == "cancelar":
+            break
+        if status_banco == "pausando" or parar_flag.get("parar") == "pausar":
+            break
+
+        soma_lote_processar_cpf(cpf, rodada_id, bancarizadora)
+        soma_lote_incrementar_processados(rodada_id)
+
+    with _soma_lote_threads_lock:
+        _soma_lote_threads_ativas[rodada_id] = _soma_lote_threads_ativas.get(rodada_id, 1) - 1
+        restantes = _soma_lote_threads_ativas[rodada_id]
+
+    if restantes <= 0:
+        status_banco_final = soma_lote_status_atual_rodada(rodada_id)
+        if status_banco_final == "cancelando":
+            status_final = "cancelada"
+        elif status_banco_final == "pausando":
+            status_final = "pausada"
+        else:
+            status_final = "concluida"
+        update_dados = {"status": status_final}
+        if status_final in ("concluida", "cancelada"):
+            update_dados["finalizado_em"] = str(datetime.now())
+        supabase.table("soma_lote_rodadas").update(update_dados).eq("id", rodada_id).execute()
+
+
+def soma_lote_iniciar_threads(cpfs, rodada_id, bancarizadora, parar_flag, n_workers=SOMA_LOTE_NUM_WORKERS):
+    n_workers = max(1, min(n_workers, len(cpfs)))
+    fatias = [cpfs[i::n_workers] for i in range(n_workers)]
+
+    with _soma_lote_threads_lock:
+        _soma_lote_threads_ativas[rodada_id] = n_workers
+
+    for fatia in fatias:
+        if not fatia:
+            with _soma_lote_threads_lock:
+                _soma_lote_threads_ativas[rodada_id] -= 1
+            continue
+        thread = threading.Thread(
+            target=soma_lote_worker,
+            args=(fatia, rodada_id, bancarizadora, parar_flag),
+            daemon=True
+        )
+        thread.start()
+
+
+def soma_lote_buscar_rodada_ativa():
+    try:
+        res = supabase.table("soma_lote_rodadas").select("*").in_("status", ["em_andamento","pausando","cancelando"]).order("id", desc=True).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception:
+        return None
+
+
+def soma_lote_buscar_rodadas_pausadas():
+    try:
+        res = supabase.table("soma_lote_rodadas").select("*").eq("status", "pausada").order("id", desc=True).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def soma_lote_buscar_historico(limite=15):
+    try:
+        res = supabase.table("soma_lote_rodadas").select("*").order("id", desc=True).limit(limite).execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
+def soma_lote_buscar_resultados(rodada_id):
+    try:
+        res = supabase.table("soma_lote_resultados").select("*").eq("rodada_id", rodada_id).execute()
+        return res.data or []
+    except Exception:
+        return []
+
 
 st.markdown("""
 <style>
@@ -1202,6 +1483,7 @@ def icone_svg(nome):
         "custos": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 9h18M3 15h18M9 3v18M15 3v18M3 3h18v18H3z"/></svg>""",
         "chat_wp": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>""",
         "fgts": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>""",
+        "clt_lote": """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>""",
     }
     return icones.get(nome,"")
 
@@ -1220,6 +1502,7 @@ def menu_lateral_v8():
             ("💰 Comissoes", "comissoes", "Gestao"),
             ("🏢 Custos", "custos", "Gestao"),
             ("📑 Consulta FGTS", "fgts", "Gestao"),
+            ("🏦 CLT Lote", "clt_lote", "Gestao"),
         ]
     else:
         opcoes = [
@@ -1247,7 +1530,8 @@ def menu_lateral_v8():
     for nome, icone_nome, grupo in opcoes:
         nome_limpo = (nome.replace("📋 ","").replace("📊 ","").replace("👥 ","")
                       .replace("💰 ","").replace("🏆 ","").replace("🎯 ","")
-                      .replace("🏢 ","").replace("💬 ","").replace("📑 ",""))
+                      .replace("🏢 ","").replace("💬 ","").replace("📑 ","")
+                      .replace("🏦 ",""))
         if grupo != grupo_atual:
             st.sidebar.markdown(f'''<div class="menu-label-v8">{grupo}</div>''', unsafe_allow_html=True)
             grupo_atual = grupo
@@ -3423,4 +3707,268 @@ else:
                             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                             use_container_width=True,
                             key=f"export_fgts_{rid}"
+                        )
+
+    elif menu == "🏦 CLT Lote":
+        st.markdown('<span style="font-size:20px;font-weight:900;color:#0f172a;font-family:Orbitron,sans-serif;">CLT Lote — Consulta de Margem Soma BP2</span>', unsafe_allow_html=True)
+        st.caption("Consulta margem/saldo em lote (produto privado CLT) via API Soma BP2.")
+
+        with st.expander("🔑 Gerenciar credencial Soma BP2"):
+            st.caption("Cadastre o Client ID/Secret gerados no painel da Soma. Só a credencial marcada como ativa é usada nas consultas.")
+
+            with st.form("form_nova_credencial_soma", clear_on_submit=True):
+                col_cs1, col_cs2, col_cs3 = st.columns([1.3, 1.8, 1.8])
+                apelido_cred_soma = col_cs1.text_input("Apelido", placeholder="Ex: Principal")
+                client_id_cred_soma = col_cs2.text_input("Client ID")
+                client_secret_cred_soma = col_cs3.text_input("Client Secret", type="password")
+                if st.form_submit_button("➕ Adicionar credencial", use_container_width=True):
+                    if not client_id_cred_soma.strip() or not client_secret_cred_soma.strip():
+                        st.error("Preencha Client ID e Client Secret.")
+                    else:
+                        supabase.table("soma_credenciais").insert({
+                            "apelido": apelido_cred_soma.strip() or client_id_cred_soma.strip(),
+                            "client_id": client_id_cred_soma.strip(),
+                            "client_secret": client_secret_cred_soma.strip(),
+                            "ativo": True,
+                        }).execute()
+                        st.success("Credencial adicionada e ativada!")
+                        st.rerun()
+
+            credenciais_soma_existentes = soma_buscar_credenciais()
+            if not credenciais_soma_existentes:
+                st.info("Nenhuma credencial cadastrada ainda. Adicione uma acima para poder consultar.")
+            else:
+                st.markdown("**Credenciais cadastradas:**")
+                for cred_soma in credenciais_soma_existentes:
+                    col_cv1, col_cv2, col_cv3 = st.columns([3, 1, 1])
+                    with col_cv1:
+                        status_ativo_soma = "🟢 Ativa" if cred_soma.get("ativo") else "⚪ Inativa"
+                        st.markdown(f"**{cred_soma.get('apelido','')}** — `{cred_soma.get('client_id','')}` — {status_ativo_soma}")
+                    with col_cv2:
+                        if st.button("✅ Tornar ativa", key=f"ativar_cred_soma_{cred_soma['id']}", disabled=bool(cred_soma.get("ativo"))):
+                            supabase.table("soma_credenciais").update({"ativo": False}).neq("id", cred_soma["id"]).execute()
+                            supabase.table("soma_credenciais").update({"ativo": True}).eq("id", cred_soma["id"]).execute()
+                            st.rerun()
+                    with col_cv3:
+                        if st.button("🗑️ Remover", key=f"del_cred_soma_{cred_soma['id']}"):
+                            supabase.table("soma_credenciais").delete().eq("id", cred_soma["id"]).execute()
+                            st.rerun()
+
+        credencial_soma_ativa = soma_buscar_credencial_ativa()
+        if not credencial_soma_ativa:
+            st.warning("⚠️ Nenhuma credencial Soma BP2 ativa. Cadastre uma acima antes de iniciar consultas.")
+
+        if "soma_lote_flags" not in st.session_state:
+            st.session_state.soma_lote_flags = {}
+
+        rodada_ativa_soma = soma_lote_buscar_rodada_ativa()
+        rodadas_pausadas_soma = soma_lote_buscar_rodadas_pausadas()
+
+        if rodada_ativa_soma:
+            rid_s = rodada_ativa_soma["id"]
+            status_rid_s = rodada_ativa_soma.get("status", "em_andamento")
+            total_s = int(rodada_ativa_soma.get("total_cpfs") or 0)
+            processados_s = int(rodada_ativa_soma.get("processados") or 0)
+            pct_s = int((processados_s / total_s * 100)) if total_s > 0 else 0
+
+            if status_rid_s == "pausando":
+                st.warning(f"⏸️ Rodada #{rid_s} — pausando...")
+            elif status_rid_s == "cancelando":
+                st.warning(f"🛑 Rodada #{rid_s} — cancelando...")
+            else:
+                st.info(f"⏳ Rodada #{rid_s} em andamento — bancarizadora {rodada_ativa_soma.get('bancarizadora','')}")
+
+            st.progress(min(pct_s, 100) / 100, text=f"{processados_s} de {total_s} — {pct_s}%")
+
+            col_rs1, col_rs2, col_rs3 = st.columns([2, 1, 1])
+            with col_rs1:
+                st.caption("Você pode navegar para outras abas; a consulta continua em segundo plano.")
+            with col_rs2:
+                if st.button("⏸️ Pausar", use_container_width=True, key=f"pausar_soma_{rid_s}", disabled=(status_rid_s != "em_andamento")):
+                    flag_s = st.session_state.soma_lote_flags.get(rid_s)
+                    if flag_s is not None:
+                        flag_s["parar"] = "pausar"
+                    supabase.table("soma_lote_rodadas").update({"status": "pausando"}).eq("id", rid_s).execute()
+                    time.sleep(1)
+                    st.rerun()
+            with col_rs3:
+                if st.button("🛑 Cancelar", use_container_width=True, key=f"cancelar_soma_{rid_s}", disabled=(status_rid_s != "em_andamento")):
+                    flag_s = st.session_state.soma_lote_flags.get(rid_s)
+                    if flag_s is not None:
+                        flag_s["parar"] = "cancelar"
+                    supabase.table("soma_lote_rodadas").update({"status": "cancelando"}).eq("id", rid_s).execute()
+                    time.sleep(1)
+                    st.rerun()
+
+            if st.button("🔄 Atualizar progresso", use_container_width=True, key=f"refresh_soma_{rid_s}"):
+                st.rerun()
+
+            st.caption("Se Pausar/Cancelar não fizer efeito (ex: app reiniciou), force pelo botão abaixo.")
+            if st.button("⚠️ Forçar parada (rodada travada)", key=f"forcar_soma_{rid_s}"):
+                supabase.table("soma_lote_rodadas").update({"status": "pausada"}).eq("id", rid_s).execute()
+                st.success("Rodada marcada como pausada.")
+                time.sleep(1)
+                st.rerun()
+
+        elif rodadas_pausadas_soma:
+            st.markdown("### ⏸️ Rodadas pausadas")
+            for rod_p_s in rodadas_pausadas_soma:
+                rid_p_s = rod_p_s["id"]
+                total_p_s = int(rod_p_s.get("total_cpfs") or 0)
+                proc_p_s = int(rod_p_s.get("processados") or 0)
+                pct_p_s = int((proc_p_s / total_p_s * 100)) if total_p_s > 0 else 0
+
+                with st.container(border=True):
+                    st.markdown(f"**Rodada #{rid_p_s}** — pausada com {proc_p_s}/{total_p_s} CPF(s) processados ({pct_p_s}%)")
+                    resultados_parciais_s = soma_lote_buscar_resultados(rid_p_s)
+
+                    col_ps1, col_ps2, col_ps3 = st.columns([1.3, 1.3, 1])
+                    with col_ps1:
+                        if st.button("▶️ Retomar rodada", use_container_width=True, key=f"retomar_soma_{rid_p_s}"):
+                            cpfs_lista_str_s = rod_p_s.get("cpfs_lista") or ""
+                            cpfs_originais_s = [c for c in cpfs_lista_str_s.split(",") if c]
+                            if not cpfs_originais_s:
+                                st.error("Não encontrei a lista original de CPFs desta rodada.")
+                            else:
+                                flag_s = {"parar": False}
+                                st.session_state.soma_lote_flags[rid_p_s] = flag_s
+                                supabase.table("soma_lote_rodadas").update({
+                                    "status": "em_andamento",
+                                    "ultimo_processamento_em": str(datetime.now()),
+                                }).eq("id", rid_p_s).execute()
+                                soma_lote_iniciar_threads(cpfs_originais_s, rid_p_s, rod_p_s.get("bancarizadora", "UY3"), flag_s)
+                                st.success(f"Rodada #{rid_p_s} retomada!")
+                                time.sleep(1)
+                                st.rerun()
+                    with col_ps2:
+                        if resultados_parciais_s:
+                            st.caption(f"{len(resultados_parciais_s)} resultado(s) disponível(eis) para exportar abaixo ⬇️")
+                        else:
+                            st.caption("Nenhum resultado salvo ainda.")
+                    with col_ps3:
+                        confirmar_descarte_s = st.checkbox("Confirmo", key=f"confirma_descarte_soma_{rid_p_s}")
+                        if st.button("🗑️ Descartar", use_container_width=True, key=f"descartar_soma_{rid_p_s}", disabled=not confirmar_descarte_s):
+                            supabase.table("soma_lote_rodadas").update({
+                                "status": "cancelada", "finalizado_em": str(datetime.now()),
+                            }).eq("id", rid_p_s).execute()
+                            st.success(f"Rodada #{rid_p_s} descartada.")
+                            time.sleep(1)
+                            st.rerun()
+
+                    if resultados_parciais_s:
+                        with st.expander(f"📋 Ver/exportar resultados parciais da rodada #{rid_p_s}"):
+                            df_parcial_s = pd.DataFrame(resultados_parciais_s)
+                            st.dataframe(df_parcial_s, use_container_width=True, hide_index=True)
+                            buf_parcial_s = io.BytesIO()
+                            with pd.ExcelWriter(buf_parcial_s, engine="openpyxl") as writer:
+                                df_parcial_s.drop(columns=["resposta_completa"], errors="ignore").to_excel(writer, index=False, sheet_name="Resultados")
+                            buf_parcial_s.seek(0)
+                            st.download_button("📥 Exportar resultado (Excel)", data=buf_parcial_s,
+                                file_name=f"soma_clt_lote_{rid_p_s}_parcial.xlsx",
+                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                use_container_width=True, key=f"export_parcial_soma_{rid_p_s}")
+
+            st.divider()
+            if st.button("➕ Iniciar nova rodada (sem retomar)", use_container_width=True, key="soma_forcar_nova"):
+                st.session_state["soma_lote_forcar_nova"] = True
+                st.rerun()
+
+        if not rodada_ativa_soma and (not rodadas_pausadas_soma or st.session_state.get("soma_lote_forcar_nova")):
+            st.markdown("### ▶️ Nova consulta em lote")
+
+            bancarizadora_nova_s = st.selectbox("Bancarizadora", ["UY3", "CELCOIN"], key="soma_bancarizadora_nova")
+
+            texto_cpfs_soma = st.text_area(
+                "Cole os CPFs (um por linha)", height=180,
+                placeholder="12345678900\n98765432100\n...", key="soma_texto_cpfs"
+            )
+
+            cpfs_soma_processar = []
+            if texto_cpfs_soma.strip():
+                for linha in texto_cpfs_soma.splitlines():
+                    c = limpar_documento(linha)
+                    if len(c) == 11:
+                        cpfs_soma_processar.append(c)
+            cpfs_soma_processar = list(dict.fromkeys(cpfs_soma_processar))
+
+            if cpfs_soma_processar:
+                st.success(f"✅ {len(cpfs_soma_processar)} CPF(s) válido(s) detectado(s).")
+
+            if st.button("🚀 Iniciar Consulta em Lote", use_container_width=True,
+                         disabled=(len(cpfs_soma_processar) == 0 or not credencial_soma_ativa)):
+                try:
+                    nova_rodada_soma = supabase.table("soma_lote_rodadas").insert({
+                        "total_cpfs": len(cpfs_soma_processar),
+                        "processados": 0,
+                        "status": "em_andamento",
+                        "bancarizadora": bancarizadora_nova_s,
+                        "usuario": st.session_state.get("nome", st.session_state.get("usuario", "")),
+                        "cpfs_lista": ",".join(cpfs_soma_processar),
+                        "ultimo_processamento_em": str(datetime.now()),
+                    }).execute()
+                    rodada_id_nova_soma = nova_rodada_soma.data[0]["id"]
+
+                    flag_nova_s = {"parar": False}
+                    st.session_state.soma_lote_flags[rodada_id_nova_soma] = flag_nova_s
+                    soma_lote_iniciar_threads(cpfs_soma_processar, rodada_id_nova_soma, bancarizadora_nova_s, flag_nova_s)
+
+                    st.session_state["soma_lote_forcar_nova"] = False
+                    st.success(f"Rodada #{rodada_id_nova_soma} iniciada! Processando {len(cpfs_soma_processar)} CPF(s).")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao iniciar rodada: {e}")
+
+        st.divider()
+        st.markdown("### 🕓 Histórico de rodadas")
+        historico_soma = soma_lote_buscar_historico(15)
+
+        if not historico_soma:
+            st.info("Nenhuma rodada de consulta realizada ainda.")
+        else:
+            badges_status_soma = {
+                "em_andamento": ("⏳ Em andamento", "#fef9c3", "#92400e"),
+                "pausando": ("⏸️ Pausando...", "#fef3c7", "#92400e"),
+                "pausada": ("⏸️ Pausada", "#e0f2fe", "#075985"),
+                "cancelando": ("🛑 Cancelando...", "#fee2e2", "#991b1b"),
+                "concluida": ("✅ Concluída", "#dcfce7", "#166534"),
+                "cancelada": ("🛑 Cancelada", "#fee2e2", "#991b1b"),
+            }
+            for rod_s in historico_soma:
+                rid_h_s = rod_s["id"]
+                status_rod_s = rod_s.get("status", "em_andamento")
+                label_status_s, bg_status_s, txt_status_s = badges_status_soma.get(status_rod_s, (status_rod_s, "#f1f5f9", "#64748b"))
+                total_r_s = int(rod_s.get("total_cpfs") or 0)
+                proc_r_s = int(rod_s.get("processados") or 0)
+                iniciado_s = str(rod_s.get("iniciado_em", ""))[:16]
+
+                with st.expander(f"Rodada #{rid_h_s} — {iniciado_s} — {proc_r_s}/{total_r_s} CPF(s) — {label_status_s} — {rod_s.get('bancarizadora','')}"):
+                    st.markdown(f'''<span style="background:{bg_status_s};color:{txt_status_s};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status_s}</span>''', unsafe_allow_html=True)
+                    st.caption(f"Usuário: {rod_s.get('usuario','')} | Bancarizadora: {rod_s.get('bancarizadora','')}")
+
+                    resultados_rod_s = soma_lote_buscar_resultados(rid_h_s)
+                    if not resultados_rod_s:
+                        st.info("Nenhum resultado registrado ainda para esta rodada.")
+                    else:
+                        df_res_s = pd.DataFrame(resultados_rod_s)
+                        colunas_exibir_s = ["cpf", "bancarizadora", "status", "status_soma", "margem_disponivel", "margem_bruta", "salario_bruto", "salario_liquido", "empregador", "mensagem", "tempo_segundos"]
+                        colunas_exibir_s = [c for c in colunas_exibir_s if c in df_res_s.columns]
+                        df_visao_s = df_res_s[colunas_exibir_s].rename(columns={
+                            "cpf": "CPF", "bancarizadora": "Bancarizadora", "status": "Status",
+                            "status_soma": "Status Soma", "margem_disponivel": "Margem Disponível",
+                            "margem_bruta": "Margem Bruta", "salario_bruto": "Salário Bruto",
+                            "salario_liquido": "Salário Líquido", "empregador": "Empregador",
+                            "mensagem": "Mensagem", "tempo_segundos": "Tempo (s)"
+                        })
+                        st.dataframe(df_visao_s, use_container_width=True, hide_index=True)
+
+                        buf_hist_s = io.BytesIO()
+                        with pd.ExcelWriter(buf_hist_s, engine="openpyxl") as writer:
+                            df_visao_s.to_excel(writer, index=False, sheet_name="Resultados")
+                        buf_hist_s.seek(0)
+                        st.download_button(
+                            label="📥 Exportar resultado (Excel)", data=buf_hist_s,
+                            file_name=f"soma_clt_lote_{rid_h_s}.xlsx",
+                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                            use_container_width=True, key=f"export_soma_{rid_h_s}"
                         )
