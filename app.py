@@ -4795,9 +4795,6 @@ else:
                 iniciado_mb = str(rod_mb.get("iniciado_em", ""))[:16]
 
                 with st.expander(f"Rodada #{rid_h_mb} — {iniciado_mb} — {proc_r_mb}/{total_r_mb} — {label_status_mb} — {rod_mb.get('bancos','')}"):
-                    st.markdown(f'''<span style="background:{bg_status_mb};color:{txt_status_mb};padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;">{label_status_mb}</span>''', unsafe_allow_html=True)
-                    st.caption(f"Usuário: {rod_mb.get('usuario','')} | Bancos: {rod_mb.get('bancos','')}")
-
                     resultados_rod_mb = clt_mb_buscar_resultados(rid_h_mb)
                     if not resultados_rod_mb:
                         st.info("Nenhum resultado registrado ainda para esta rodada.")
