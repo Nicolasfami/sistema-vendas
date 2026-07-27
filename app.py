@@ -4596,8 +4596,9 @@ else:
             )
 
             st.caption(
-                "CSV único com colunas: cpf, nome, celular (obrigatórias para todos), "
-                "e data_nascimento, genero, email (obrigatórias apenas se V8 estiver selecionado — genero deve ser 'male' ou 'female', data_nascimento no formato AAAA-MM-DD)."
+                "CSV único com colunas: cpf, nome, celular (obrigatórias). "
+                "data_nascimento, genero, email são opcionais — inclua se tiver, mas se a V8 exigir algum "
+                "desses campos, o erro exato aparece no resultado da consulta (coluna Mensagem)."
             )
 
             arquivo_csv_mb = st.file_uploader("Selecione o arquivo .csv", type=["csv"], key="mb_upload_csv")
@@ -4618,9 +4619,6 @@ else:
                     col_email_mb = next((c for c in ["email", "e-mail"] if c in df_up_mb.columns), None)
 
                     faltando_mb = [n for n, v in [("CPF", col_cpf_mb), ("nome", col_nome_mb), ("celular", col_celular_mb)] if v is None]
-                    precisa_v8_mb = "V8" in bancos_selecionados_mb
-                    if precisa_v8_mb:
-                        faltando_mb += [n for n, v in [("data_nascimento", col_datanasc_mb), ("genero", col_genero_mb), ("email", col_email_mb)] if v is None]
 
                     if faltando_mb:
                         st.error(f"Não encontrei coluna(s) de {', '.join(faltando_mb)} no arquivo. Colunas disponíveis: {list(df_up_mb.columns)}")
@@ -4642,16 +4640,6 @@ else:
                             if len(celular_l) < 10:
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: celular deve ter no mínimo 10 dígitos")
                                 continue
-                            if precisa_v8_mb:
-                                if genero_l not in ("male", "female"):
-                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: genero deve ser 'male' ou 'female' (V8 selecionado)")
-                                    continue
-                                if not data_nasc_l:
-                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: data_nascimento obrigatória (V8 selecionado)")
-                                    continue
-                                if "@" not in email_l:
-                                    linhas_com_erro_mb.append(f"Linha {num_linha + 2}: email inválido (V8 selecionado)")
-                                    continue
 
                             registros_mb_processar.append({
                                 "cpf": cpf_l, "nome": nome_l, "celular": celular_l,
