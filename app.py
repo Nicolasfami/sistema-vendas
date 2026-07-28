@@ -4317,7 +4317,8 @@ else:
                         else:
                             for num_linha, row in df_up_soma.reset_index().iterrows():
                                 cpf_l = limpar_documento(row.get(col_cpf_soma, ""))
-                                nome_l = str(row.get(col_nome_soma, "") or "").strip()
+                                _nome_bruto_soma = row.get(col_nome_soma, "")
+                                nome_l = "" if pd.isna(_nome_bruto_soma) else str(_nome_bruto_soma).strip()
                                 celular_l = limpar_documento(row.get(col_celular_soma, ""))
 
                                 if not cpf_l and not nome_l and not celular_l:
@@ -4686,13 +4687,15 @@ else:
                         qtd_genero_inferido_mb = 0
                         for num_linha, row in df_up_mb.reset_index().iterrows():
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
-                            nome_l = str(row.get(col_nome_mb, "") or "").strip()
+                            _nome_bruto_mb = row.get(col_nome_mb, "")
+                            nome_l = "" if pd.isna(_nome_bruto_mb) else str(_nome_bruto_mb).strip()
                             celular_l = limpar_documento(row.get(col_celular_mb, ""))
 
                             if not cpf_l and not nome_l and not celular_l:
                                 continue  # linha em branco (comum em CSVs exportados do Excel) — ignora silenciosamente
 
-                            data_nasc_bruta_l = str(row.get(col_datanasc_mb, "") or "").strip() if col_datanasc_mb else ""
+                            _datanasc_bruto_mb = row.get(col_datanasc_mb, "") if col_datanasc_mb else ""
+                            data_nasc_bruta_l = "" if pd.isna(_datanasc_bruto_mb) else str(_datanasc_bruto_mb).strip()
                             data_nasc_l = ""
                             if data_nasc_bruta_l:
                                 if re.match(r"^\d{4}-\d{2}-\d{2}$", data_nasc_bruta_l):
@@ -4701,8 +4704,10 @@ else:
                                     data_convertida = pd.to_datetime(data_nasc_bruta_l, dayfirst=True, errors="coerce")
                                     if pd.notna(data_convertida):
                                         data_nasc_l = data_convertida.strftime("%Y-%m-%d")
-                            genero_l = str(row.get(col_genero_mb, "") or "").strip().lower() if col_genero_mb else ""
-                            email_l = str(row.get(col_email_mb, "") or "").strip() if col_email_mb else ""
+                            _genero_bruto_mb = row.get(col_genero_mb, "") if col_genero_mb else ""
+                            genero_l = "" if pd.isna(_genero_bruto_mb) else str(_genero_bruto_mb).strip().lower()
+                            _email_bruto_mb = row.get(col_email_mb, "") if col_email_mb else ""
+                            email_l = "" if pd.isna(_email_bruto_mb) else str(_email_bruto_mb).strip()
 
                             if len(cpf_l) != 11:
                                 linhas_com_erro_mb.append(f"Linha {num_linha + 2}: CPF inválido ({cpf_l})")
@@ -4817,8 +4822,8 @@ else:
                             try:
                                 registros_originais_hist_mb = _json_soma.loads(rod_mb.get("registros_lista") or "[]")
                                 mapa_registros_mb = {r["cpf"]: r for r in registros_originais_hist_mb}
-                                df_wide_mb["Nome"] = df_wide_mb["CPF"].map(lambda c: mapa_registros_mb.get(c, {}).get("nome", ""))
                                 df_wide_mb["Celular"] = df_wide_mb["CPF"].map(lambda c: mapa_registros_mb.get(c, {}).get("celular", ""))
+                                df_wide_mb["Nome"] = df_wide_mb["CPF"].map(lambda c: mapa_registros_mb.get(c, {}).get("nome", ""))
                             except Exception:
                                 pass
 
