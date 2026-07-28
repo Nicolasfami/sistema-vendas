@@ -4317,8 +4317,8 @@ else:
                         else:
                             for num_linha, row in df_up_soma.reset_index().iterrows():
                                 cpf_l = limpar_documento(row.get(col_cpf_soma, ""))
-                                if len(cpf_l) == 10:
-                                    cpf_l = cpf_l.zfill(11)  # Excel costuma derrubar o zero à esquerda do CPF
+                                if 8 <= len(cpf_l) < 11:
+                                    cpf_l = cpf_l.zfill(11)  # Excel costuma derrubar zero(s) à esquerda do CPF
                                 _nome_bruto_soma = row.get(col_nome_soma, "")
                                 nome_l = "" if pd.isna(_nome_bruto_soma) else str(_nome_bruto_soma).strip()
                                 celular_l = limpar_documento(row.get(col_celular_soma, ""))
@@ -4689,8 +4689,8 @@ else:
                         qtd_genero_inferido_mb = 0
                         for num_linha, row in df_up_mb.reset_index().iterrows():
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
-                            if len(cpf_l) == 10:
-                                cpf_l = cpf_l.zfill(11)  # Excel costuma derrubar o zero à esquerda do CPF
+                            if 8 <= len(cpf_l) < 11:
+                                cpf_l = cpf_l.zfill(11)  # Excel costuma derrubar zero(s) à esquerda do CPF
                             _nome_bruto_mb = row.get(col_nome_mb, "")
                             nome_l = "" if pd.isna(_nome_bruto_mb) else str(_nome_bruto_mb).strip()
                             celular_l = limpar_documento(row.get(col_celular_mb, ""))
