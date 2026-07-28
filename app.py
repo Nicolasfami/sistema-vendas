@@ -4320,6 +4320,9 @@ else:
                                 nome_l = str(row.get(col_nome_soma, "") or "").strip()
                                 celular_l = limpar_documento(row.get(col_celular_soma, ""))
 
+                                if not cpf_l and not nome_l and not celular_l:
+                                    continue  # linha em branco (comum em CSVs exportados do Excel) — ignora silenciosamente
+
                                 if len(cpf_l) != 11:
                                     linhas_com_erro_soma.append(f"Linha {num_linha + 2}: CPF inválido ({cpf_l})")
                                     continue
@@ -4685,6 +4688,10 @@ else:
                             cpf_l = limpar_documento(row.get(col_cpf_mb, ""))
                             nome_l = str(row.get(col_nome_mb, "") or "").strip()
                             celular_l = limpar_documento(row.get(col_celular_mb, ""))
+
+                            if not cpf_l and not nome_l and not celular_l:
+                                continue  # linha em branco (comum em CSVs exportados do Excel) — ignora silenciosamente
+
                             data_nasc_bruta_l = str(row.get(col_datanasc_mb, "") or "").strip() if col_datanasc_mb else ""
                             data_nasc_l = ""
                             if data_nasc_bruta_l:
