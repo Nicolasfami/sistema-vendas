@@ -4282,7 +4282,7 @@ else:
         if not rodada_ativa_soma and (not rodadas_pausadas_soma or st.session_state.get("soma_lote_forcar_nova")):
             st.markdown("### ▶️ Nova consulta em lote")
 
-            bancarizadora_nova_s = st.selectbox("Bancarizadora", ["UY3", "CELCOIN"], key="soma_bancarizadora_nova")
+            bancarizadora_nova_s = st.selectbox("Bancarizadora", ["CELCOIN", "UY3"], key="soma_bancarizadora_nova")
 
             st.caption("A Soma exige nome e celular junto com o CPF (mínimo 3 caracteres no nome, 10 dígitos no celular).")
 
