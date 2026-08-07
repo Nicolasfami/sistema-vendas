@@ -2019,10 +2019,21 @@ else:
 
     if st.session_state.tipo != "admin":
         st.markdown("""<style>
-        header[data-testid="stHeader"] { display: none !important; }
+        header[data-testid="stHeader"] { background: transparent !important; box-shadow: none !important; height: auto !important; min-height: 0 !important; }
+        header[data-testid="stHeader"] [data-testid="stToolbar"] { display: none !important; }
         [data-testid="stToolbar"] { display: none !important; }
         #MainMenu { display: none !important; }
         footer { display: none !important; }
+        [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            z-index: 999999 !important;
+        }
+        header[data-testid="stHeader"] [data-testid="stSidebarCollapsedControl"],
+        header[data-testid="stHeader"] [data-testid="collapsedControl"] {
+            visibility: visible !important;
+        }
         </style>""", unsafe_allow_html=True)
 
     if "mostrar_comissao_empresa" not in st.session_state:
